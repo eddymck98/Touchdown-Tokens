@@ -16,51 +16,112 @@ st.set_page_config(page_title="Touchdown Tokens", page_icon="🏈", layout="cent
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# Custom CSS for UI styling
-    st.markdown("""
+# Custom CSS for Gold & Navy Dark Sports Theme
+st.markdown("""
     <style>
-    /* Change the background color of the main app area */
+    /* Main App Background */
     .stApp {
-        background-color: #0e1117;
-        color: #ffffff;
+        background: linear-gradient(180deg, #0b132b 0%, #1c2541 100%);
+        color: #f8fafc;
     }
     
-    /* Change sidebar background color */
+    /* Sidebar Styling */
     section[data-testid="stSidebar"] {
-        background-color: #161b22;
+        background-color: #070d1f !important;
+        border-right: 1px solid #1e293b;
+    }
+    
+    /* Header Graphic / Logo Container */
+    .header-logo-container {
+        text-align: center;
+        padding: 10px 0 20px 0;
+    }
+    .header-logo {
+        width: 90px;
+        filter: drop-shadow(0px 4px 10px rgba(251, 191, 36, 0.4));
+    }
+    
+    /* Hero Token Display Card */
+    .big-token-card {
+        background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+        padding: 30px;
+        border-radius: 16px;
+        color: white;
+        text-align: center;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        border: 2px solid #fbbf24;
+        margin-bottom: 25px;
+    }
+    .big-token-number {
+        font-size: 58px;
+        font-weight: 900;
+        margin: 5px 0;
+        color: #fbbf24;
+        text-shadow: 0px 2px 10px rgba(251, 191, 36, 0.3);
+    }
+    
+    /* Summary & Rules Card Containers */
+    .summary-box {
+        background-color: #111827 !important;
+        border-left: 5px solid #fbbf24 !important;
+        padding: 18px;
+        border-radius: 8px;
+        color: #f1f5f9 !important;
+        margin-top: 15px;
+        border-top: 1px solid #1f2937;
+        border-right: 1px solid #1f2937;
+        border-bottom: 1px solid #1f2937;
+    }
+    
+    /* Custom Styled Buttons */
+    div.stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+        color: #000000 !important;
+        font-weight: 800 !important;
+        border-radius: 10px !important;
+        border: none !important;
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3) !important;
+        transition: all 0.2s ease-in-out;
+    }
+    div.stButton > button[kind="primary"]:hover {
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(245, 158, 11, 0.5) !important;
+    }
+    
+    /* Form Submissions Button Styling */
+    div.stFormSubmitButton > button {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+        color: #000000 !important;
+        font-weight: 800 !important;
+        border-radius: 10px !important;
+        border: none !important;
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3) !important;
+    }
+    
+    /* Input Labels and Form Controls Contrast */
+    .stTextInput > label, .stNumberInput > label, .stRadio > label, .stSelectbox > label {
+        color: #f8fafc !important;
+        font-weight: 600 !important;
+    }
+    
+    /* Tabs Header Styling */
+    button[data-baseweb="tab"] {
+        color: #94a3b8 !important;
+        font-weight: 600 !important;
+    }
+    button[aria-selected="true"] {
+        color: #fbbf24 !important;
+        border-bottom-color: #fbbf24 !important;
     }
     </style>
 """, unsafe_allow_html=True)
-    .big-token-card {
-        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-        padding: 25px;
-        border-radius: 15px;
-        color: white;
-        text-align: center;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-    }
-    .big-token-number {
-        font-size: 52px;
-        font-weight: 800;
-        margin: 5px 0;
-        color: #ffcc00;
-    }
-    .summary-box {
-        background-color: #f8f9fa;
-        border-left: 5px solid #2a5298;
-        padding: 15px;
-        border-radius: 5px;
-        margin-top: 10px;
-    }
-    .rules-card {
-        background-color: #f8f9fa;
-        padding: 20px;
-        border-radius: 10px;
-        border: 1px solid #e9ecef;
-        margin-top: 15px;
-    }
-    </style>
+
+# Top Football Logo Graphic
+st.markdown("""
+    <div class="header-logo-container">
+        <img src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" class="header-logo" alt="NFL Logo" />
+    </div>
 """, unsafe_allow_html=True)
 
 st.title("🏈 Touchdown Tokens")
@@ -149,9 +210,9 @@ else:
         # Big Token Balance Hero Display
         st.markdown(f"""
             <div class="big-token-card">
-                <div style="font-size: 18px; letter-spacing: 1px; text-transform: uppercase;">Current Balance</div>
+                <div style="font-size: 16px; letter-spacing: 2px; text-transform: uppercase; color: #93c5fd;">Current Balance</div>
                 <div class="big-token-number">{profile['tokens']} 🪙</div>
-                <div style="font-size: 14px; opacity: 0.8;">Touchdown Tokens</div>
+                <div style="font-size: 14px; color: #cbd5e1;">Touchdown Tokens</div>
             </div>
         """, unsafe_allow_html=True)
         
