@@ -16,10 +16,31 @@ st.set_page_config(page_title="Touchdown Tokens", page_icon="🏈", layout="cent
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# Custom CSS styling
+# Custom CSS for Big Stats Display
 st.markdown("""
     <style>
-    .metric-box { padding: 15px; border-radius: 10px; background-color: #f0f2f6; text-align: center; }
+    .big-token-card {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        padding: 25px;
+        border-radius: 15px;
+        color: white;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .big-token-number {
+        font-size: 52px;
+        font-weight: 800;
+        margin: 5px 0;
+        color: #ffcc00;
+    }
+    .summary-box {
+        background-color: #f8f9fa;
+        border-left: 5px solid #2a5298;
+        padding: 15px;
+        border-radius: 5px;
+        margin-top: 10px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -90,14 +111,89 @@ else:
         st.session_state.user = None
         st.rerun()
 
+    # Dynamic Tabs Layout
     if profile.get("is_admin"):
-        tab_bet, tab_history, tab_leaders, tab_admin = st.tabs(
-            ["🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "⚙️ Admin Control"]
+        tab_home, tab_bet, tab_history, tab_leaders, tab_admin = st.tabs(
+            ["🏠 Home", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "⚙️ Admin Control"]
         )
     else:
-        tab_bet, tab_history, tab_leaders = st.tabs(
-            ["🎯 Place Bets", "📜 My History", "🏆 Leaderboard"]
+        tab_home, tab_bet, tab_history, tab_leaders = st.tabs(
+            ["🏠 Home", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard"]
         )
+
+    # ------------------------------------------
+    # TAB 0: HOME / DASHBOARD SCREEN
+    # ------------------------------------------
+    with tab_home:
+        st.markdown(f"## Welcome back, {profile['full_name']}! 👋")
+        
+        # Big Token Balance Hero Display
+        st.markdown(f"""
+            <div class="big-token-card">
+                <div style="font-size: 18px; letter-spacing: 1px; text-transform: uppercase;">Current Balance</div>
+                <div class="big-token-number">{profile['tokens']} 🪙</div>
+                <div style="font-size: 14px; opacity: 0.8;">Touchdown Tokens</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.divider()
+        st.subheader("📊 Last Week's Performance Summary")
+        
+        # Find the latest graded week
+        graded_q = supabase.table("weekly_questions").select("week_number").neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
+        
+        if not graded_q:
+            st.info("No weeks have been graded yet. Place your bets for Week 1 to get started!")
+        else:
+            latest_graded_week = graded_q[0]["week_number"]
+            
+            # Fetch user bets for latest graded week
+            lw_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("user_id", user_id).eq("week_number", latest_graded_week).execute().data
+            
+            # Fetch TD pick for latest graded week
+            lw_td = supabase.table("touchdown_picks").select("*").eq("user_id", user_id).eq("week_number", latest_graded_week).execute().data
+            
+            if not lw_bets and not lw_td:
+                st.warning(f"You did not submit any bets or touchdown picks for Week {latest_graded_week}.")
+            else:
+                bet_gains = 0
+                bet_losses = 0
+                correct_count = 0
+                total_bets_placed = len(lw_bets)
+                
+                for b in lw_bets:
+                    w_ans = b.get("weekly_questions", {}).get("winning_answer")
+                    if w_ans in ["Yes", "No"]:
+                        if b["pick"] == w_ans:
+                            bet_gains += b["wager_amount"]  # Net profit doubled
+                            correct_count += 1
+                        else:
+                            bet_losses += b["wager_amount"]
+                
+                # Check Touchdown bonus
+                td_bonus = 5 if (lw_td and lw_td[0].get("is_correct")) else 0
+                td_player = lw_td[0]["player_name"] if lw_td else "None"
+                
+                net_total = bet_gains - bet_losses + td_bonus
+                
+                st.markdown(f"### Week {latest_graded_week} Results")
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Net Tokens Earned", f"{'+' if net_total >= 0 else ''}{net_total} 🪙")
+                with col2:
+                    st.metric("Questions Correct", f"{correct_count} / {total_bets_placed}")
+                with col3:
+                    st.metric("TD Scorer Bonus", f"+{td_bonus} 🪙" if td_bonus > 0 else "0 🪙")
+                
+                st.markdown(f"""
+                <div class="summary-box">
+                    <b>Week {latest_graded_week} Breakdown:</b><br>
+                    • <b>Question Wins:</b> +{bet_gains} Tokens<br>
+                    • <b>Question Losses:</b> -{bet_losses} Tokens<br>
+                    • <b>Touchdown Scorer Pick:</b> '{td_player}' ({'✅ +5 Tokens' if td_bonus > 0 else '❌ Missed'})
+                </div>
+                """, unsafe_allow_html=True)
 
     # ------------------------------------------
     # TAB 1: BETTING FORM & QUESTION SUBMISSION
@@ -113,11 +209,9 @@ else:
         else:
             selected_week = st.selectbox("Select Week:", available_weeks, index=len(available_weeks)-1)
             
-            # Fetch questions for selected week
             q_res = supabase.table("weekly_questions").select("*").eq("week_number", selected_week).order("question_number").execute()
             questions = q_res.data
             
-            # Check if this week is locked
             is_locked = any(q.get("winning_answer") == "LOCKED" for q in questions)
             
             if is_locked:
@@ -158,7 +252,6 @@ else:
                     st.markdown("### 🏈 Bonus Touchdown Scorer Pick")
                     st.caption("Name 1 player to score a TD this week. Correct pick = +5 Bonus Tokens!")
                     
-                    # Fetch existing TD pick if already submitted
                     existing_td = supabase.table("touchdown_picks").select("player_name").eq("user_id", user_id).eq("week_number", selected_week).execute().data
                     default_td = existing_td[0]["player_name"] if existing_td else ""
                     
@@ -337,7 +430,6 @@ else:
                         st.markdown("#### 🏈 Touchdown Scorer Correct Picks")
                         st.caption("Check the box next to any player who successfully scored a TD (+5 bonus tokens).")
                         
-                        # Fetch TD picks with clean name mapping
                         td_picks_data = supabase.table("touchdown_picks").select("*").eq("week_number", grade_week).execute().data
                         all_profiles = supabase.table("profiles").select("id, full_name").execute().data
                         profile_dict = {p["id"]: p["full_name"] for p in all_profiles}
@@ -355,6 +447,10 @@ else:
                                 )
                                 if is_winner:
                                     td_winners.append(td["user_id"])
+                                    # Update is_correct flag in database
+                                    supabase.table("touchdown_picks").update({"is_correct": True}).eq("id", td["id"]).execute()
+                                else:
+                                    supabase.table("touchdown_picks").update({"is_correct": False}).eq("id", td["id"]).execute()
 
                         if st.form_submit_button("Calculate & Process Payouts 🏆", type="primary"):
                             for q_id, ans in answers.items():
