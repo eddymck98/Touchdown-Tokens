@@ -16,39 +16,39 @@ st.set_page_config(page_title="Touchdown Tokens", page_icon="🏈", layout="cent
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# Custom CSS for Gold & Navy Dark Sports Theme
+# Custom High-Contrast CSS Styling
 st.markdown("""
     <style>
     /* Main App Background */
     .stApp {
-        background: linear-gradient(180deg, #0b132b 0%, #1c2541 100%);
+        background: linear-gradient(180deg, #070d19 0%, #0f172a 100%);
         color: #f8fafc;
     }
     
     /* Sidebar Styling */
     section[data-testid="stSidebar"] {
-        background-color: #070d1f !important;
+        background-color: #030712 !important;
         border-right: 1px solid #1e293b;
     }
     
-    /* Header Graphic / Logo Container */
+    /* Header Logo Styling */
     .header-logo-container {
         text-align: center;
         padding: 10px 0 20px 0;
     }
     .header-logo {
         width: 90px;
-        filter: drop-shadow(0px 4px 10px rgba(251, 191, 36, 0.4));
+        filter: drop-shadow(0px 4px 12px rgba(251, 191, 36, 0.5));
     }
     
     /* Hero Token Display Card */
     .big-token-card {
-        background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+        background: linear-gradient(135deg, #1e3a8a 0%, #090d16 100%);
         padding: 30px;
         border-radius: 16px;
-        color: white;
+        color: #ffffff;
         text-align: center;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
         border: 2px solid #fbbf24;
         margin-bottom: 25px;
     }
@@ -57,23 +57,23 @@ st.markdown("""
         font-weight: 900;
         margin: 5px 0;
         color: #fbbf24;
-        text-shadow: 0px 2px 10px rgba(251, 191, 36, 0.3);
+        text-shadow: 0px 2px 10px rgba(251, 191, 36, 0.4);
     }
     
-    /* Summary & Rules Card Containers */
+    /* Summary & Info Container Contrast */
     .summary-box {
-        background-color: #111827 !important;
+        background-color: #0f172a !important;
         border-left: 5px solid #fbbf24 !important;
         padding: 18px;
         border-radius: 8px;
-        color: #f1f5f9 !important;
+        color: #f8fafc !important;
         margin-top: 15px;
-        border-top: 1px solid #1f2937;
-        border-right: 1px solid #1f2937;
-        border-bottom: 1px solid #1f2937;
+        border-top: 1px solid #1e293b;
+        border-right: 1px solid #1e293b;
+        border-bottom: 1px solid #1e293b;
     }
     
-    /* Custom Styled Buttons */
+    /* Action & Submit Buttons */
     div.stButton > button[kind="primary"] {
         background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
         color: #000000 !important;
@@ -89,7 +89,6 @@ st.markdown("""
         box-shadow: 0 6px 16px rgba(245, 158, 11, 0.5) !important;
     }
     
-    /* Form Submissions Button Styling */
     div.stFormSubmitButton > button {
         background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
         color: #000000 !important;
@@ -99,25 +98,51 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3) !important;
     }
     
-    /* Input Labels and Form Controls Contrast */
+    /* Input Control Visibility & Contrast */
     .stTextInput > label, .stNumberInput > label, .stRadio > label, .stSelectbox > label {
         color: #f8fafc !important;
-        font-weight: 600 !important;
+        font-weight: 700 !important;
     }
-    
-    /* Tabs Header Styling */
+    .stTextInput input, .stNumberInput input {
+        background-color: #0f172a !important;
+        color: #ffffff !important;
+        border: 1px solid #334155 !important;
+    }
+
+    /* -------------------------------------- */
+    /* BUTTON-STYLE NAVIGATION TABS           */
+    /* -------------------------------------- */
+    div[data-baseweb="tab-list"] {
+        gap: 8px;
+        padding-bottom: 8px;
+    }
+
     button[data-baseweb="tab"] {
-        color: #94a3b8 !important;
-        font-weight: 600 !important;
+        background-color: #1e293b !important;
+        color: #cbd5e1 !important;
+        font-weight: 700 !important;
+        border-radius: 8px !important;
+        padding: 10px 18px !important;
+        border: 1px solid #334155 !important;
+        transition: all 0.2s ease-in-out;
     }
+
+    button[data-baseweb="tab"]:hover {
+        background-color: #334155 !important;
+        color: #ffffff !important;
+        border-color: #fbbf24 !important;
+    }
+
     button[aria-selected="true"] {
+        background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%) !important;
         color: #fbbf24 !important;
-        border-bottom-color: #fbbf24 !important;
+        border: 2px solid #fbbf24 !important;
+        box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3) !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Top Football Logo Graphic
+# Header Logo
 st.markdown("""
     <div class="header-logo-container">
         <img src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" class="header-logo" alt="NFL Logo" />
@@ -207,7 +232,7 @@ else:
     with tab_home:
         st.markdown(f"## Welcome back, {profile['full_name']}! 👋")
         
-        # Big Token Balance Hero Display
+        # Big Token Balance Display Card
         st.markdown(f"""
             <div class="big-token-card">
                 <div style="font-size: 16px; letter-spacing: 2px; text-transform: uppercase; color: #93c5fd;">Current Balance</div>
@@ -219,7 +244,6 @@ else:
         st.divider()
         st.subheader("📊 Last Week's Performance Summary")
         
-        # Find the latest graded week
         graded_q = supabase.table("weekly_questions").select("week_number").neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
         
         if not graded_q:
@@ -227,10 +251,7 @@ else:
         else:
             latest_graded_week = graded_q[0]["week_number"]
             
-            # Fetch user bets for latest graded week
             lw_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("user_id", user_id).eq("week_number", latest_graded_week).execute().data
-            
-            # Fetch TD pick for latest graded week
             lw_td = supabase.table("touchdown_picks").select("*").eq("user_id", user_id).eq("week_number", latest_graded_week).execute().data
             
             if not lw_bets and not lw_td:
@@ -245,12 +266,11 @@ else:
                     w_ans = b.get("weekly_questions", {}).get("winning_answer")
                     if w_ans in ["Yes", "No"]:
                         if b["pick"] == w_ans:
-                            bet_gains += b["wager_amount"]  # Net profit doubled
+                            bet_gains += b["wager_amount"]
                             correct_count += 1
                         else:
                             bet_losses += b["wager_amount"]
                 
-                # Check Touchdown bonus
                 td_bonus = 5 if (lw_td and lw_td[0].get("is_correct")) else 0
                 td_player = lw_td[0]["player_name"] if lw_td else "None"
                 
