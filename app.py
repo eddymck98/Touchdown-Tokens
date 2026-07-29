@@ -16,7 +16,7 @@ st.set_page_config(page_title="Touchdown Tokens", page_icon="🏈", layout="cent
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# Custom CSS for Big Stats Display
+# Custom CSS for UI styling
 st.markdown("""
     <style>
     .big-token-card {
@@ -40,6 +40,13 @@ st.markdown("""
         padding: 15px;
         border-radius: 5px;
         margin-top: 10px;
+    }
+    .rules-card {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        border: 1px solid #e9ecef;
+        margin-top: 15px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -113,12 +120,12 @@ else:
 
     # Dynamic Tabs Layout
     if profile.get("is_admin"):
-        tab_home, tab_bet, tab_history, tab_leaders, tab_admin = st.tabs(
-            ["🏠 Home", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "⚙️ Admin Control"]
+        tab_home, tab_rules, tab_bet, tab_history, tab_leaders, tab_admin = st.tabs(
+            ["🏠 Home", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "⚙️ Admin Control"]
         )
     else:
-        tab_home, tab_bet, tab_history, tab_leaders = st.tabs(
-            ["🏠 Home", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard"]
+        tab_home, tab_rules, tab_bet, tab_history, tab_leaders = st.tabs(
+            ["🏠 Home", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard"]
         )
 
     # ------------------------------------------
@@ -196,7 +203,41 @@ else:
                 """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 1: BETTING FORM & QUESTION SUBMISSION
+    # TAB 1: RULES & INFORMATION
+    # ------------------------------------------
+    with tab_rules:
+        st.header("📖 Rules & Information")
+        
+        st.subheader("Welcome to TOUCHDOWN TOKENS!")
+        st.write("""
+        Each week I will release a new form with 10 scenarios. Each player will start with 10 tokens. 
+        If you win your bet, you will double however many tokens you placed on that scenario. 
+        If you lose the scenario, you will lose all your tokens that you placed on that scenario.
+        
+        Tokens are cumulative, so if you gain 8 tokens from right answers in Week 1, you will have 18 tokens for Week 2, and so on.
+        
+        At the bottom of the weekly picks is a place for you to write a free bet on a player you think will score a touchdown this week. 
+        If your player scores, you will gain extra bonus tokens to use in the next week!
+        
+        All games picked will be Sunday/Monday games. No Thursday games will be picked. 
+        Whilst you can pick the same scorer every week, mix it up and test your NFL knowledge!
+        """)
+        
+        st.divider()
+        
+        st.subheader("📜 Official Game Rules")
+        
+        st.markdown("""
+        1. 🪙 **Wager Limits:** Don't go over your current total token balance.
+        2. 🎯 **One Choice Per Question:** You must only place a bet on 1 option (`Yes` or `No`) per question.
+        3. 📅 **Attendance & Active Play:** If you miss a week that is absolutely fine; however, if you continue to miss weeks, you will be docked points per week missed.
+        4. 🚑 **Late Scratches / Inactive Players:** If for any reason a player chosen in a scenario is ruled out just before a game, all points bet on that scenario will be refunded.
+        5. ⏰ **Submission Cutoff:** The cutoff for weekly submissions will be **15 minutes before the first kickoff** on Sunday.
+        6. 🏈 **Touchdown Scorer Eligibility:** The free bet scorer must either **rush or receive** a touchdown. Passing touchdowns do **NOT** count!
+        """)
+
+    # ------------------------------------------
+    # TAB 2: BETTING FORM & QUESTION SUBMISSION
     # ------------------------------------------
     with tab_bet:
         st.header("Weekly Predictions & Wagers")
@@ -215,7 +256,7 @@ else:
             is_locked = any(q.get("winning_answer") == "LOCKED" for q in questions)
             
             if is_locked:
-                st.error("🔒 Entries for this week are locked! Kickoff has started.")
+                st.error("🔒 Entries for this week are locked! Kickoff deadline has passed.")
             
             if not questions:
                 st.info("No questions found for this week.")
@@ -250,7 +291,7 @@ else:
                         st.divider()
 
                     st.markdown("### 🏈 Bonus Touchdown Scorer Pick")
-                    st.caption("Name 1 player to score a TD this week. Correct pick = +5 Bonus Tokens!")
+                    st.caption("Name 1 player to score a TD this week (Rushing/Receiving only!). Correct pick = Bonus Tokens!")
                     
                     existing_td = supabase.table("touchdown_picks").select("player_name").eq("user_id", user_id).eq("week_number", selected_week).execute().data
                     default_td = existing_td[0]["player_name"] if existing_td else ""
@@ -288,7 +329,7 @@ else:
                             st.success("Your bets and touchdown pick have been submitted!")
 
     # ------------------------------------------
-    # TAB 2: USER HISTORY
+    # TAB 3: USER HISTORY
     # ------------------------------------------
     with tab_history:
         st.header("Your Past Bets & Results")
@@ -320,7 +361,7 @@ else:
             st.dataframe(formatted_data, use_container_width=True)
 
     # ------------------------------------------
-    # TAB 3: LEADERBOARD
+    # TAB 4: LEADERBOARD
     # ------------------------------------------
     with tab_leaders:
         st.header("🏆 Player Standings")
@@ -330,7 +371,7 @@ else:
             st.dataframe(leader_res, use_container_width=True, hide_index=True)
 
     # ------------------------------------------
-    # TAB 4: ADMIN PANEL (ADMINS ONLY)
+    # TAB 5: ADMIN PANEL (ADMINS ONLY)
     # ------------------------------------------
     if profile.get("is_admin"):
         with tab_admin:
@@ -447,7 +488,6 @@ else:
                                 )
                                 if is_winner:
                                     td_winners.append(td["user_id"])
-                                    # Update is_correct flag in database
                                     supabase.table("touchdown_picks").update({"is_correct": True}).eq("id", td["id"]).execute()
                                 else:
                                     supabase.table("touchdown_picks").update({"is_correct": False}).eq("id", td["id"]).execute()
