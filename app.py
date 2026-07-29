@@ -20,9 +20,11 @@ if "user" not in st.session_state:
 # Custom High-Contrast CSS Styling
 st.markdown("""
     <style>
-    /* Main App Background */
+    /* Main App Background with Stadium Light Radial Glow */
     .stApp {
-        background: linear-gradient(180deg, #070d19 0%, #0f172a 100%);
+        background: 
+            radial-gradient(circle at 50% 0%, rgba(30, 58, 138, 0.35), transparent 70%),
+            linear-gradient(180deg, #070d19 0%, #0f172a 100%);
         color: #ffffff !important;
     }
     
@@ -42,16 +44,23 @@ st.markdown("""
         filter: drop-shadow(0px 4px 12px rgba(251, 191, 36, 0.5));
     }
     
-    /* Hero Token Card */
+    /* Glowing Pulse Animation */
+    @keyframes goldPulse {
+        0% { box-shadow: 0 0 10px rgba(251, 191, 36, 0.2); }
+        50% { box-shadow: 0 0 25px rgba(251, 191, 36, 0.6); }
+        100% { box-shadow: 0 0 10px rgba(251, 191, 36, 0.2); }
+    }
+
+    /* Hero Token Card with Pulse Effect */
     .big-token-card {
         background: linear-gradient(135deg, #1e3a8a 0%, #090d16 100%);
         padding: 30px;
         border-radius: 16px;
         color: #ffffff !important;
         text-align: center;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
         border: 2px solid #fbbf24;
         margin-bottom: 25px;
+        animation: goldPulse 3.5s infinite ease-in-out;
     }
     .big-token-number {
         font-size: 58px;
@@ -61,6 +70,18 @@ st.markdown("""
         text-shadow: 0px 2px 10px rgba(251, 191, 36, 0.4);
     }
     
+    /* CHAMPION BANNER STYLING */
+    .champion-card {
+        background: linear-gradient(135deg, #78350f 0%, #b45309 50%, #f59e0b 100%);
+        padding: 30px;
+        border-radius: 16px;
+        color: #ffffff !important;
+        text-align: center;
+        border: 3px solid #fbbf24;
+        margin-bottom: 30px;
+        animation: goldPulse 2s infinite ease-in-out;
+    }
+
     /* Badges Display */
     .badge-pill {
         display: inline-block;
@@ -142,13 +163,20 @@ st.markdown("""
         border: 1px solid #1e293b;
     }
 
-    /* BUTTON STYLING */
+    /* METALLIC HOVER BUTTON STYLING */
     div.stButton > button[kind="primary"], div.stFormSubmitButton > button {
         background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
         color: #000000 !important;
         font-weight: 800 !important;
         border-radius: 10px !important;
         border: none !important;
+        transition: all 0.3s ease-in-out !important;
+    }
+    div.stButton > button[kind="primary"]:hover, div.stFormSubmitButton > button:hover {
+        background: linear-gradient(135deg, #ffe066 0%, #f59e0b 50%, #d97706 100%) !important;
+        color: #000000 !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(245, 158, 11, 0.5) !important;
     }
     
     /* INPUT CONTROLS */
@@ -163,6 +191,20 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
+
+# List of NFL Teams for Profile Selection
+NFL_TEAMS = [
+    "🏈 Free Agent / Neutral", "🔴 Arizona Cardinals", "🟣 Baltimore Ravens", "🔴 Buffalo Bills",
+    "🔵 Carolina Panthers", "🟠 Chicago Bears", "🟠 Cincinnati Bengals", "🟤 Cleveland Browns",
+    "🔵 Dallas Cowboys", "🟠 Denver Broncos", "🔵 Detroit Lions", "🟢 Green Bay Packers",
+    "🔴 Houston Texans", "🔵 Indianapolis Colts", "🐆 Jacksonville Jaguars", "🔴 Kansas City Chiefs",
+    "🪙 Las Vegas Raiders", "⚡ Los Angeles Chargers", "🟡 Los Angeles Rams", "🐬 Miami Dolphins",
+    "🟣 Minnesota Vikings", "🔵 New England Patriots", "⚜️ New Orleans Saints", "🔵 New York Giants",
+    "🟢 New York Jets", "🦅 Philadelphia Eagles", "🟡 Pittsburgh Steelers", "🔴 San Francisco 49ers",
+    "🟢 Seattle Seahawks", "🔴 Tampa Bay Buccaneers", "🔵 Tennessee Titans", "🔴 Washington Commanders"
+]
+
+AVATAR_OPTIONS = ["🏈", "🐐", "⚡", "👑", "🎯", "💣", "💎", "🔥", "🛡️", "🚀"]
 
 # Header Logo
 st.markdown("""
@@ -193,6 +235,20 @@ if st.session_state.user is None:
             except Exception as e:
                 st.error(f"Login failed: {e}")
 
+        st.write("")
+        with st.expander("🔑 Forgot Password?"):
+            st.caption("Enter your email address to receive a password reset link.")
+            reset_email = st.text_input("Your Account Email", key="reset_email_input")
+            if st.button("Send Reset Link"):
+                if reset_email:
+                    try:
+                        supabase.auth.reset_password_for_email(reset_email)
+                        st.success("Password reset email sent! Check your inbox.")
+                    except Exception as e:
+                        st.error(f"Error sending email: {e}")
+                else:
+                    st.warning("Please enter your email address.")
+
     with tab_signup:
         st.subheader("Create a New Account")
         st.caption("New players start with 10 free tokens!")
@@ -212,7 +268,10 @@ if st.session_state.user is None:
                             "email": reg_email,
                             "full_name": reg_name,
                             "tokens": 10,
-                            "is_admin": False
+                            "is_admin": False,
+                            "favorite_team": "🏈 Free Agent / Neutral",
+                            "bio": "Ready for Kickoff!",
+                            "avatar_emoji": "🏈"
                         }).execute()
                         st.success("Account created! You can now log in.")
                 except Exception as e:
@@ -227,7 +286,10 @@ else:
     profile_res = supabase.table("profiles").select("*").eq("id", user_id).single().execute()
     profile = profile_res.data
     
-    st.sidebar.title(f"👤 {profile['full_name']}")
+    # Sidebar Player Header
+    user_avatar = profile.get("avatar_emoji", "🏈")
+    st.sidebar.title(f"{user_avatar} {profile['full_name']}")
+    st.sidebar.caption(f"Team: {profile.get('favorite_team', 'Neutral')}")
     st.sidebar.metric(label="Available Tokens", value=f"{profile['tokens']} 🪙")
     
     if profile.get("is_admin"):
@@ -240,18 +302,31 @@ else:
 
     # Dynamic Tabs Layout
     if profile.get("is_admin"):
-        tab_home, tab_rules, tab_bet, tab_history, tab_leaders, tab_admin = st.tabs(
-            ["🏠 Home", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "⚙️ Admin Control"]
+        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_admin = st.tabs(
+            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "⚙️ Admin Control"]
         )
     else:
-        tab_home, tab_rules, tab_bet, tab_history, tab_leaders = st.tabs(
-            ["🏠 Home", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard"]
+        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders = st.tabs(
+            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard"]
         )
 
     # ------------------------------------------
     # TAB 0: HOME / DASHBOARD SCREEN
     # ------------------------------------------
     with tab_home:
+        champ_setting = supabase.table("weekly_questions").select("question_text, winning_answer").eq("week_number", 999).execute().data
+        
+        if champ_setting and champ_setting[0]["winning_answer"] == "ON":
+            st.balloons()
+            champ_name = champ_setting[0]["question_text"]
+            st.markdown(f"""
+                <div class="champion-card">
+                    <div style="font-size: 20px; letter-spacing: 2px; text-transform: uppercase;">🏆 LEAGUE CHAMPION DECLARED 🏆</div>
+                    <div style="font-size: 48px; font-weight: 900; margin: 10px 0;">{champ_name}</div>
+                    <div style="font-size: 16px;">Congratulations to the Touchdown Tokens Champion! 👑</div>
+                </div>
+            """, unsafe_allow_html=True)
+
         st.markdown(f"## Welcome back, {profile['full_name']}! 👋")
         
         # Big Token Balance Display Card
@@ -263,7 +338,7 @@ else:
             </div>
         """, unsafe_allow_html=True)
 
-        # 🏅 DYNAMIC BADGES CALCULATION
+        # Dynamic Badges
         user_bets_all = supabase.table("user_bets").select("*").eq("user_id", user_id).execute().data
         user_td_all = supabase.table("touchdown_picks").select("*").eq("user_id", user_id).eq("is_correct", True).execute().data
         
@@ -286,7 +361,7 @@ else:
         st.divider()
         st.subheader("📊 Last Week's Performance Summary")
         
-        graded_q = supabase.table("weekly_questions").select("week_number").neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
+        graded_q = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
         
         if not graded_q:
             st.info("No weeks have been graded yet. Place your bets for Week 1 to get started!")
@@ -337,16 +412,15 @@ else:
                 </div>
                 """, unsafe_allow_html=True)
 
-        # 📈 FEATURE 1: TOKEN GROWTH GRAPH
+        # Token Growth Graph
         st.divider()
         st.subheader("📈 Token History Graph")
         history_bets_all = supabase.table("user_bets").select("week_number, wager_amount, pick, weekly_questions(winning_answer)").eq("user_id", user_id).execute().data
         
         if history_bets_all:
-            week_tokens = {0: 10} # Start with 10 tokens at Week 0
+            week_tokens = {0: 10}
             curr_tokens = 10
             
-            # Sort bets by week
             weeks_logged = sorted(list(set([b['week_number'] for b in history_bets_all])))
             for w in weeks_logged:
                 w_bets = [b for b in history_bets_all if b['week_number'] == w]
@@ -363,7 +437,43 @@ else:
             st.line_chart(chart_df)
 
     # ------------------------------------------
-    # TAB 1: RULES & INFORMATION
+    # TAB 1: PERSONAL PROFILE SECTION
+    # ------------------------------------------
+    with tab_profile:
+        st.header("👤 Customize Profile")
+        st.caption("Personalize how your profile appears on the Leaderboard and Trash Talk feed!")
+        
+        with st.form("profile_customization_form"):
+            new_display_name = st.text_input("Display Name", value=profile.get("full_name", ""))
+            
+            curr_team = profile.get("favorite_team", "🏈 Free Agent / Neutral")
+            team_index = NFL_TEAMS.index(curr_team) if curr_team in NFL_TEAMS else 0
+            new_team = st.selectbox("Favorite NFL Team", NFL_TEAMS, index=team_index)
+            
+            curr_avatar = profile.get("avatar_emoji", "🏈")
+            avatar_index = AVATAR_OPTIONS.index(curr_avatar) if curr_avatar in AVATAR_OPTIONS else 0
+            new_avatar = st.selectbox("Choose Profile Avatar Emoji", AVATAR_OPTIONS, index=avatar_index)
+            
+            new_bio = st.text_input("Profile Catchphrase / Bio (max 100 chars)", value=profile.get("bio", "Ready for Kickoff!"), max_chars=100)
+            
+            save_profile = st.form_submit_button("Save Profile Settings 💾", type="primary")
+            
+            if save_profile:
+                if not new_display_name.strip():
+                    st.error("Display Name cannot be blank.")
+                else:
+                    supabase.table("profiles").update({
+                        "full_name": new_display_name.strip(),
+                        "favorite_team": new_team,
+                        "avatar_emoji": new_avatar,
+                        "bio": new_bio.strip()
+                    }).eq("id", user_id).execute()
+                    
+                    st.success("Profile updated successfully!")
+                    st.rerun()
+
+    # ------------------------------------------
+    # TAB 2: RULES & INFORMATION
     # ------------------------------------------
     with tab_rules:
         st.header("📖 Rules & Information")
@@ -395,7 +505,6 @@ else:
         6. 🏈 **Touchdown Scorer Eligibility:** The free bet scorer must either **rush or receive** a touchdown. Passing touchdowns do **NOT** count!
         """)
 
-        # 📱 FEATURE 5: MOBILE APP TIP CARD
         st.markdown("""
         <div class="summary-box">
             <b>📱 Pro Tip: Add to Phone Home Screen!</b><br>
@@ -405,12 +514,16 @@ else:
         """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 2: BETTING FORM & QUESTION SUBMISSION
+    # TAB 3: BETTING FORM & QUESTION SUBMISSION
     # ------------------------------------------
     with tab_bet:
         st.header("Weekly Predictions & Wagers")
         
-        weeks_res = supabase.table("weekly_questions").select("week_number").execute()
+        st.link_button("🏈 View NFL Scores, Lines & Fixtures ↗️", "https://www.espn.com/nfl/schedule", use_container_width=True)
+        st.caption("Check real-time odds, matchups, and player news on ESPN before placing your bets!")
+        st.write("")
+
+        weeks_res = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).execute()
         available_weeks = sorted(list(set([r["week_number"] for r in weeks_res.data]))) if weeks_res.data else []
         
         if not available_weeks:
@@ -429,7 +542,6 @@ else:
             if not questions:
                 st.info("No questions found for this week.")
             else:
-                # FEATURE 2: COMMUNITY CONSENSUS DATA FETCH
                 all_week_bets = supabase.table("user_bets").select("question_id, pick").eq("week_number", selected_week).execute().data
                 
                 with st.form("weekly_bet_form"):
@@ -440,7 +552,6 @@ else:
                     st.caption("Double your betted tokens if correct! Lose betted tokens if wrong.")
                     
                     for q in questions:
-                        # Calculate League Consensus for Q
                         q_bets = [b for b in all_week_bets if b['question_id'] == q['id']]
                         if q_bets:
                             yes_cnt = sum(1 for b in q_bets if b['pick'] == "Yes")
@@ -476,8 +587,16 @@ else:
                     
                     td_pick = st.text_input("Player Name (e.g., Patrick Mahomes)", value=default_td, key="td_scorer", disabled=is_locked)
                     
+                    # LIVE WAGERING BUDGET PROGRESS BAR
                     total_wagered = sum(wagers.values())
-                    st.markdown(f"**Total Tokens Wagered:** `{total_wagered}` / `{profile['tokens']}`")
+                    max_available = max(1, profile['tokens'])
+                    progress_val = min(1.0, total_wagered / max_available)
+                    pct_str = int(progress_val * 100)
+                    
+                    st.progress(
+                        progress_val, 
+                        text=f"**Tokens Wagered:** `{total_wagered}` / `{profile['tokens']}` Tokens ({pct_str}%)"
+                    )
                     
                     submit_bet = st.form_submit_button("Submit Weekly Bets 🚀", type="primary", use_container_width=True, disabled=is_locked)
                     
@@ -507,7 +626,7 @@ else:
                             st.success("Your bets and touchdown pick have been submitted!")
 
     # ------------------------------------------
-    # TAB 3: USER HISTORY
+    # TAB 4: USER HISTORY
     # ------------------------------------------
     with tab_history:
         st.header("Your Past Bets & Results")
@@ -539,16 +658,28 @@ else:
             st.dataframe(formatted_data, use_container_width=True)
 
     # ------------------------------------------
-    # TAB 4: LEADERBOARD & TRASH TALK FEED
+    # TAB 5: LEADERBOARD & TRASH TALK FEED
     # ------------------------------------------
     with tab_leaders:
         st.header("🏆 Player Standings")
-        leader_res = supabase.table("profiles").select("full_name, tokens").order("tokens", desc=True).execute().data
+        leader_res = supabase.table("profiles").select("full_name, tokens, favorite_team, bio, avatar_emoji").order("tokens", desc=True).execute().data
         
         if leader_res:
-            st.dataframe(leader_res, use_container_width=True, hide_index=True)
+            leader_table = []
+            for idx, p in enumerate(leader_res):
+                av = p.get("avatar_emoji") or "🏈"
+                team = p.get("favorite_team") or "Neutral"
+                bio = p.get("bio") or ""
+                
+                leader_table.append({
+                    "Rank": f"#{idx + 1}",
+                    "Player": f"{av} {p['full_name']}",
+                    "Team": team,
+                    "Tokens": f"{p['tokens']} 🪙",
+                    "Catchphrase": bio
+                })
+            st.dataframe(leader_table, use_container_width=True, hide_index=True)
 
-        # FEATURE 4: TRASH TALK FEED
         st.divider()
         st.subheader("💬 League Trash Talk Feed")
         
@@ -557,35 +688,42 @@ else:
             post_chat = st.form_submit_button("Post Message 💬")
             
             if post_chat and chat_msg.strip():
-                supabase.table("trash_talk").insert({
-                    "user_id": user_id,
-                    "message": chat_msg.strip()
-                }).execute()
-                st.success("Message posted!")
-                st.rerun()
+                try:
+                    supabase.table("trash_talk").insert({
+                        "user_id": user_id,
+                        "message": chat_msg.strip()
+                    }).execute()
+                    st.success("Message posted!")
+                    st.rerun()
+                except Exception as e:
+                    st.error("Make sure the 'trash_talk' table is created in Supabase.")
 
-        # Render recent messages
         recent_chats = supabase.table("trash_talk").select("message, created_at, user_id").order("created_at", desc=True).limit(10).execute().data
-        all_profiles = supabase.table("profiles").select("id, full_name").execute().data
-        user_name_map = {p["id"]: p["full_name"] for p in all_profiles}
+        all_profiles = supabase.table("profiles").select("id, full_name, avatar_emoji, favorite_team").execute().data
+        profile_map = {p["id"]: p for p in all_profiles}
 
         if recent_chats:
             for c in recent_chats:
-                author_name = user_name_map.get(c["user_id"], "Player")
+                p_info = profile_map.get(c["user_id"], {})
+                author_name = p_info.get("full_name", "Player")
+                author_av = p_info.get("avatar_emoji", "🏈")
+                author_team = p_info.get("favorite_team", "")
+                
                 st.markdown(f"""
                 <div class="chat-bubble">
-                    <b>{author_name}:</b> {c['message']}
+                    <b>{author_av} {author_name}</b> <small style="opacity:0.7;">({author_team})</small>:<br>
+                    {c['message']}
                 </div>
                 """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 5: ADMIN PANEL (ADMINS ONLY)
+    # TAB 6: ADMIN PANEL (ADMINS ONLY)
     # ------------------------------------------
     if profile.get("is_admin"):
         with tab_admin:
             st.header("⚙️ Admin Management Portal")
             
-            admin_sec = st.radio("Select Action", ["Create Questions", "Lock/Unlock Week", "Grade Week & Calculate Points", "Adjust User Tokens"], horizontal=True)
+            admin_sec = st.radio("Select Action", ["Create Questions", "Lock/Unlock Week", "Grade Week & Calculate Points", "Adjust User Tokens", "Season Champion Banner"], horizontal=True)
             
             # Sub-Section A: Enter Questions
             if admin_sec == "Create Questions":
@@ -748,3 +886,30 @@ else:
                     if st.button("Update Player Tokens"):
                         supabase.table("profiles").update({"tokens": new_token_val}).eq("id", target_user["id"]).execute()
                         st.success(f"Updated {selected_user_name}'s tokens to {new_token_val}!")
+
+            # Sub-Section E: Champion Banner Toggle
+            elif admin_sec == "Season Champion Banner":
+                st.subheader("🏆 End-of-Season Celebration Banner")
+                st.caption("Enable this banner to show confetti and a gold Champion card on the Home tab when the season ends.")
+                
+                all_players = supabase.table("profiles").select("full_name").order("tokens", desc=True).execute().data
+                player_names = [p["full_name"] for p in all_players] if all_players else ["Player"]
+                
+                champ_row = supabase.table("weekly_questions").select("*").eq("week_number", 999).execute().data
+                current_state = champ_row[0]["winning_answer"] if champ_row else "OFF"
+                current_champ = champ_row[0]["question_text"] if champ_row else player_names[0]
+                
+                banner_toggle = st.toggle("Enable Season Champion Banner", value=(current_state == "ON"))
+                selected_champion = st.selectbox("Select Season Winner", player_names, index=player_names.index(current_champ) if current_champ in player_names else 0)
+                
+                if st.button("Save Champion Banner Settings 🏆"):
+                    state_str = "ON" if banner_toggle else "OFF"
+                    supabase.table("weekly_questions").delete().eq("week_number", 999).execute()
+                    supabase.table("weekly_questions").insert({
+                        "week_number": 999,
+                        "question_number": 1,
+                        "question_text": selected_champion,
+                        "winning_answer": state_str
+                    }).execute()
+                    st.success("Updated Season Champion Banner settings!")
+                    st.rerun()
