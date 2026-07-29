@@ -162,6 +162,17 @@ st.markdown(f"""
         animation: teamPulse 2s infinite ease-in-out;
     }}
 
+    /* Point 1a: Matchup Card Styling */
+    .matchup-card {{
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid #334155;
+        border-left: 5px solid {user_team_color};
+        padding: 18px;
+        border-radius: 12px;
+        margin-bottom: 18px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }}
+
     .timer-card {{
         background: rgba(15, 23, 42, 0.9);
         border: 2px solid {user_team_color};
@@ -450,6 +461,10 @@ else:
                 
                 net_total = bet_gains - bet_losses + td_bonus
                 
+                # Point 1b: Victory Balloons Celebration on Net Gain
+                if net_total > 0:
+                    st.balloons()
+                
                 st.markdown(f"### Week {latest_graded_week} Results")
                 
                 col1, col2, col3 = st.columns(3)
@@ -535,7 +550,7 @@ else:
                     st.rerun()
 
     # ------------------------------------------
-    # TAB 2: RULES (FULL TEXT RESTORED)
+    # TAB 2: RULES
     # ------------------------------------------
     with tab_rules:
         st.header("📖 Rules & Information")
@@ -638,6 +653,9 @@ else:
                         if q.get("winning_answer", "").startswith("LOCKTIME:"):
                             continue
                             
+                        # Point 1a: Matchup Card Wrapper
+                        st.markdown('<div class="matchup-card">', unsafe_allow_html=True)
+                        
                         q_bets = [b for b in all_week_bets if b['question_id'] == q['id']]
                         if q_bets:
                             yes_cnt = sum(1 for b in q_bets if b['pick'] == "Yes")
@@ -663,7 +681,7 @@ else:
                                 key=f"wager_{q['id']}",
                                 disabled=is_locked
                             )
-                        st.divider()
+                        st.markdown('</div>', unsafe_allow_html=True)
 
                     st.markdown("### 🏈 Bonus Touchdown Scorer Pick")
                     st.caption("Name 1 player to score a TD this week (Rushing/Receiving only!). Correct pick = Bonus Tokens!")
@@ -819,7 +837,7 @@ else:
         with tab_admin:
             st.header("⚙️ Admin Management Portal")
             
-            admin_sec = st.radio("Select Action", ["Create Questions", "Set Lockout Timer", "Grade Week & Calculate Points", "Adjust User Tokens", "Season Champion Banner"], horizontal=True)
+            admin_sec = st.radio("Select Action", ["Create Questions", "Set Lockout Timer", "Grade Week & Calculate Points", "Adjust User Tokens", "Export League Data (CSV)", "League Chat Announcement", "Season Champion Banner"], horizontal=True)
             
             # Sub-Section A: Enter Questions
             if admin_sec == "Create Questions":
@@ -981,7 +999,55 @@ else:
                         supabase.table("profiles").update({"tokens": new_token_val}).eq("id", target_user["id"]).execute()
                         st.success(f"Updated {selected_user_name}'s tokens to {new_token_val}!")
 
-            # Sub-Section E: Champion Banner Toggle
+            # Point 2a: Export League Data (CSV)
+            elif admin_sec == "Export League Data (CSV)":
+                st.subheader("📥 Export League Data to CSV")
+                st.caption("Download full database dumps for Excel or record archives.")
+                
+                col_exp1, col_exp2 = st.columns(2)
+                
+                with col_exp1:
+                    bets_data = supabase.table("user_bets").select("*").execute().data
+                    if bets_data:
+                        df_bets = pd.DataFrame(bets_data)
+                        st.download_button(
+                            label="Download All User Bets (CSV)",
+                            data=df_bets.to_csv(index=False),
+                            file_name="touchdown_tokens_all_bets.csv",
+                            mime="text/csv"
+                        )
+                
+                with col_exp2:
+                    users_data = supabase.table("profiles").select("full_name, tokens, favorite_team, bio").order("tokens", desc=True).execute().data
+                    if users_data:
+                        df_users = pd.DataFrame(users_data)
+                        st.download_button(
+                            label="Download Standings & Tokens (CSV)",
+                            data=df_users.to_csv(index=False),
+                            file_name="touchdown_tokens_standings.csv",
+                            mime="text/csv"
+                        )
+
+            # Point 2c: Pre-Formatted WhatsApp / League Chat Announcement
+            elif admin_sec == "League Chat Announcement":
+                st.subheader("📢 Pre-Formatted League Announcement Generator")
+                st.caption("Copy and paste this message directly into your WhatsApp or group chat!")
+                
+                ann_week = st.number_input("Week Number", min_value=1, max_value=24, step=1, key="ann_week_input")
+                top_player_res = supabase.table("profiles").select("full_name, tokens").order("tokens", desc=True).limit(1).execute().data
+                leader_str = f"{top_player_res[0]['full_name']} ({top_player_res[0]['tokens']} Tokens)" if top_player_res else "TBD"
+                
+                announcement_template = f"""🏈 *TOUCHDOWN TOKENS - WEEK {ann_week} IS LIVE!* 🏈
+
+🪙 *Current League Leader:* {leader_str}
+⏰ *Kickoff Cutoff:* Sunday before 1st Kickoff
+
+👉 Place your wagers and TD scorer pick now on Touchdown Tokens!
+Good luck this week! 🚀"""
+                
+                st.code(announcement_template, language="markdown")
+
+            # Sub-Section G: Champion Banner Toggle
             elif admin_sec == "Season Champion Banner":
                 st.subheader("🏆 End-of-Season Celebration Banner")
                 st.caption("Enable this banner to show confetti and a gold Champion card on the Home tab when the season ends.")
