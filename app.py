@@ -238,50 +238,46 @@ else:
             
             admin_sec = st.radio("Select Action", ["Create Questions", "Grade Week & Calculate Points", "Adjust User Tokens"], horizontal=True)
             
-           # Sub-Section A: Enter Questions
-if admin_sec == "Create Questions":
-    st.subheader("Add 10 New Weekly Questions")
-    
-    # Input for Week Number OUTSIDE the form so it doesn't trigger loops
-    new_week = st.number_input("Week Number", min_value=1, max_value=24, step=1, key="admin_week_selector")
-    
-    # Check if questions already exist for this week
-    existing_qs = supabase.table("weekly_questions").select("id").eq("week_number", new_week).execute().data
-    
-    if existing_qs:
-        st.warning(f"⚠️ Questions for Week {new_week} have already been published! ({len(existing_qs)} questions found)")
-        if st.button("Delete Week Questions to Start Fresh"):
-            supabase.table("weekly_questions").delete().eq("week_number", new_week).execute()
-            st.success(f"Cleared Week {new_week} questions.")
-            st.rerun()
-    else:
-        # Static Form rendering exactly 10 inputs once
-        with st.form(key=f"create_questions_form_week_{new_week}"):
-            q_inputs = []
-            for i in range(1, 11):
-                # Static unique key per question box
-                val = st.text_input(f"Question {i}", key=f"static_q_input_w{new_week}_q{i}")
-                q_inputs.append(val)
-            
-            submit_qs = st.form_submit_button("Publish All 10 Questions 🚀")
-        
-        if submit_qs:
-            filled_questions = [q.strip() for q in q_inputs if q.strip()]
-            
-            if len(filled_questions) == 0:
-                st.error("Please enter at least one question before publishing.")
-            else:
-                for idx, q_text in enumerate(q_inputs):
-                    if q_text.strip():
-                        supabase.table("weekly_questions").insert({
-                            "week_number": new_week,
-                            "question_number": idx + 1,
-                            "question_text": q_text.strip(),
-                            "winning_answer": "Pending"
-                        }).execute()
+            # Sub-Section A: Enter Questions
+            if admin_sec == "Create Questions":
+                st.subheader("Add 10 New Weekly Questions")
                 
-                st.success(f"Successfully published questions for Week {new_week}!")
-                st.rerun()
+                new_week = st.number_input("Week Number", min_value=1, max_value=24, step=1, key="admin_week_selector")
+                
+                existing_qs = supabase.table("weekly_questions").select("id").eq("week_number", new_week).execute().data
+                
+                if existing_qs:
+                    st.warning(f"⚠️ Questions for Week {new_week} have already been published! ({len(existing_qs)} questions found)")
+                    if st.button("Delete Week Questions to Start Fresh"):
+                        supabase.table("weekly_questions").delete().eq("week_number", new_week).execute()
+                        st.success(f"Cleared Week {new_week} questions.")
+                        st.rerun()
+                else:
+                    with st.form(key=f"create_questions_form_week_{new_week}"):
+                        q_inputs = []
+                        for i in range(1, 11):
+                            val = st.text_input(f"Question {i}", key=f"static_q_input_w{new_week}_q{i}")
+                            q_inputs.append(val)
+                        
+                        submit_qs = st.form_submit_button("Publish All 10 Questions 🚀")
+                    
+                    if submit_qs:
+                        filled_questions = [q.strip() for q in q_inputs if q.strip()]
+                        
+                        if len(filled_questions) == 0:
+                            st.error("Please enter at least one question before publishing.")
+                        else:
+                            for idx, q_text in enumerate(q_inputs):
+                                if q_text.strip():
+                                    supabase.table("weekly_questions").insert({
+                                        "week_number": new_week,
+                                        "question_number": idx + 1,
+                                        "question_text": q_text.strip(),
+                                        "winning_answer": "Pending"
+                                    }).execute()
+                            
+                            st.success(f"Successfully published questions for Week {new_week}!")
+                            st.rerun()
 
             # Sub-Section B: Grade & Calculate Scores
             elif admin_sec == "Grade Week & Calculate Points":
