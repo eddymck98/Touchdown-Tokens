@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 from supabase import create_client, Client
 
 # --- SUPABASE CONFIGURATION ---
@@ -16,7 +17,7 @@ st.set_page_config(page_title="Touchdown Tokens", page_icon="🏈", layout="cent
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# Heavy-handed high-contrast CSS overrides
+# Custom High-Contrast CSS Styling
 st.markdown("""
     <style>
     /* Main App Background */
@@ -60,7 +61,42 @@ st.markdown("""
         text-shadow: 0px 2px 10px rgba(251, 191, 36, 0.4);
     }
     
-    /* FIX FOR INACTIVE TABS (FORCED LIGHT TEXT) */
+    /* Badges Display */
+    .badge-pill {
+        display: inline-block;
+        background-color: #1e293b;
+        color: #fbbf24;
+        border: 1px solid #fbbf24;
+        border-radius: 20px;
+        padding: 5px 12px;
+        font-size: 13px;
+        font-weight: 700;
+        margin: 3px;
+    }
+    
+    /* Consensus Badge */
+    .consensus-badge {
+        background-color: #1e293b;
+        color: #38bdf8;
+        border: 1px solid #0284c7;
+        border-radius: 6px;
+        padding: 3px 8px;
+        font-size: 12px;
+        font-weight: 700;
+        display: inline-block;
+        margin-bottom: 8px;
+    }
+    
+    /* Trash Talk Bubble */
+    .chat-bubble {
+        background-color: #0f172a;
+        border-left: 4px solid #fbbf24;
+        padding: 10px 14px;
+        border-radius: 6px;
+        margin-bottom: 10px;
+    }
+
+    /* INACTIVE TABS */
     button[data-baseweb="tab"] {
         background-color: #1e293b !important;
         border: 1px solid #334155 !important;
@@ -69,15 +105,12 @@ st.markdown("""
         margin-right: 4px !important;
     }
     button[data-baseweb="tab"] * {
-        color: #e2e8f0 !important; /* Force all internal tab text/icons to light gray */
+        color: #e2e8f0 !important;
         font-weight: 700 !important;
     }
     button[data-baseweb="tab"]:hover {
         background-color: #334155 !important;
         border-color: #fbbf24 !important;
-    }
-    button[data-baseweb="tab"]:hover * {
-        color: #ffffff !important;
     }
     button[aria-selected="true"] {
         background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%) !important;
@@ -85,20 +118,20 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3) !important;
     }
     button[aria-selected="true"] * {
-        color: #fbbf24 !important; /* Gold text for active tab */
+        color: #fbbf24 !important;
     }
 
-    /* FIX FOR ALERT BOXES (st.info, st.warning, st.error) */
+    /* ALERT BOXES */
     .stAlert {
         background-color: #1e293b !important;
         border: 1px solid #334155 !important;
         border-radius: 10px !important;
     }
     .stAlert * {
-        color: #f8fafc !important; /* Force white text inside alerts */
+        color: #f8fafc !important;
     }
 
-    /* FIX FOR SUMMARY BOXES */
+    /* SUMMARY BOXES */
     .summary-box {
         background-color: #0f172a !important;
         border-left: 5px solid #fbbf24 !important;
@@ -106,9 +139,7 @@ st.markdown("""
         border-radius: 8px;
         color: #f8fafc !important;
         margin-top: 15px;
-        border-top: 1px solid #1e293b;
-        border-right: 1px solid #1e293b;
-        border-bottom: 1px solid #1e293b;
+        border: 1px solid #1e293b;
     }
 
     /* BUTTON STYLING */
@@ -118,14 +149,9 @@ st.markdown("""
         font-weight: 800 !important;
         border-radius: 10px !important;
         border: none !important;
-        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3) !important;
     }
-    div.stButton > button[kind="primary"]:hover {
-        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
-        color: #000000 !important;
-    }
-
-    /* FORM CONTROLS & LABELS */
+    
+    /* INPUT CONTROLS */
     .stTextInput > label, .stNumberInput > label, .stRadio > label, .stSelectbox > label {
         color: #f8fafc !important;
         font-weight: 700 !important;
@@ -236,7 +262,27 @@ else:
                 <div style="font-size: 14px; color: #cbd5e1;">Touchdown Tokens</div>
             </div>
         """, unsafe_allow_html=True)
+
+        # 🏅 DYNAMIC BADGES CALCULATION
+        user_bets_all = supabase.table("user_bets").select("*").eq("user_id", user_id).execute().data
+        user_td_all = supabase.table("touchdown_picks").select("*").eq("user_id", user_id).eq("is_correct", True).execute().data
         
+        earned_badges = []
+        if profile['tokens'] >= 30:
+            earned_badges.append("🚀 Token Tycoon")
+        if any(b['wager_amount'] >= 10 for b in user_bets_all):
+            earned_badges.append("🎯 High Roller")
+        if len(user_td_all) >= 2:
+            earned_badges.append("🏈 TD Guru")
+        if profile['tokens'] == 0:
+            earned_badges.append("📉 Down Bad")
+            
+        if earned_badges:
+            st.markdown("#### Your Earned Badges")
+            badges_html = "".join([f'<span class="badge-pill">{b}</span>' for b in earned_badges])
+            st.markdown(badges_html, unsafe_allow_html=True)
+            st.write("")
+
         st.divider()
         st.subheader("📊 Last Week's Performance Summary")
         
@@ -291,6 +337,31 @@ else:
                 </div>
                 """, unsafe_allow_html=True)
 
+        # 📈 FEATURE 1: TOKEN GROWTH GRAPH
+        st.divider()
+        st.subheader("📈 Token History Graph")
+        history_bets_all = supabase.table("user_bets").select("week_number, wager_amount, pick, weekly_questions(winning_answer)").eq("user_id", user_id).execute().data
+        
+        if history_bets_all:
+            week_tokens = {0: 10} # Start with 10 tokens at Week 0
+            curr_tokens = 10
+            
+            # Sort bets by week
+            weeks_logged = sorted(list(set([b['week_number'] for b in history_bets_all])))
+            for w in weeks_logged:
+                w_bets = [b for b in history_bets_all if b['week_number'] == w]
+                for b in w_bets:
+                    w_ans = b.get("weekly_questions", {}).get("winning_answer")
+                    if w_ans in ["Yes", "No"]:
+                        if b["pick"] == w_ans:
+                            curr_tokens += b["wager_amount"]
+                        else:
+                            curr_tokens -= b["wager_amount"]
+                week_tokens[w] = max(0, curr_tokens)
+                
+            chart_df = pd.DataFrame(list(week_tokens.items()), columns=["Week", "Tokens"]).set_index("Week")
+            st.line_chart(chart_df)
+
     # ------------------------------------------
     # TAB 1: RULES & INFORMATION
     # ------------------------------------------
@@ -313,7 +384,6 @@ else:
         """)
         
         st.divider()
-        
         st.subheader("📜 Official Game Rules")
         
         st.markdown("""
@@ -324,6 +394,15 @@ else:
         5. ⏰ **Submission Cutoff:** The cutoff for weekly submissions will be **15 minutes before the first kickoff** on Sunday.
         6. 🏈 **Touchdown Scorer Eligibility:** The free bet scorer must either **rush or receive** a touchdown. Passing touchdowns do **NOT** count!
         """)
+
+        # 📱 FEATURE 5: MOBILE APP TIP CARD
+        st.markdown("""
+        <div class="summary-box">
+            <b>📱 Pro Tip: Add to Phone Home Screen!</b><br>
+            • <b>iPhone (Safari):</b> Tap the <i>Share Button</i> at the bottom → select <b>'Add to Home Screen'</b>.<br>
+            • <b>Android (Chrome):</b> Tap the <i>3 Dots Menu</i> at the top right → select <b>'Install App'</b> or <b>'Add to Home Screen'</b>.
+        </div>
+        """, unsafe_allow_html=True)
 
     # ------------------------------------------
     # TAB 2: BETTING FORM & QUESTION SUBMISSION
@@ -350,6 +429,9 @@ else:
             if not questions:
                 st.info("No questions found for this week.")
             else:
+                # FEATURE 2: COMMUNITY CONSENSUS DATA FETCH
+                all_week_bets = supabase.table("user_bets").select("question_id, pick").eq("week_number", selected_week).execute().data
+                
                 with st.form("weekly_bet_form"):
                     wagers = {}
                     picks = {}
@@ -358,6 +440,13 @@ else:
                     st.caption("Double your betted tokens if correct! Lose betted tokens if wrong.")
                     
                     for q in questions:
+                        # Calculate League Consensus for Q
+                        q_bets = [b for b in all_week_bets if b['question_id'] == q['id']]
+                        if q_bets:
+                            yes_cnt = sum(1 for b in q_bets if b['pick'] == "Yes")
+                            pct_yes = int((yes_cnt / len(q_bets)) * 100)
+                            st.markdown(f'<span class="consensus-badge">📊 League Pick: {pct_yes}% YES ({len(q_bets)} votes)</span>', unsafe_allow_html=True)
+
                         st.write(f"**Q{q['question_number']}: {q['question_text']}**")
                         col1, col2 = st.columns([1, 1])
                         with col1:
@@ -450,7 +539,7 @@ else:
             st.dataframe(formatted_data, use_container_width=True)
 
     # ------------------------------------------
-    # TAB 4: LEADERBOARD
+    # TAB 4: LEADERBOARD & TRASH TALK FEED
     # ------------------------------------------
     with tab_leaders:
         st.header("🏆 Player Standings")
@@ -458,6 +547,36 @@ else:
         
         if leader_res:
             st.dataframe(leader_res, use_container_width=True, hide_index=True)
+
+        # FEATURE 4: TRASH TALK FEED
+        st.divider()
+        st.subheader("💬 League Trash Talk Feed")
+        
+        with st.form("trash_talk_form"):
+            chat_msg = st.text_input("Post a message to the league...", key="chat_input")
+            post_chat = st.form_submit_button("Post Message 💬")
+            
+            if post_chat and chat_msg.strip():
+                supabase.table("trash_talk").insert({
+                    "user_id": user_id,
+                    "message": chat_msg.strip()
+                }).execute()
+                st.success("Message posted!")
+                st.rerun()
+
+        # Render recent messages
+        recent_chats = supabase.table("trash_talk").select("message, created_at, user_id").order("created_at", desc=True).limit(10).execute().data
+        all_profiles = supabase.table("profiles").select("id, full_name").execute().data
+        user_name_map = {p["id"]: p["full_name"] for p in all_profiles}
+
+        if recent_chats:
+            for c in recent_chats:
+                author_name = user_name_map.get(c["user_id"], "Player")
+                st.markdown(f"""
+                <div class="chat-bubble">
+                    <b>{author_name}:</b> {c['message']}
+                </div>
+                """, unsafe_allow_html=True)
 
     # ------------------------------------------
     # TAB 5: ADMIN PANEL (ADMINS ONLY)
