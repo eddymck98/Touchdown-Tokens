@@ -16,13 +16,13 @@ st.set_page_config(page_title="Touchdown Tokens", page_icon="🏈", layout="cent
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# Custom High-Contrast CSS Styling
+# Heavy-handed high-contrast CSS overrides
 st.markdown("""
     <style>
     /* Main App Background */
     .stApp {
         background: linear-gradient(180deg, #070d19 0%, #0f172a 100%);
-        color: #f8fafc;
+        color: #ffffff !important;
     }
     
     /* Sidebar Styling */
@@ -31,7 +31,7 @@ st.markdown("""
         border-right: 1px solid #1e293b;
     }
     
-    /* Header Logo Styling */
+    /* Header Logo */
     .header-logo-container {
         text-align: center;
         padding: 10px 0 20px 0;
@@ -41,12 +41,12 @@ st.markdown("""
         filter: drop-shadow(0px 4px 12px rgba(251, 191, 36, 0.5));
     }
     
-    /* Hero Token Display Card */
+    /* Hero Token Card */
     .big-token-card {
         background: linear-gradient(135deg, #1e3a8a 0%, #090d16 100%);
         padding: 30px;
         border-radius: 16px;
-        color: #ffffff;
+        color: #ffffff !important;
         text-align: center;
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
         border: 2px solid #fbbf24;
@@ -56,11 +56,49 @@ st.markdown("""
         font-size: 58px;
         font-weight: 900;
         margin: 5px 0;
-        color: #fbbf24;
+        color: #fbbf24 !important;
         text-shadow: 0px 2px 10px rgba(251, 191, 36, 0.4);
     }
     
-    /* Summary & Info Container Contrast */
+    /* FIX FOR INACTIVE TABS (FORCED LIGHT TEXT) */
+    button[data-baseweb="tab"] {
+        background-color: #1e293b !important;
+        border: 1px solid #334155 !important;
+        border-radius: 8px !important;
+        padding: 8px 16px !important;
+        margin-right: 4px !important;
+    }
+    button[data-baseweb="tab"] * {
+        color: #e2e8f0 !important; /* Force all internal tab text/icons to light gray */
+        font-weight: 700 !important;
+    }
+    button[data-baseweb="tab"]:hover {
+        background-color: #334155 !important;
+        border-color: #fbbf24 !important;
+    }
+    button[data-baseweb="tab"]:hover * {
+        color: #ffffff !important;
+    }
+    button[aria-selected="true"] {
+        background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%) !important;
+        border: 2px solid #fbbf24 !important;
+        box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3) !important;
+    }
+    button[aria-selected="true"] * {
+        color: #fbbf24 !important; /* Gold text for active tab */
+    }
+
+    /* FIX FOR ALERT BOXES (st.info, st.warning, st.error) */
+    .stAlert {
+        background-color: #1e293b !important;
+        border: 1px solid #334155 !important;
+        border-radius: 10px !important;
+    }
+    .stAlert * {
+        color: #f8fafc !important; /* Force white text inside alerts */
+    }
+
+    /* FIX FOR SUMMARY BOXES */
     .summary-box {
         background-color: #0f172a !important;
         border-left: 5px solid #fbbf24 !important;
@@ -72,33 +110,22 @@ st.markdown("""
         border-right: 1px solid #1e293b;
         border-bottom: 1px solid #1e293b;
     }
-    
-    /* Action & Submit Buttons */
-    div.stButton > button[kind="primary"] {
+
+    /* BUTTON STYLING */
+    div.stButton > button[kind="primary"], div.stFormSubmitButton > button {
         background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
         color: #000000 !important;
         font-weight: 800 !important;
         border-radius: 10px !important;
         border: none !important;
         box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3) !important;
-        transition: all 0.2s ease-in-out;
     }
     div.stButton > button[kind="primary"]:hover {
         background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(245, 158, 11, 0.5) !important;
-    }
-    
-    div.stFormSubmitButton > button {
-        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
         color: #000000 !important;
-        font-weight: 800 !important;
-        border-radius: 10px !important;
-        border: none !important;
-        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3) !important;
     }
-    
-    /* Input Control Visibility & Contrast */
+
+    /* FORM CONTROLS & LABELS */
     .stTextInput > label, .stNumberInput > label, .stRadio > label, .stSelectbox > label {
         color: #f8fafc !important;
         font-weight: 700 !important;
@@ -107,37 +134,6 @@ st.markdown("""
         background-color: #0f172a !important;
         color: #ffffff !important;
         border: 1px solid #334155 !important;
-    }
-
-    /* -------------------------------------- */
-    /* BUTTON-STYLE NAVIGATION TABS           */
-    /* -------------------------------------- */
-    div[data-baseweb="tab-list"] {
-        gap: 8px;
-        padding-bottom: 8px;
-    }
-
-    button[data-baseweb="tab"] {
-        background-color: #1e293b !important;
-        color: #cbd5e1 !important;
-        font-weight: 700 !important;
-        border-radius: 8px !important;
-        padding: 10px 18px !important;
-        border: 1px solid #334155 !important;
-        transition: all 0.2s ease-in-out;
-    }
-
-    button[data-baseweb="tab"]:hover {
-        background-color: #334155 !important;
-        color: #ffffff !important;
-        border-color: #fbbf24 !important;
-    }
-
-    button[aria-selected="true"] {
-        background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%) !important;
-        color: #fbbf24 !important;
-        border: 2px solid #fbbf24 !important;
-        box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3) !important;
     }
     </style>
 """, unsafe_allow_html=True)
