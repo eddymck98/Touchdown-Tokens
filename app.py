@@ -62,13 +62,13 @@ DEFAULT_QUESTION_TEMPLATES = [
     "Will QB 1 throw for over 250+ passing yards?",
     "Will RB 1 rush for 75+ rushing yards?",
     "Will WR 1 catch 6 or more receptions?",
-    "Will Team A score a touchdown in the 1st quarter?",
-    "Will there be a successful 50+ yard Field Goal kicked in Game A?",
-    "Will Game B have over 45.5 combined points scored?",
+    "Will Away Team score a touchdown in the 1st quarter?",
+    "Will there be a successful 50+ yard Field Goal kicked?",
+    "Will this game have over 45.5 combined points scored?",
     "Will any Defense record a pick-six or fumble recovery touchdown?",
     "Will TE 1 score a rushing or receiving touchdown?",
-    "Will Game C go into Overtime?",
-    "Will Team B record 3 or more sacks against Team C?"
+    "Will this game go into Overtime?",
+    "Will Home Team record 3 or more sacks?"
 ]
 
 # Fetch current user team for theme colors if logged in
@@ -162,15 +162,33 @@ st.markdown(f"""
         animation: teamPulse 2s infinite ease-in-out;
     }}
 
-    /* Point 1a: Matchup Card Styling */
     .matchup-card {{
-        background: rgba(15, 23, 42, 0.9);
+        background: rgba(15, 23, 42, 0.92);
         border: 1px solid #334155;
         border-left: 5px solid {user_team_color};
-        padding: 18px;
-        border-radius: 12px;
-        margin-bottom: 18px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        padding: 20px;
+        border-radius: 14px;
+        margin-bottom: 20px;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+    }}
+
+    .matchup-header-banner {{
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(30, 41, 59, 0.8);
+        border: 1px solid #475569;
+        border-radius: 10px;
+        padding: 10px 16px;
+        margin-bottom: 14px;
+    }}
+
+    .matchup-team-title {{
+        font-family: 'Teko', sans-serif;
+        font-size: 20px;
+        letter-spacing: 1px;
+        color: #fbbf24;
+        text-transform: uppercase;
     }}
 
     .timer-card {{
@@ -461,7 +479,6 @@ else:
                 
                 net_total = bet_gains - bet_losses + td_bonus
                 
-                # Point 1b: Victory Balloons Celebration on Net Gain
                 if net_total > 0:
                     st.balloons()
                 
@@ -653,16 +670,48 @@ else:
                         if q.get("winning_answer", "").startswith("LOCKTIME:"):
                             continue
                             
-                        # Point 1a: Matchup Card Wrapper
                         st.markdown('<div class="matchup-card">', unsafe_allow_html=True)
                         
+                        # Parse Matchup Teams & Question Prompt
+                        full_q_text = q['question_text']
+                        away_team_name = "🏈 Free Agent / Neutral"
+                        home_team_name = "🏈 Free Agent / Neutral"
+                        prompt_text = full_q_text
+                        
+                        if " | MATCHUP: " in full_q_text:
+                            parts = full_q_text.split(" | MATCHUP: ")
+                            prompt_text = parts[0]
+                            matchup_str = parts[1]
+                            if " @ " in matchup_str:
+                                teams_split = matchup_str.split(" @ ")
+                                away_team_name = teams_split[0]
+                                home_team_name = teams_split[1]
+
+                        away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
+                        home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
+
+                        # Render Matchup Header Banner with Team Logos
+                        col_away_logo, col_matchup_txt, col_home_logo = st.columns([1, 4, 1])
+                        with col_away_logo:
+                            st.image(away_info["logo"], width=45)
+                        with col_matchup_txt:
+                            st.markdown(f"""
+                                <div style="text-align:center; padding-top:4px;">
+                                    <span class="matchup-team-title">{away_team_name}</span>
+                                    <span style="color:#cbd5e1; font-weight:bold; margin: 0 8px;">@</span>
+                                    <span class="matchup-team-title">{home_team_name}</span>
+                                </div>
+                            """, unsafe_allow_html=True)
+                        with col_home_logo:
+                            st.image(home_info["logo"], width=45)
+
                         q_bets = [b for b in all_week_bets if b['question_id'] == q['id']]
                         if q_bets:
                             yes_cnt = sum(1 for b in q_bets if b['pick'] == "Yes")
                             pct_yes = int((yes_cnt / len(q_bets)) * 100)
                             st.markdown(f'<span class="consensus-badge">📊 League Pick: {pct_yes}% YES ({len(q_bets)} votes)</span>', unsafe_allow_html=True)
 
-                        st.write(f"**Q{q['question_number']}: {q['question_text']}**")
+                        st.markdown(f"**Q{q['question_number']}: {prompt_text}**")
                         col1, col2 = st.columns([1, 1])
                         with col1:
                             picks[q['id']] = st.radio(
@@ -742,6 +791,8 @@ else:
             for b in history_bets:
                 q_info = b.get("weekly_questions", {})
                 w_ans = q_info.get("winning_answer", "Pending")
+                raw_q_text = q_info.get("question_text", "N/A")
+                clean_q_prompt = raw_q_text.split(" | MATCHUP: ")[0] if " | MATCHUP: " in raw_q_text else raw_q_text
                 
                 if w_ans in ["Pending", "LOCKED"] or w_ans.startswith("LOCKTIME:"):
                     outcome = "Pending"
@@ -752,7 +803,7 @@ else:
                         
                 formatted_data.append({
                     "Week": b["week_number"],
-                    "Question": q_info.get("question_text", "N/A"),
+                    "Question": clean_q_prompt,
                     "Your Pick": b["pick"],
                     "Wager": b["wager_amount"],
                     "Winner": w_ans if not w_ans.startswith("LOCKTIME:") and w_ans not in ["Pending", "LOCKED"] else "Pending",
@@ -839,14 +890,14 @@ else:
             
             admin_sec = st.radio("Select Action", ["Create Questions", "Set Lockout Timer", "Grade Week & Calculate Points", "Adjust User Tokens", "Export League Data (CSV)", "League Chat Announcement", "Season Champion Banner"], horizontal=True)
             
-            # Sub-Section A: Enter Questions
+            # Sub-Section A: Enter Questions with Matchup Dropdowns
             if admin_sec == "Create Questions":
                 st.subheader("Add 10 New Weekly Questions")
                 new_week = st.number_input("Week Number", min_value=1, max_value=24, step=1, key="admin_week_selector")
                 
                 if st.button("📋 Load 10 Default Question Templates"):
                     for i, t_q in enumerate(DEFAULT_QUESTION_TEMPLATES):
-                        st.session_state[f"q_input_w{new_week}_q{i+1}"] = t_q
+                        st.session_state[f"q_prompt_w{new_week}_q{i+1}"] = t_q
                     st.success("Default templates loaded! Customize them below.")
 
                 existing_qs = supabase.table("weekly_questions").select("id").eq("week_number", new_week).execute().data
@@ -859,25 +910,40 @@ else:
                         st.rerun()
                 else:
                     with st.form(key=f"create_questions_form_week_{new_week}"):
-                        q_inputs = []
+                        q_data_to_save = []
+                        
                         for i in range(1, 11):
-                            def_val = st.session_state.get(f"q_input_w{new_week}_q{i}", "")
-                            val = st.text_input(f"Question {i}", value=def_val, key=f"static_q_input_w{new_week}_q{i}")
-                            q_inputs.append(val)
+                            st.markdown(f"#### Question {i}")
+                            col_m1, col_m2 = st.columns(2)
+                            with col_m1:
+                                away_t = st.selectbox(f"Q{i} Away Team", NFL_TEAMS, key=f"q{i}_away_team_sel")
+                            with col_m2:
+                                home_t = st.selectbox(f"Q{i} Home Team", NFL_TEAMS, key=f"q{i}_home_team_sel")
+                                
+                            def_val = st.session_state.get(f"q_prompt_w{new_week}_q{i}", "")
+                            prompt_val = st.text_input(f"Question {i} Prompt", value=def_val, key=f"q_prompt_input_w{new_week}_q{i}")
+                            
+                            q_data_to_save.append({
+                                "prompt": prompt_val.strip(),
+                                "away": away_t,
+                                "home": home_t
+                            })
+                            st.divider()
                         
                         submit_qs = st.form_submit_button("Publish All 10 Questions 🚀")
                     
                     if submit_qs:
-                        filled_questions = [q.strip() for q in q_inputs if q.strip()]
-                        if len(filled_questions) == 0:
-                            st.error("Please enter at least one question before publishing.")
+                        valid_items = [q for q in q_data_to_save if q["prompt"]]
+                        if len(valid_items) == 0:
+                            st.error("Please enter at least one question prompt before publishing.")
                         else:
-                            for idx, q_text in enumerate(q_inputs):
-                                if q_text.strip():
+                            for idx, q_item in enumerate(q_data_to_save):
+                                if q_item["prompt"]:
+                                    full_combined_str = f"{q_item['prompt']} | MATCHUP: {q_item['away']} @ {q_item['home']}"
                                     supabase.table("weekly_questions").insert({
                                         "week_number": new_week,
                                         "question_number": idx + 1,
-                                        "question_text": q_text.strip(),
+                                        "question_text": full_combined_str,
                                         "winning_answer": "Pending"
                                     }).execute()
                             st.success(f"Successfully published questions for Week {new_week}!")
@@ -918,8 +984,10 @@ else:
                             if q.get("winning_answer", "").startswith("LOCKTIME:"):
                                 continue
                             default_val = q["winning_answer"] if q["winning_answer"] in ["Yes", "No"] else "Pending"
+                            clean_prompt = q["question_text"].split(" | MATCHUP: ")[0] if " | MATCHUP: " in q["question_text"] else q["question_text"]
+                            
                             answers[q["id"]] = st.selectbox(
-                                f"Q{q['question_number']}: {q['question_text']}", 
+                                f"Q{q['question_number']}: {clean_prompt}", 
                                 ["Pending", "Yes", "No"], 
                                 index=["Pending", "Yes", "No"].index(default_val),
                                 key=f"ans_{q['id']}"
@@ -999,7 +1067,7 @@ else:
                         supabase.table("profiles").update({"tokens": new_token_val}).eq("id", target_user["id"]).execute()
                         st.success(f"Updated {selected_user_name}'s tokens to {new_token_val}!")
 
-            # Point 2a: Export League Data (CSV)
+            # Export League Data (CSV)
             elif admin_sec == "Export League Data (CSV)":
                 st.subheader("📥 Export League Data to CSV")
                 st.caption("Download full database dumps for Excel or record archives.")
@@ -1028,7 +1096,7 @@ else:
                             mime="text/csv"
                         )
 
-            # Point 2c: Pre-Formatted WhatsApp / League Chat Announcement
+            # Pre-Formatted WhatsApp / League Chat Announcement
             elif admin_sec == "League Chat Announcement":
                 st.subheader("📢 Pre-Formatted League Announcement Generator")
                 st.caption("Copy and paste this message directly into your WhatsApp or group chat!")
