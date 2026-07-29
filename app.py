@@ -59,7 +59,6 @@ if st.session_state.user is None:
                 try:
                     res = supabase.auth.sign_up({"email": reg_email, "password": reg_password})
                     if res.user:
-                        # Initialize user profile with default 10 tokens
                         supabase.table("profiles").insert({
                             "id": res.user.id,
                             "email": reg_email,
@@ -77,11 +76,9 @@ if st.session_state.user is None:
 else:
     user_id = st.session_state.user.id
     
-    # Fetch user details
     profile_res = supabase.table("profiles").select("*").eq("id", user_id).single().execute()
     profile = profile_res.data
     
-    # Sidebar Info
     st.sidebar.title(f"👤 {profile['full_name']}")
     st.sidebar.metric(label="Available Tokens", value=f"{profile['tokens']} 🪙")
     
@@ -93,7 +90,6 @@ else:
         st.session_state.user = None
         st.rerun()
 
-    # Determine main app tabs
     if profile.get("is_admin"):
         tab_bet, tab_history, tab_leaders, tab_admin = st.tabs(
             ["🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "⚙️ Admin Control"]
@@ -109,7 +105,6 @@ else:
     with tab_bet:
         st.header("Weekly Predictions & Wagers")
         
-        # Select active week
         weeks_res = supabase.table("weekly_questions").select("week_number").execute()
         available_weeks = sorted(list(set([r["week_number"] for r in weeks_res.data]))) if weeks_res.data else []
         
@@ -121,6 +116,12 @@ else:
             # Fetch questions for selected week
             q_res = supabase.table("weekly_questions").select("*").eq("week_number", selected_week).order("question_number").execute()
             questions = q_res.data
+            
+            # Check if this week is locked
+            is_locked = any(q.get("winning_answer") == "LOCKED" for q in questions)
+            
+            if is_locked:
+                st.error("🔒 Entries for this week are locked! Kickoff has started.")
             
             if not questions:
                 st.info("No questions found for this week.")
@@ -140,7 +141,8 @@ else:
                                 f"Pick for Q{q['question_number']}", 
                                 ["Yes", "No"], 
                                 key=f"pick_{q['id']}", 
-                                horizontal=True
+                                horizontal=True,
+                                disabled=is_locked
                             )
                         with col2:
                             wagers[q['id']] = st.number_input(
@@ -148,29 +150,32 @@ else:
                                 min_value=0, 
                                 max_value=profile['tokens'], 
                                 value=0, 
-                                key=f"wager_{q['id']}"
+                                key=f"wager_{q['id']}",
+                                disabled=is_locked
                             )
                         st.divider()
 
                     st.markdown("### 🏈 Bonus Touchdown Scorer Pick")
                     st.caption("Name 1 player to score a TD this week. Correct pick = +5 Bonus Tokens!")
-                    td_pick = st.text_input("Player Name (e.g., Patrick Mahomes)", key="td_scorer")
+                    
+                    # Fetch existing TD pick if already submitted
+                    existing_td = supabase.table("touchdown_picks").select("player_name").eq("user_id", user_id).eq("week_number", selected_week).execute().data
+                    default_td = existing_td[0]["player_name"] if existing_td else ""
+                    
+                    td_pick = st.text_input("Player Name (e.g., Patrick Mahomes)", value=default_td, key="td_scorer", disabled=is_locked)
                     
                     total_wagered = sum(wagers.values())
                     st.markdown(f"**Total Tokens Wagered:** `{total_wagered}` / `{profile['tokens']}`")
                     
-                    submit_bet = st.form_submit_button("Submit Weekly Bets 🚀", type="primary", use_container_width=True)
+                    submit_bet = st.form_submit_button("Submit Weekly Bets 🚀", type="primary", use_container_width=True, disabled=is_locked)
                     
-                    if submit_bet:
+                    if submit_bet and not is_locked:
                         if total_wagered > profile['tokens']:
                             st.error(f"Cannot wager {total_wagered} tokens! You only have {profile['tokens']} tokens available.")
                         else:
-                            # Process bets insertion/update
                             for q_id, pick_val in picks.items():
                                 w_amt = wagers[q_id]
-                                # Clear existing bet for this question
                                 supabase.table("user_bets").delete().eq("user_id", user_id).eq("question_id", q_id).execute()
-                                # Insert new bet
                                 supabase.table("user_bets").insert({
                                     "user_id": user_id,
                                     "week_number": selected_week,
@@ -202,19 +207,21 @@ else:
             formatted_data = []
             for b in history_bets:
                 q_info = b.get("weekly_questions", {})
-                outcome = "Pending"
-                if q_info and q_info.get("winning_answer") != "Pending":
-                    if b["pick"] == q_info["winning_answer"]:
-                        outcome = f"✅ Won (+{b['wager_amount'] * 2} Tokens)"
-                    else:
-                        outcome = f"❌ Lost (-{b['wager_amount']} Tokens)"
+                w_ans = q_info.get("winning_answer", "Pending")
+                
+                if w_ans in ["Pending", "LOCKED"]:
+                    outcome = "Pending"
+                elif b["pick"] == w_ans:
+                    outcome = f"✅ Won (+{b['wager_amount'] * 2} Tokens)"
+                else:
+                    outcome = f"❌ Lost (-{b['wager_amount']} Tokens)"
                         
                 formatted_data.append({
                     "Week": b["week_number"],
                     "Question": q_info.get("question_text", "N/A"),
                     "Your Pick": b["pick"],
                     "Wager": b["wager_amount"],
-                    "Winner": q_info.get("winning_answer", "Pending"),
+                    "Winner": w_ans if w_ans not in ["Pending", "LOCKED"] else "Pending",
                     "Result": outcome
                 })
             st.dataframe(formatted_data, use_container_width=True)
@@ -236,12 +243,11 @@ else:
         with tab_admin:
             st.header("⚙️ Admin Management Portal")
             
-            admin_sec = st.radio("Select Action", ["Create Questions", "Grade Week & Calculate Points", "Adjust User Tokens"], horizontal=True)
+            admin_sec = st.radio("Select Action", ["Create Questions", "Lock/Unlock Week", "Grade Week & Calculate Points", "Adjust User Tokens"], horizontal=True)
             
             # Sub-Section A: Enter Questions
             if admin_sec == "Create Questions":
                 st.subheader("Add 10 New Weekly Questions")
-                
                 new_week = st.number_input("Week Number", min_value=1, max_value=24, step=1, key="admin_week_selector")
                 
                 existing_qs = supabase.table("weekly_questions").select("id").eq("week_number", new_week).execute().data
@@ -263,7 +269,6 @@ else:
                     
                     if submit_qs:
                         filled_questions = [q.strip() for q in q_inputs if q.strip()]
-                        
                         if len(filled_questions) == 0:
                             st.error("Please enter at least one question before publishing.")
                         else:
@@ -275,14 +280,42 @@ else:
                                         "question_text": q_text.strip(),
                                         "winning_answer": "Pending"
                                     }).execute()
-                            
                             st.success(f"Successfully published questions for Week {new_week}!")
                             st.rerun()
 
-            # Sub-Section B: Grade & Calculate Scores
+            # Sub-Section B: Lock / Unlock Week
+            elif admin_sec == "Lock/Unlock Week":
+                st.subheader("🔒 Week Deadline Lock")
+                lock_week = st.number_input("Select Week to Lock/Unlock", min_value=1, max_value=24, step=1, key="lock_week_num")
+                
+                week_qs = supabase.table("weekly_questions").select("*").eq("week_number", lock_week).execute().data
+                
+                if not week_qs:
+                    st.warning("No questions found for this week.")
+                else:
+                    is_currently_locked = any(q.get("winning_answer") == "LOCKED" for q in week_qs)
+                    
+                    if is_currently_locked:
+                        st.error(f"Week {lock_week} is currently **LOCKED** 🔒")
+                        if st.button("Unlock Week for Player Submissions 🔓"):
+                            for q in week_qs:
+                                if q["winning_answer"] == "LOCKED":
+                                    supabase.table("weekly_questions").update({"winning_answer": "Pending"}).eq("id", q["id"]).execute()
+                            st.success(f"Week {lock_week} unlocked!")
+                            st.rerun()
+                    else:
+                        st.success(f"Week {lock_week} is currently **OPEN** 🔓")
+                        if st.button("Lock Week Now (Disable Submissions) 🔒"):
+                            for q in week_qs:
+                                if q["winning_answer"] == "Pending":
+                                    supabase.table("weekly_questions").update({"winning_answer": "LOCKED"}).eq("id", q["id"]).execute()
+                            st.success(f"Week {lock_week} locked!")
+                            st.rerun()
+
+            # Sub-Section C: Grade Week & Calculate Points
             elif admin_sec == "Grade Week & Calculate Points":
                 st.subheader("Grade Weekly Results")
-                grade_week = st.number_input("Select Week to Grade", min_value=1, max_value=24, step=1)
+                grade_week = st.number_input("Select Week to Grade", min_value=1, max_value=24, step=1, key="grade_week_num")
                 
                 week_q = supabase.table("weekly_questions").select("*").eq("week_number", grade_week).order("question_number").execute().data
                 
@@ -292,29 +325,43 @@ else:
                     with st.form("grade_form"):
                         answers = {}
                         for q in week_q:
+                            default_val = q["winning_answer"] if q["winning_answer"] in ["Yes", "No"] else "Pending"
                             answers[q["id"]] = st.selectbox(
                                 f"Q{q['question_number']}: {q['question_text']}", 
                                 ["Pending", "Yes", "No"], 
+                                index=["Pending", "Yes", "No"].index(default_val),
                                 key=f"ans_{q['id']}"
                             )
                         
-                        st.markdown("#### Touchdown Scorer Correct Picks")
-                        td_picks_data = supabase.table("touchdown_picks").select("*, profiles(full_name)").eq("week_number", grade_week).execute().data
+                        st.markdown("---")
+                        st.markdown("#### 🏈 Touchdown Scorer Correct Picks")
+                        st.caption("Check the box next to any player who successfully scored a TD (+5 bonus tokens).")
+                        
+                        # Fetch TD picks with clean name mapping
+                        td_picks_data = supabase.table("touchdown_picks").select("*").eq("week_number", grade_week).execute().data
+                        all_profiles = supabase.table("profiles").select("id, full_name").execute().data
+                        profile_dict = {p["id"]: p["full_name"] for p in all_profiles}
+                        
                         td_winners = []
-                        for td in td_picks_data:
-                            user_name = td.get("profiles", {}).get("full_name", "User")
-                            if st.checkbox(f"{user_name} picked: '{td['player_name']}'", key=f"td_{td['id']}"):
-                                td_winners.append(td["user_id"])
+                        if not td_picks_data:
+                            st.info("No Touchdown picks submitted for this week.")
+                        else:
+                            for td in td_picks_data:
+                                player_user_name = profile_dict.get(td["user_id"], "Unknown Player")
+                                is_winner = st.checkbox(
+                                    f"**{player_user_name}** picked: *{td['player_name']}*", 
+                                    value=bool(td.get("is_correct")),
+                                    key=f"td_check_{td['id']}"
+                                )
+                                if is_winner:
+                                    td_winners.append(td["user_id"])
 
-                        if st.form_submit_button("Calculate & Process Payouts", type="primary"):
-                            # Update winning answers in DB
+                        if st.form_submit_button("Calculate & Process Payouts 🏆", type="primary"):
                             for q_id, ans in answers.items():
                                 supabase.table("weekly_questions").update({"winning_answer": ans}).eq("id", q_id).execute()
                             
-                            # Fetch all bets for this week
                             week_bets = supabase.table("user_bets").select("*").eq("week_number", grade_week).execute().data
                             
-                            # Payout calculations
                             user_token_changes = {}
                             for bet in week_bets:
                                 u_id = bet["user_id"]
@@ -327,15 +374,13 @@ else:
                                     
                                 if correct_ans in ["Yes", "No"]:
                                     if bet["pick"] == correct_ans:
-                                        user_token_changes[u_id] += wager # Net profit (doubled bet)
+                                        user_token_changes[u_id] += wager
                                     else:
-                                        user_token_changes[u_id] -= wager # Lose wagered tokens
+                                        user_token_changes[u_id] -= wager
                             
-                            # Add TD Scorer bonuses (+5 Tokens)
                             for winner_id in td_winners:
                                 user_token_changes[winner_id] = user_token_changes.get(winner_id, 0) + 5
                             
-                            # Apply balance changes to user profiles
                             for u_id, change in user_token_changes.items():
                                 p_data = supabase.table("profiles").select("tokens").eq("id", u_id).single().execute().data
                                 new_balance = max(0, p_data["tokens"] + change)
@@ -343,7 +388,7 @@ else:
                                 
                             st.success("Scores graded and user token balances updated!")
 
-            # Sub-Section C: Manual Token Overrides
+            # Sub-Section D: Manual Token Overrides
             elif admin_sec == "Adjust User Tokens":
                 st.subheader("Manual Token Override")
                 all_users = supabase.table("profiles").select("id, full_name, tokens").execute().data
