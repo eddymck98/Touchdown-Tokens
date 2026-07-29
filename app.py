@@ -17,17 +17,16 @@ st.set_page_config(page_title="Touchdown Tokens", page_icon="🏈", layout="cent
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# Custom High-Impact NFL Visual Theme with Bebas Neue / Stadium Styling
+# Custom NFL High-Impact Visual Theme
 st.markdown("""
+    <style>
     @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Teko:wght@700&display=swap');
 
-    <style>
-    /* Main App Background with Stadium Yard-Line Grid Pattern */
-    .stApp {
+    /* Target main app background and inner container for stadium field backdrop */
+    .stApp, div[data-testid="stAppViewContainer"] {
         background: 
-            radial-gradient(circle at 50% 0%, rgba(30, 58, 138, 0.45), transparent 75%),
-            linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px) 0 0 / 50px 50px,
-            linear-gradient(180deg, #050b14 0%, #0c1527 100%);
+            radial-gradient(circle at 50% 20%, rgba(15, 23, 42, 0.75), rgba(7, 13, 25, 0.95)),
+            url('https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&w=1920&q=80') center center / cover no-repeat fixed !important;
         color: #ffffff !important;
     }
     
@@ -40,7 +39,7 @@ st.markdown("""
     /* Custom 3D Metallic NFL Title Display */
     .nfl-header {
         text-align: center;
-        padding: 15px 0 5px 0;
+        padding: 10px 0 5px 0;
     }
     .nfl-title {
         font-family: 'Bebas Neue', cursive, sans-serif !important;
@@ -50,7 +49,7 @@ st.markdown("""
         background: linear-gradient(180deg, #ffffff 20%, #fbbf24 70%, #d97706 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        text-shadow: 0px 4px 20px rgba(251, 191, 36, 0.4);
+        text-shadow: 0px 4px 20px rgba(251, 191, 36, 0.5);
         margin: 0;
         line-height: 1.0;
     }
@@ -63,8 +62,8 @@ st.markdown("""
         margin-top: -5px;
     }
     .header-logo {
-        width: 85px;
-        filter: drop-shadow(0px 6px 15px rgba(251, 191, 36, 0.5));
+        width: 90px;
+        filter: drop-shadow(0px 6px 15px rgba(251, 191, 36, 0.6));
     }
     
     /* Glowing Pulse Animation */
@@ -76,13 +75,14 @@ st.markdown("""
 
     /* Hero Scoreboard Token Display */
     .big-token-card {
-        background: linear-gradient(135deg, #1e3a8a 0%, #060a12 100%);
+        background: linear-gradient(135deg, rgba(30, 58, 138, 0.95) 0%, rgba(6, 10, 18, 0.95) 100%);
         padding: 30px;
         border-radius: 18px;
         color: #ffffff !important;
         text-align: center;
         border: 2px solid #fbbf24;
         margin-bottom: 25px;
+        backdrop-filter: blur(8px);
         animation: goldPulse 3.5s infinite ease-in-out;
     }
     .big-token-number {
@@ -134,7 +134,7 @@ st.markdown("""
     
     /* Trash Talk Bubble */
     .chat-bubble {
-        background-color: #0f172a;
+        background-color: rgba(15, 23, 42, 0.9);
         border-left: 4px solid #fbbf24;
         padding: 10px 14px;
         border-radius: 6px;
@@ -143,7 +143,7 @@ st.markdown("""
 
     /* INACTIVE TABS */
     button[data-baseweb="tab"] {
-        background-color: #1e293b !important;
+        background-color: rgba(30, 41, 59, 0.9) !important;
         border: 1px solid #334155 !important;
         border-radius: 8px !important;
         padding: 10px 18px !important;
@@ -170,7 +170,7 @@ st.markdown("""
 
     /* ALERT BOXES */
     .stAlert {
-        background-color: #1e293b !important;
+        background-color: rgba(30, 41, 59, 0.9) !important;
         border: 1px solid #334155 !important;
         border-radius: 10px !important;
     }
@@ -180,7 +180,7 @@ st.markdown("""
 
     /* SUMMARY BOXES */
     .summary-box {
-        background-color: #0f172a !important;
+        background-color: rgba(15, 23, 42, 0.9) !important;
         border-left: 5px solid #fbbf24 !important;
         padding: 18px;
         border-radius: 8px;
@@ -214,7 +214,7 @@ st.markdown("""
         font-weight: 700 !important;
     }
     .stTextInput input, .stNumberInput input {
-        background-color: #0f172a !important;
+        background-color: rgba(15, 23, 42, 0.9) !important;
         color: #ffffff !important;
         border: 1px solid #334155 !important;
     }
@@ -235,7 +235,7 @@ NFL_TEAMS = [
 
 AVATAR_OPTIONS = ["🏈", "🐐", "⚡", "👑", "🎯", "💣", "💎", "🔥", "🛡️", "🚀"]
 
-# Metallic Stadium NFL Title Header
+# Header NFL Shield Banner
 st.markdown("""
     <div class="nfl-header">
         <img src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" class="header-logo" alt="NFL Logo" />
