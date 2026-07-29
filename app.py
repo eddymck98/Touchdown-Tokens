@@ -17,8 +17,20 @@ if "user" not in st.session_state:
     st.session_state.user = None
 
 # Custom CSS for UI styling
-st.markdown("""
+    st.markdown("""
     <style>
+    /* Change the background color of the main app area */
+    .stApp {
+        background-color: #0e1117;
+        color: #ffffff;
+    }
+    
+    /* Change sidebar background color */
+    section[data-testid="stSidebar"] {
+        background-color: #161b22;
+    }
+    </style>
+""", unsafe_allow_html=True)
     .big-token-card {
         background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
         padding: 25px;
