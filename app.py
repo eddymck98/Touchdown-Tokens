@@ -17,31 +17,54 @@ st.set_page_config(page_title="Touchdown Tokens", page_icon="🏈", layout="cent
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# Custom High-Contrast CSS Styling
+# Custom High-Impact NFL Visual Theme with Bebas Neue / Stadium Styling
 st.markdown("""
+    @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Teko:wght@700&display=swap');
+
     <style>
-    /* Main App Background with Stadium Light Radial Glow */
+    /* Main App Background with Stadium Yard-Line Grid Pattern */
     .stApp {
         background: 
-            radial-gradient(circle at 50% 0%, rgba(30, 58, 138, 0.35), transparent 70%),
-            linear-gradient(180deg, #070d19 0%, #0f172a 100%);
+            radial-gradient(circle at 50% 0%, rgba(30, 58, 138, 0.45), transparent 75%),
+            linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px) 0 0 / 50px 50px,
+            linear-gradient(180deg, #050b14 0%, #0c1527 100%);
         color: #ffffff !important;
     }
     
     /* Sidebar Styling */
     section[data-testid="stSidebar"] {
         background-color: #030712 !important;
-        border-right: 1px solid #1e293b;
+        border-right: 2px solid #1e293b;
     }
     
-    /* Header Logo */
-    .header-logo-container {
+    /* Custom 3D Metallic NFL Title Display */
+    .nfl-header {
         text-align: center;
-        padding: 10px 0 20px 0;
+        padding: 15px 0 5px 0;
+    }
+    .nfl-title {
+        font-family: 'Bebas Neue', cursive, sans-serif !important;
+        font-size: 64px !important;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        background: linear-gradient(180deg, #ffffff 20%, #fbbf24 70%, #d97706 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0px 4px 20px rgba(251, 191, 36, 0.4);
+        margin: 0;
+        line-height: 1.0;
+    }
+    .nfl-subtitle {
+        font-family: 'Teko', sans-serif;
+        font-size: 22px;
+        letter-spacing: 3px;
+        color: #93c5fd;
+        text-transform: uppercase;
+        margin-top: -5px;
     }
     .header-logo {
-        width: 90px;
-        filter: drop-shadow(0px 4px 12px rgba(251, 191, 36, 0.5));
+        width: 85px;
+        filter: drop-shadow(0px 6px 15px rgba(251, 191, 36, 0.5));
     }
     
     /* Glowing Pulse Animation */
@@ -51,11 +74,11 @@ st.markdown("""
         100% { box-shadow: 0 0 10px rgba(251, 191, 36, 0.2); }
     }
 
-    /* Hero Token Card with Pulse Effect */
+    /* Hero Scoreboard Token Display */
     .big-token-card {
-        background: linear-gradient(135deg, #1e3a8a 0%, #090d16 100%);
+        background: linear-gradient(135deg, #1e3a8a 0%, #060a12 100%);
         padding: 30px;
-        border-radius: 16px;
+        border-radius: 18px;
         color: #ffffff !important;
         text-align: center;
         border: 2px solid #fbbf24;
@@ -63,14 +86,15 @@ st.markdown("""
         animation: goldPulse 3.5s infinite ease-in-out;
     }
     .big-token-number {
-        font-size: 58px;
-        font-weight: 900;
-        margin: 5px 0;
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 68px;
+        letter-spacing: 2px;
+        margin: 0;
         color: #fbbf24 !important;
-        text-shadow: 0px 2px 10px rgba(251, 191, 36, 0.4);
+        text-shadow: 0px 4px 15px rgba(251, 191, 36, 0.5);
     }
     
-    /* CHAMPION BANNER STYLING */
+    /* Champion Banner Styling */
     .champion-card {
         background: linear-gradient(135deg, #78350f 0%, #b45309 50%, #f59e0b 100%);
         padding: 30px;
@@ -122,12 +146,14 @@ st.markdown("""
         background-color: #1e293b !important;
         border: 1px solid #334155 !important;
         border-radius: 8px !important;
-        padding: 8px 16px !important;
+        padding: 10px 18px !important;
         margin-right: 4px !important;
     }
     button[data-baseweb="tab"] * {
-        color: #e2e8f0 !important;
-        font-weight: 700 !important;
+        font-family: 'Teko', sans-serif !important;
+        font-size: 18px !important;
+        letter-spacing: 1px !important;
+        color: #cbd5e1 !important;
     }
     button[data-baseweb="tab"]:hover {
         background-color: #334155 !important;
@@ -136,7 +162,7 @@ st.markdown("""
     button[aria-selected="true"] {
         background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%) !important;
         border: 2px solid #fbbf24 !important;
-        box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3) !important;
+        box-shadow: 0 4px 15px rgba(251, 191, 36, 0.35) !important;
     }
     button[aria-selected="true"] * {
         color: #fbbf24 !important;
@@ -167,7 +193,10 @@ st.markdown("""
     div.stButton > button[kind="primary"], div.stFormSubmitButton > button {
         background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
         color: #000000 !important;
-        font-weight: 800 !important;
+        font-family: 'Teko', sans-serif !important;
+        font-size: 22px !important;
+        letter-spacing: 1.5px !important;
+        text-transform: uppercase !important;
         border-radius: 10px !important;
         border: none !important;
         transition: all 0.3s ease-in-out !important;
@@ -192,7 +221,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# List of NFL Teams for Profile Selection
+# List of NFL Teams
 NFL_TEAMS = [
     "🏈 Free Agent / Neutral", "🔴 Arizona Cardinals", "🟣 Baltimore Ravens", "🔴 Buffalo Bills",
     "🔵 Carolina Panthers", "🟠 Chicago Bears", "🟠 Cincinnati Bengals", "🟤 Cleveland Browns",
@@ -206,14 +235,15 @@ NFL_TEAMS = [
 
 AVATAR_OPTIONS = ["🏈", "🐐", "⚡", "👑", "🎯", "💣", "💎", "🔥", "🛡️", "🚀"]
 
-# Header Logo
+# Metallic Stadium NFL Title Header
 st.markdown("""
-    <div class="header-logo-container">
+    <div class="nfl-header">
         <img src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" class="header-logo" alt="NFL Logo" />
+        <h1 class="nfl-title">TOUCHDOWN TOKENS</h1>
+        <div class="nfl-subtitle">Weekly NFL Predictions & Wagers</div>
     </div>
 """, unsafe_allow_html=True)
-
-st.title("🏈 Touchdown Tokens")
+st.write("")
 
 # ==========================================
 # 1. LOGIN & SIGNUP SCREEN
@@ -329,7 +359,7 @@ else:
 
         st.markdown(f"## Welcome back, {profile['full_name']}! 👋")
         
-        # Big Token Balance Display Card
+        # Big Token Balance Scoreboard Card
         st.markdown(f"""
             <div class="big-token-card">
                 <div style="font-size: 16px; letter-spacing: 2px; text-transform: uppercase; color: #93c5fd;">Current Balance</div>
