@@ -58,6 +58,16 @@ NFL_TEAM_DATA = {
 NFL_TEAMS = list(NFL_TEAM_DATA.keys())
 AVATAR_OPTIONS = ["🏈", "🐐", "⚡", "👑", "🎯", "💣", "💎", "🔥", "🛡️", "🚀"]
 
+MASTER_BADGES = {
+    "🚀 Token Tycoon": "Reach a balance of 30+ tokens",
+    "🎯 High Roller": "Wager 10+ tokens on a single question",
+    "🏈 TD Guru": "Correctly predict 2+ Touchdown Scorers",
+    "👑 Weekly High Scorer": "Win the most net tokens in a single week",
+    "🎯 Perfect 10/10": "Correctly answer all 10 scenarios in a single week",
+    "📉 Wall Street Bets": "Take the largest token loss in a single week",
+    "📉 Down Bad": "Reach a token balance of 0 tokens"
+}
+
 DEFAULT_QUESTION_TEMPLATES = [
     "Will QB 1 throw for over 250+ passing yards?",
     "Will RB 1 rush for 75+ rushing yards?",
@@ -172,15 +182,44 @@ st.markdown(f"""
         box-shadow: 0 6px 16px rgba(0,0,0,0.4);
     }}
 
-    .matchup-header-banner {{
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background: rgba(30, 41, 59, 0.8);
-        border: 1px solid #475569;
-        border-radius: 10px;
-        padding: 10px 16px;
-        margin-bottom: 14px;
+    .trophy-card-unlocked {{
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%);
+        border: 2px solid {user_team_color};
+        padding: 14px;
+        border-radius: 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 0 12px {user_team_color}44;
+    }}
+
+    .trophy-card-locked {{
+        background: rgba(15, 23, 42, 0.5);
+        border: 1px dashed #475569;
+        padding: 14px;
+        border-radius: 12px;
+        margin-bottom: 12px;
+        opacity: 0.55;
+    }}
+
+    div[data-testid="stRadio"] div[role="radiogroup"] > label {{
+        background-color: rgba(30, 41, 59, 0.7) !important;
+        border: 1px solid #475569 !important;
+        border-radius: 8px !important;
+        padding: 6px 14px !important;
+        margin-right: 8px !important;
+        transition: all 0.2s ease-in-out !important;
+    }}
+    div[data-testid="stRadio"] div[role="radiogroup"] > label:hover {{
+        border-color: {user_team_color} !important;
+        box-shadow: 0 0 10px {user_team_color}55 !important;
+    }}
+    div[data-testid="stRadio"] div[role="radiogroup"] label[aria-checked="true"] {{
+        background: linear-gradient(135deg, {user_team_color}33 0%, rgba(15,23,42,0.9) 100%) !important;
+        border: 2px solid {user_team_color} !important;
+        box-shadow: 0 0 12px {user_team_color}aa !important;
+    }}
+    div[data-testid="stRadio"] div[role="radiogroup"] label[aria-checked="true"] * {{
+        color: #ffffff !important;
+        font-weight: 800 !important;
     }}
 
     .matchup-team-title {{
@@ -301,6 +340,61 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 st.write("")
+
+# Helper function to compute player badges
+def get_user_badges(target_user_id):
+    p_data = supabase.table("profiles").select("tokens").eq("id", target_user_id).single().execute().data
+    toks = p_data.get("tokens", 0) if p_data else 0
+    
+    u_bets = supabase.table("user_bets").select("*").eq("user_id", target_user_id).execute().data
+    u_td = supabase.table("touchdown_picks").select("*").eq("user_id", target_user_id).eq("is_correct", True).execute().data
+    
+    badges = []
+    if toks >= 30:
+        badges.append("🚀 Token Tycoon")
+    if any(b['wager_amount'] >= 10 for b in u_bets):
+        badges.append("🎯 High Roller")
+    if len(u_td) >= 2:
+        badges.append("🏈 TD Guru")
+    if toks == 0:
+        badges.append("📉 Down Bad")
+        
+    graded_q = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
+    if graded_q:
+        latest_w = graded_q[0]["week_number"]
+        all_latest_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("week_number", latest_w).execute().data
+        
+        user_gains = {}
+        user_loss = {}
+        user_correct = {}
+        
+        for b in all_latest_bets:
+            u = b['user_id']
+            w_ans = b.get("weekly_questions", {}).get("winning_answer")
+            if u not in user_gains:
+                user_gains[u] = 0
+                user_loss[u] = 0
+                user_correct[u] = 0
+            
+            if w_ans in ["Yes", "No"]:
+                if b['pick'] == w_ans:
+                    user_gains[u] += b['wager_amount']
+                    user_correct[u] += 1
+                else:
+                    user_loss[u] += b['wager_amount']
+        
+        if user_gains and max(user_gains.values(), default=-1) > 0:
+            if max(user_gains, key=user_gains.get) == target_user_id:
+                badges.append("👑 Weekly High Scorer")
+                
+        if user_loss and max(user_loss.values(), default=-1) > 0:
+            if max(user_loss, key=user_loss.get) == target_user_id:
+                badges.append("📉 Wall Street Bets")
+                
+        if user_correct.get(target_user_id, 0) == 10:
+            badges.append("🎯 Perfect 10/10")
+            
+    return badges
 
 # ==========================================
 # 1. LOGIN & SIGNUP SCREEN
@@ -425,34 +519,42 @@ else:
             </div>
         """, unsafe_allow_html=True)
 
-        user_bets_all = supabase.table("user_bets").select("*").eq("user_id", user_id).execute().data
-        user_td_all = supabase.table("touchdown_picks").select("*").eq("user_id", user_id).eq("is_correct", True).execute().data
+        # --- VIRTUAL TROPHY CABINET SHOWCASE ---
+        my_earned_badges = get_user_badges(user_id)
         
-        earned_badges = []
-        if profile['tokens'] >= 30:
-            earned_badges.append("🚀 Token Tycoon")
-        if any(b['wager_amount'] >= 10 for b in user_bets_all):
-            earned_badges.append("🎯 High Roller")
-        if len(user_td_all) >= 2:
-            earned_badges.append("🏈 TD Guru")
-        if profile['tokens'] == 0:
-            earned_badges.append("📉 Down Bad")
+        st.subheader("🏆 Virtual Trophy Cabinet")
+        st.caption(f"Unlocked {len(my_earned_badges)} / {len(MASTER_BADGES)} Total Badges")
+        
+        t_col1, t_col2 = st.columns(2)
+        for idx, (b_name, b_desc) in enumerate(MASTER_BADGES.items()):
+            is_unlocked = b_name in my_earned_badges
+            target_col = t_col1 if idx % 2 == 0 else t_col2
             
-        if earned_badges:
-            st.markdown("#### Your Earned Badges")
-            badges_html = "".join([f'<span class="badge-pill">{b}</span>' for b in earned_badges])
-            st.markdown(badges_html, unsafe_allow_html=True)
-            st.write("")
+            with target_col:
+                if is_unlocked:
+                    st.markdown(f"""
+                        <div class="trophy-card-unlocked">
+                            <b>{b_name}</b> <span style="color:#fbbf24;">(UNLOCKED)</span><br>
+                            <small style="color:#cbd5e1;">{b_desc}</small>
+                        </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                        <div class="trophy-card-locked">
+                            <b>🔒 {b_name}</b><br>
+                            <small>{b_desc}</small>
+                        </div>
+                    """, unsafe_allow_html=True)
 
         st.divider()
         st.subheader("📊 Last Week's Performance Summary")
         
-        graded_q = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
+        graded_q_badge = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
         
-        if not graded_q:
+        if not graded_q_badge:
             st.info("No weeks have been graded yet. Place your bets for Week 1 to get started!")
         else:
-            latest_graded_week = graded_q[0]["week_number"]
+            latest_graded_week = graded_q_badge[0]["week_number"]
             
             lw_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("user_id", user_id).eq("week_number", latest_graded_week).execute().data
             lw_td = supabase.table("touchdown_picks").select("*").eq("user_id", user_id).eq("week_number", latest_graded_week).execute().data
@@ -672,7 +774,6 @@ else:
                             
                         st.markdown('<div class="matchup-card">', unsafe_allow_html=True)
                         
-                        # Parse Matchup Teams & Question Prompt
                         full_q_text = q['question_text']
                         away_team_name = "🏈 Free Agent / Neutral"
                         home_team_name = "🏈 Free Agent / Neutral"
@@ -690,7 +791,6 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        # Render Matchup Header Banner with Team Logos
                         col_away_logo, col_matchup_txt, col_home_logo = st.columns([1, 4, 1])
                         with col_away_logo:
                             st.image(away_info["logo"], width=45)
@@ -816,20 +916,25 @@ else:
     # ------------------------------------------
     with tab_leaders:
         st.header("🏆 Player Standings")
-        leader_res = supabase.table("profiles").select("full_name, tokens, favorite_team, bio, avatar_emoji").order("tokens", desc=True).execute().data
+        leader_res = supabase.table("profiles").select("id, full_name, tokens, favorite_team, bio, avatar_emoji").order("tokens", desc=True).execute().data
         
         if leader_res:
             leader_data = []
+            
             for idx, p in enumerate(leader_res):
                 av = p.get("avatar_emoji") or "🏈"
                 team_name = p.get("favorite_team") or "🏈 Free Agent / Neutral"
                 t_info = NFL_TEAM_DATA.get(team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
+                
+                p_badges = get_user_badges(p["id"])
+                badge_str = f"🏆 {len(p_badges)} Badges"
                 
                 leader_data.append({
                     "Rank": f"#{idx + 1}",
                     "Logo": t_info["logo"],
                     "Player": f"{av} {p['full_name']}",
                     "Team": team_name,
+                    "Trophies": badge_str,
                     "Tokens": f"{p['tokens']} 🪙",
                     "Catchphrase": p.get("bio", "")
                 })
@@ -888,7 +993,7 @@ else:
         with tab_admin:
             st.header("⚙️ Admin Management Portal")
             
-            admin_sec = st.radio("Select Action", ["Create Questions", "Set Lockout Timer", "Grade Week & Calculate Points", "Adjust User Tokens", "Export League Data (CSV)", "League Chat Announcement", "Season Champion Banner"], horizontal=True)
+            admin_sec = st.radio("Select Action", ["Create Questions", "Set Lockout Timer", "Grade Week & Calculate Points", "Adjust User Tokens", "Export League Data (CSV)", "League Chat Announcement", "Archive & Reset Season", "Season Champion Banner"], horizontal=True)
             
             # Sub-Section A: Enter Questions with Matchup Dropdowns
             if admin_sec == "Create Questions":
@@ -1114,6 +1219,35 @@ else:
 Good luck this week! 🚀"""
                 
                 st.code(announcement_template, language="markdown")
+
+            # One-Click Season Reset / Archive Tool
+            elif admin_sec == "Archive & Reset Season":
+                st.subheader("🧹 End-of-Season Reset & Archive Utility")
+                st.caption("Archive final season standings and reset all active player balances back to 10 tokens for a fresh pre-season launch.")
+                st.warning("⚠️ Action Warning: This will reset all active user token totals to 10!")
+                
+                season_label = st.text_input("Season Label", value="2026 Season Archive")
+                confirm_check = st.checkbox("I confirm I wish to reset all user balances to 10 tokens for the new season.")
+                
+                if st.button("Archive & Reset Balances Now 🔄", type="primary", disabled=not confirm_check):
+                    try:
+                        all_profiles = supabase.table("profiles").select("id, full_name, tokens, favorite_team").order("tokens", desc=True).execute().data
+                        
+                        df_archive = pd.DataFrame(all_profiles)
+                        df_archive["season_label"] = season_label
+                        
+                        for p in all_profiles:
+                            supabase.table("profiles").update({"tokens": 10}).eq("id", p["id"]).execute()
+                            
+                        st.success("All player balances have been reset to 10 tokens! Season archived.")
+                        st.download_button(
+                            label="📥 Download Archived Season Summary (CSV)",
+                            data=df_archive.to_csv(index=False),
+                            file_name=f"{season_label.lower().replace(' ', '_')}_final.csv",
+                            mime="text/csv"
+                        )
+                    except Exception as e:
+                        st.error(f"Error resetting season: {e}")
 
             # Sub-Section G: Champion Banner Toggle
             elif admin_sec == "Season Champion Banner":
