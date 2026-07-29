@@ -17,7 +17,7 @@ st.set_page_config(page_title="Touchdown Tokens", page_icon="🏈", layout="cent
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# Custom NFL High-Impact Visual Theme
+# Custom High-Impact Visual Theme
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Teko:wght@700&display=swap');
@@ -25,7 +25,7 @@ st.markdown("""
     /* Target main app background and inner container for stadium field backdrop */
     .stApp, div[data-testid="stAppViewContainer"] {
         background: 
-            radial-gradient(circle at 50% 20%, rgba(15, 23, 42, 0.75), rgba(7, 13, 25, 0.95)),
+            radial-gradient(circle at 50% 20%, rgba(15, 23, 42, 0.8), rgba(7, 13, 25, 0.96)),
             url('https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&w=1920&q=80') center center / cover no-repeat fixed !important;
         color: #ffffff !important;
     }
@@ -218,21 +218,60 @@ st.markdown("""
         color: #ffffff !important;
         border: 1px solid #334155 !important;
     }
+    
+    /* Team Logo Inline Container */
+    .team-badge-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+    .team-logo-img {
+        width: 32px;
+        height: 32px;
+        object-fit: contain;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# List of NFL Teams
-NFL_TEAMS = [
-    "🏈 Free Agent / Neutral", "🔴 Arizona Cardinals", "🟣 Baltimore Ravens", "🔴 Buffalo Bills",
-    "🔵 Carolina Panthers", "🟠 Chicago Bears", "🟠 Cincinnati Bengals", "🟤 Cleveland Browns",
-    "🔵 Dallas Cowboys", "🟠 Denver Broncos", "🔵 Detroit Lions", "🟢 Green Bay Packers",
-    "🔴 Houston Texans", "🔵 Indianapolis Colts", "🐆 Jacksonville Jaguars", "🔴 Kansas City Chiefs",
-    "🪙 Las Vegas Raiders", "⚡ Los Angeles Chargers", "🟡 Los Angeles Rams", "🐬 Miami Dolphins",
-    "🟣 Minnesota Vikings", "🔵 New England Patriots", "⚜️ New Orleans Saints", "🔵 New York Giants",
-    "🟢 New York Jets", "🦅 Philadelphia Eagles", "🟡 Pittsburgh Steelers", "🔴 San Francisco 49ers",
-    "🟢 Seattle Seahawks", "🔴 Tampa Bay Buccaneers", "🔵 Tennessee Titans", "🔴 Washington Commanders"
-]
+# Dictionary of NFL Teams with Official CDN Logos
+NFL_TEAM_LOGOS = {
+    "Free Agent / Neutral": "https://a.espncdn.com/i/teamlogos/nfl/500/nfl.png",
+    "Arizona Cardinals": "https://a.espncdn.com/i/teamlogos/nfl/500/ari.png",
+    "Atlanta Falcons": "https://a.espncdn.com/i/teamlogos/nfl/500/atl.png",
+    "Baltimore Ravens": "https://a.espncdn.com/i/teamlogos/nfl/500/bal.png",
+    "Buffalo Bills": "https://a.espncdn.com/i/teamlogos/nfl/500/buf.png",
+    "Carolina Panthers": "https://a.espncdn.com/i/teamlogos/nfl/500/car.png",
+    "Chicago Bears": "https://a.espncdn.com/i/teamlogos/nfl/500/chi.png",
+    "Cincinnati Bengals": "https://a.espncdn.com/i/teamlogos/nfl/500/cin.png",
+    "Cleveland Browns": "https://a.espncdn.com/i/teamlogos/nfl/500/cle.png",
+    "Dallas Cowboys": "https://a.espncdn.com/i/teamlogos/nfl/500/dal.png",
+    "Denver Broncos": "https://a.espncdn.com/i/teamlogos/nfl/500/den.png",
+    "Detroit Lions": "https://a.espncdn.com/i/teamlogos/nfl/500/det.png",
+    "Green Bay Packers": "https://a.espncdn.com/i/teamlogos/nfl/500/gb.png",
+    "Houston Texans": "https://a.espncdn.com/i/teamlogos/nfl/500/hou.png",
+    "Indianapolis Colts": "https://a.espncdn.com/i/teamlogos/nfl/500/ind.png",
+    "Jacksonville Jaguars": "https://a.espncdn.com/i/teamlogos/nfl/500/jax.png",
+    "Kansas City Chiefs": "https://a.espncdn.com/i/teamlogos/nfl/500/kc.png",
+    "Las Vegas Raiders": "https://a.espncdn.com/i/teamlogos/nfl/500/lv.png",
+    "Los Angeles Chargers": "https://a.espncdn.com/i/teamlogos/nfl/500/lac.png",
+    "Los Angeles Rams": "https://a.espncdn.com/i/teamlogos/nfl/500/lar.png",
+    "Miami Dolphins": "https://a.espncdn.com/i/teamlogos/nfl/500/mia.png",
+    "Minnesota Vikings": "https://a.espncdn.com/i/teamlogos/nfl/500/min.png",
+    "New England Patriots": "https://a.espncdn.com/i/teamlogos/nfl/500/ne.png",
+    "New Orleans Saints": "https://a.espncdn.com/i/teamlogos/nfl/500/no.png",
+    "New York Giants": "https://a.espncdn.com/i/teamlogos/nfl/500/nyg.png",
+    "New York Jets": "https://a.espncdn.com/i/teamlogos/nfl/500/nyj.png",
+    "Philadelphia Eagles": "https://a.espncdn.com/i/teamlogos/nfl/500/phi.png",
+    "Pittsburgh Steelers": "https://a.espncdn.com/i/teamlogos/nfl/500/pit.png",
+    "San Francisco 49ers": "https://a.espncdn.com/i/teamlogos/nfl/500/sf.png",
+    "Seattle Seahawks": "https://a.espncdn.com/i/teamlogos/nfl/500/sea.png",
+    "Tampa Bay Buccaneers": "https://a.espncdn.com/i/teamlogos/nfl/500/tb.png",
+    "Tennessee Titans": "https://a.espncdn.com/i/teamlogos/nfl/500/ten.png",
+    "Washington Commanders": "https://a.espncdn.com/i/teamlogos/nfl/500/was.png"
+}
 
+NFL_TEAMS = list(NFL_TEAM_LOGOS.keys())
 AVATAR_OPTIONS = ["🏈", "🐐", "⚡", "👑", "🎯", "💣", "💎", "🔥", "🛡️", "🚀"]
 
 # Header NFL Shield Banner
@@ -299,7 +338,7 @@ if st.session_state.user is None:
                             "full_name": reg_name,
                             "tokens": 10,
                             "is_admin": False,
-                            "favorite_team": "🏈 Free Agent / Neutral",
+                            "favorite_team": "Free Agent / Neutral",
                             "bio": "Ready for Kickoff!",
                             "avatar_emoji": "🏈"
                         }).execute()
@@ -316,10 +355,14 @@ else:
     profile_res = supabase.table("profiles").select("*").eq("id", user_id).single().execute()
     profile = profile_res.data
     
-    # Sidebar Player Header
+    # Sidebar Player Header with Team Logo
     user_avatar = profile.get("avatar_emoji", "🏈")
+    user_team = profile.get('favorite_team', 'Free Agent / Neutral')
+    team_logo_url = NFL_TEAM_LOGOS.get(user_team, NFL_TEAM_LOGOS["Free Agent / Neutral"])
+    
     st.sidebar.title(f"{user_avatar} {profile['full_name']}")
-    st.sidebar.caption(f"Team: {profile.get('favorite_team', 'Neutral')}")
+    st.sidebar.image(team_logo_url, width=45)
+    st.sidebar.caption(f"Team: {user_team}")
     st.sidebar.metric(label="Available Tokens", value=f"{profile['tokens']} 🪙")
     
     if profile.get("is_admin"):
@@ -476,9 +519,12 @@ else:
         with st.form("profile_customization_form"):
             new_display_name = st.text_input("Display Name", value=profile.get("full_name", ""))
             
-            curr_team = profile.get("favorite_team", "🏈 Free Agent / Neutral")
+            curr_team = profile.get("favorite_team", "Free Agent / Neutral")
             team_index = NFL_TEAMS.index(curr_team) if curr_team in NFL_TEAMS else 0
             new_team = st.selectbox("Favorite NFL Team", NFL_TEAMS, index=team_index)
+            
+            # Preview Selected Team Logo
+            st.image(NFL_TEAM_LOGOS.get(new_team, NFL_TEAM_LOGOS["Free Agent / Neutral"]), width=60)
             
             curr_avatar = profile.get("avatar_emoji", "🏈")
             avatar_index = AVATAR_OPTIONS.index(curr_avatar) if curr_avatar in AVATAR_OPTIONS else 0
@@ -698,7 +744,7 @@ else:
             leader_table = []
             for idx, p in enumerate(leader_res):
                 av = p.get("avatar_emoji") or "🏈"
-                team = p.get("favorite_team") or "Neutral"
+                team = p.get("favorite_team") or "Free Agent / Neutral"
                 bio = p.get("bio") or ""
                 
                 leader_table.append({
@@ -737,12 +783,16 @@ else:
                 p_info = profile_map.get(c["user_id"], {})
                 author_name = p_info.get("full_name", "Player")
                 author_av = p_info.get("avatar_emoji", "🏈")
-                author_team = p_info.get("favorite_team", "")
+                author_team = p_info.get("favorite_team", "Free Agent / Neutral")
+                logo_url = NFL_TEAM_LOGOS.get(author_team, NFL_TEAM_LOGOS["Free Agent / Neutral"])
                 
                 st.markdown(f"""
                 <div class="chat-bubble">
-                    <b>{author_av} {author_name}</b> <small style="opacity:0.7;">({author_team})</small>:<br>
-                    {c['message']}
+                    <div class="team-badge-container">
+                        <img src="{logo_url}" class="team-logo-img" alt="{author_team}" />
+                        <b>{author_av} {author_name}</b> <small style="opacity:0.7;">({author_team})</small>
+                    </div>
+                    <div>{c['message']}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
