@@ -206,6 +206,15 @@ st.markdown(f"""
         opacity: 0.55;
     }}
 
+    .leaderboard-row {{
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }}
+
     div[data-testid="stRadio"] div[role="radiogroup"] > label {{
         background-color: rgba(30, 41, 59, 0.7) !important;
         border: 1px solid #475569 !important;
@@ -749,7 +758,7 @@ else:
         """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 3: PLACE BETS (COLLAPSIBLE ACCORDIONS & DYNAMIC PROGRESS)
+    # TAB 3: PLACE BETS
     # ------------------------------------------
     with tab_bet:
         st.header("Weekly Predictions & Wagers")
@@ -828,7 +837,6 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        # Collapsible Matchup Accordion
                         with st.expander(f"Q{q['question_number']}: {prompt_text[:50]}... ({away_team_name} @ {home_team_name})", expanded=True):
                             col_away_logo, col_matchup_txt, col_home_logo = st.columns([1, 4, 1])
                             with col_away_logo:
@@ -883,7 +891,6 @@ else:
                     progress_val = min(1.0, total_wagered / max_available)
                     pct_str = int(progress_val * 100)
                     
-                    # Dynamic Wager Progress Bar Color Shift
                     if total_wagered > profile['tokens']:
                         st.error(f"⚠️ Over-wagered! You have allocated {total_wagered} tokens but only have {profile['tokens']} available.")
                     else:
@@ -955,42 +962,42 @@ else:
             st.dataframe(formatted_data, use_container_width=True)
 
     # ------------------------------------------
-    # TAB 5: LEADERBOARD (WITH QUICK-JUMP BADGE PILLS)
+    # TAB 5: LEADERBOARD (CUSTOM RENDERED CARDS FIX)
     # ------------------------------------------
     with tab_leaders:
         st.header("🏆 Player Standings")
         leader_res = supabase.table("profiles").select("id, full_name, tokens, favorite_team, bio, avatar_emoji").order("tokens", desc=True).execute().data
         
         if leader_res:
-            leader_data = []
-            
             for idx, p in enumerate(leader_res):
                 av = p.get("avatar_emoji") or "🏈"
                 team_name = p.get("favorite_team") or "🏈 Free Agent / Neutral"
                 t_info = NFL_TEAM_DATA.get(team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
-                
                 p_badges = get_user_badges(p["id"])
+                
                 badges_html = "".join([f'<span class="badge-pill">{b}</span>' for b in p_badges]) if p_badges else '<span style="color:#64748b; font-size:12px;">No Badges Yet</span>'
+                bio_text = p.get('bio', '')
                 
-                leader_data.append({
-                    "Rank": f"#{idx + 1}",
-                    "Logo": t_info["logo"],
-                    "Player": f"{av} {p['full_name']}",
-                    "Team": team_name,
-                    "Badges Unlocked": badges_html,
-                    "Tokens": f"{p['tokens']} 🪙",
-                    "Catchphrase": p.get("bio", "")
-                })
-                
-            st.dataframe(
-                pd.DataFrame(leader_data),
-                column_config={
-                    "Logo": st.column_config.ImageColumn("Badge", width="small"),
-                    "Badges Unlocked": st.column_config.Column("Badges Unlocked", help="Hover to review earned trophies")
-                },
-                use_container_width=True,
-                hide_index=True
-            )
+                st.markdown(f"""
+                    <div class="leaderboard-row">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-family: 'Bebas Neue'; font-size: 24px; color: #fbbf24; width: 35px;">#{idx + 1}</span>
+                                <img src="{t_info['logo']}" style="width: 30px; height: 30px;" />
+                                <div>
+                                    <b style="font-size: 18px; color: #ffffff;">{av} {p['full_name']}</b>
+                                    <div style="font-size: 12px; color: #94a3b8;">{team_name} {f'• "{bio_text}"' if bio_text else ''}</div>
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <span style="font-family: 'Bebas Neue'; font-size: 28px; color: #38bdf8;">{p['tokens']} 🪙</span>
+                            </div>
+                        </div>
+                        <div style="border-top: 1px solid #334155; padding-top: 8px; margin-top: 4px;">
+                            <span style="font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: bold; margin-right: 8px;">Trophies:</span> {badges_html}
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
 
         st.divider()
         st.subheader("💬 League Trash Talk Feed")
@@ -1317,7 +1324,7 @@ else:
                 st.subheader("📢 Pre-Formatted League Announcement Generator")
                 st.caption("Copy and paste this message directly into your WhatsApp or group chat!")
                 
-                ann_week = st.number_input("Week Number", min_value=1, max_value=24, step=1, key="ann_week_input")
+                ann_week = st.number_input("Week Number", min_value=1, max_value=24, step=1, key="admin_week_selector")
                 top_player_res = supabase.table("profiles").select("full_name, tokens").order("tokens", desc=True).limit(1).execute().data
                 leader_str = f"{top_player_res[0]['full_name']} ({top_player_res[0]['tokens']} Tokens)" if top_player_res else "TBD"
                 
