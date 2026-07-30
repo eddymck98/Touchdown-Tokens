@@ -623,7 +623,6 @@ else:
     st.sidebar.image(team_data["logo"], width=55)
     st.sidebar.caption(f"Team: {user_team}")
     
-    # Calculate available tokens minus active bets for current active week
     weeks_res = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).execute()
     available_weeks = sorted(list(set([r["week_number"] for r in weeks_res.data]))) if weeks_res.data else []
     
@@ -948,7 +947,6 @@ else:
         all_league_profiles = supabase.table("profiles").select("id, full_name, avatar_emoji, favorite_team").execute().data
         user_name_map = {p["full_name"]: p for p in all_league_profiles}
         
-        # Default showcase to current logged-in user if available
         default_profile_name = profile.get("full_name", list(user_name_map.keys())[0] if user_name_map else "")
         default_index = list(user_name_map.keys()).index(default_profile_name) if default_profile_name in user_name_map else 0
         
@@ -1079,7 +1077,6 @@ else:
                             </div>
                         """, unsafe_allow_html=True)
                         
-                        # Auto-refresh timer every 60 seconds
                         st.markdown("""
                             <meta http-equiv="refresh" content="60">
                         """, unsafe_allow_html=True)
@@ -1150,7 +1147,7 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        existing_bet_row = [b for b in all_week_bets if b.get('question_id'] == q['id']]
+                        existing_bet_row = [b for b in all_week_bets if b.get('question_id') == q['id']]
                         default_pick_val = existing_bet_row[0]['pick'] if existing_bet_row else "Yes"
                         default_wager_val = existing_bet_row[0]['wager_amount'] if existing_bet_row else 0
 
@@ -1299,7 +1296,6 @@ else:
                     "correct_tds": td_count
                 })
             
-            # Tiebreaker first (-correct_tds), then tokens (-tokens), then full_name ASC
             player_stats = sorted(player_stats, key=lambda x: (-x["correct_tds"], -x["tokens"], x["full_name"]))
 
             current_rank = 1
@@ -1492,8 +1488,8 @@ else:
                 
                 if st.button("📋 Load 10 Default Question Templates"):
                     for i in range(1, 11):
-                        st.session_state[f"manage_prompt_w{selected_manage_week}_q{i}"] = DEFAULT_QUESTION_TEMPLATES[i-1]
-                    st.success("Default templates loaded into inputs below!")
+                        st.session_state[f"m_prompt_w{selected_manage_week}_q{i}"] = DEFAULT_QUESTION_TEMPLATES[i-1]
+                    st.success("Default templates loaded instantly!")
                     st.rerun()
 
                 with st.form(key=f"manage_questions_form_week_{selected_manage_week}"):
@@ -1505,9 +1501,11 @@ else:
                         q_obj = real_existing_qs.get(i, {})
                         raw_txt = q_obj.get("question_text", "")
                         
-                        existing_prompt = raw_txt.split(" | MATCHUP: ")[0] if " | MATCHUP: " in raw_txt else raw_txt
-                        if not existing_prompt and f"manage_prompt_w{selected_manage_week}_q{i}" in st.session_state:
-                            existing_prompt = st.session_state[f"manage_prompt_w{selected_manage_week}_q{i}"]
+                        db_prompt = raw_txt.split(" | MATCHUP: ")[0] if " | MATCHUP: " in raw_txt else raw_txt
+                        session_key = f"m_prompt_w{selected_manage_week}_q{i}"
+                        
+                        # Use session state if populated by default button, otherwise DB value
+                        existing_prompt = st.session_state.get(session_key, db_prompt)
                             
                         existing_away = "🏈 Free Agent / Neutral"
                         existing_home = "🏈 Free Agent / Neutral"
@@ -1525,7 +1523,7 @@ else:
                         with col_m2:
                             home_t = st.selectbox(f"Q{i} Home Team", NFL_TEAMS, index=NFL_TEAMS.index(existing_home) if existing_home in NFL_TEAMS else 0, key=f"m_home_w{selected_manage_week}_q{i}")
                             
-                        prompt_val = st.text_input(f"Question {i} Prompt", value=existing_prompt, key=f"m_prompt_w{selected_manage_week}_q{i}")
+                        prompt_val = st.text_input(f"Question {i} Prompt", value=existing_prompt, key=session_key)
                         
                         question_payloads.append({
                             "question_number": i,
