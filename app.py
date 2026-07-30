@@ -28,7 +28,7 @@ if "user" not in st.session_state:
 
 # Comprehensive NFL Team Logos & Primary Accent Hex Colors
 NFL_TEAM_DATA = {
-    "🏈 Free Agent / Neutral": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/nfl.png", "color": "#fbbf24"},
+    "🏈 Free Agent / Neutral": {"logo": "https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg", "color": "#fbbf24"},
     "🔴 Arizona Cardinals": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/ari.png", "color": "#97233F"},
     "🔴 Atlanta Falcons": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/atl.png", "color": "#A71930"},
     "🟣 Baltimore Ravens": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/bal.png", "color": "#241773"},
@@ -101,7 +101,7 @@ DEFAULT_QUESTION_TEMPLATES = [
 ]
 
 user_team_color = "#fbbf24"
-user_team_logo = "https://a.espncdn.com/i/teamlogos/nfl/500/nfl.png"
+user_team_logo = "https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg"
 if st.session_state.user:
     try:
         res = supabase.table("profiles").select("favorite_team").eq("id", st.session_state.user.id).single().execute()
