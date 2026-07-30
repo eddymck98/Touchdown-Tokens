@@ -1343,117 +1343,96 @@ else:
         with tab_admin:
             st.header("⚙️ Admin Management Portal")
             
-            admin_sec = st.radio("Select Action", ["Create Questions", "Edit Published Questions", "Auto-Lockout Scheduler", "Grade Week & Calculate Points", "Bulk Token Adjuster", "Export League Data (CSV)", "League Chat Announcement", "Archive & Reset Season", "Season Champion Banner"], horizontal=True)
+            admin_sec = st.radio("Select Action", ["Manage Questions", "Auto-Lockout Scheduler", "Grade Week & Calculate Points", "Bulk Token Adjuster", "Export League Data (CSV)", "League Chat Announcement", "Archive & Reset Season", "Season Champion Banner"], horizontal=True)
             
-            if admin_sec == "Create Questions":
-                st.subheader("Add 10 New Weekly Questions")
-                new_week = st.number_input("Week Number", min_value=1, max_value=24, step=1, key="admin_week_selector")
+            # COMBINED & PERSISTENT QUESTION MANAGEMENT
+            if admin_sec == "Manage Questions":
+                st.subheader("📋 Manage & Edit Weekly Questions & Matchups")
+                st.caption("Select a week below to view, publish, or edit questions and matchups dynamically. They will stay right here for ongoing edits!")
+                
+                # Fetch all existing weeks in database + allow selecting a new/next week
+                all_db_weeks = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).execute().data
+                db_week_nums = sorted(list(set([r["week_number"] for r in all_db_weeks]))) if all_db_weeks else []
+                next_suggested_week = (db_week_nums[-1] + 1) if db_week_nums else 1
+                
+                week_options = db_week_nums + [next_suggested_week] if next_suggested_week not in db_week_nums else db_week_nums
+                selected_manage_week = st.selectbox("Select Week to Manage", week_options, index=len(week_options)-1, key="admin_manage_week_sel")
+                
+                # Load existing questions for this week
+                existing_week_qs = supabase.table("weekly_questions").select("*").eq("week_number", selected_manage_week).order("question_number").execute().data
+                real_existing_qs = {q["question_number"]: q for q in existing_week_qs if q.get("question_number", 0) <= 10}
                 
                 if st.button("📋 Load 10 Default Question Templates"):
-                    for i, t_q in enumerate(DEFAULT_QUESTION_TEMPLATES):
-                        st.session_state[f"q_prompt_w{new_week}_q{i+1}"] = t_q
-                    st.success("Default templates loaded! Customize them below.")
+                    for i in range(1, 11):
+                        st.session_state[f"manage_prompt_w{selected_manage_week}_q{i}"] = DEFAULT_QUESTION_TEMPLATES[i-1]
+                    st.success("Default templates loaded into inputs below!")
+                    st.rerun()
 
-                existing_qs = supabase.table("weekly_questions").select("id").eq("week_number", new_week).execute().data
-                
-                if existing_qs:
-                    st.warning(f"⚠️ Questions for Week {new_week} have already been published! ({len(existing_qs)} questions found)")
-                    if st.button("Delete Week Questions to Start Fresh"):
-                        supabase.table("weekly_questions").delete().eq("week_number", new_week).execute()
-                        st.success(f"Cleared Week {new_week} questions.")
-                        st.rerun()
-                else:
-                    with st.form(key=f"create_questions_form_week_{new_week}"):
-                        q_data_to_save = []
-                        
-                        for i in range(1, 11):
-                            st.markdown(f"#### Question {i}")
-                            col_m1, col_m2 = st.columns(2)
-                            with col_m1:
-                                away_t = st.selectbox(f"Q{i} Away Team", NFL_TEAMS, key=f"q{i}_away_team_sel")
-                            with col_m2:
-                                home_t = st.selectbox(f"Q{i} Home Team", NFL_TEAMS, key=f"q{i}_home_team_sel")
-                                
-                            def_val = st.session_state.get(f"q_prompt_w{new_week}_q{i}", "")
-                            prompt_val = st.text_input(f"Question {i} Prompt", value=def_val, key=f"q_prompt_input_w{new_week}_q{i}")
-                            
-                            q_data_to_save.append({
-                                "prompt": prompt_val.strip(),
-                                "away": away_t,
-                                "home": home_t
-                            })
-                            st.divider()
-                        
-                        submit_qs = st.form_submit_button("Publish All 10 Questions 🚀")
+                with st.form(key=f"manage_questions_form_week_{selected_manage_week}"):
+                    question_payloads = []
                     
-                    if submit_qs:
-                        valid_items = [q for q in q_data_to_save if q["prompt"]]
-                        if len(valid_items) == 0:
-                            st.error("Please enter at least one question prompt before publishing.")
-                        else:
-                            for idx, q_item in enumerate(q_data_to_save):
-                                if q_item["prompt"]:
-                                    full_combined_str = f"{q_item['prompt']} | MATCHUP: {q_item['away']} @ {q_item['home']}"
+                    for i in range(1, 11):
+                        st.markdown(f"#### Question {i}")
+                        
+                        # Extract existing data if present in DB
+                        q_obj = real_existing_qs.get(i, {})
+                        raw_txt = q_obj.get("question_text", "")
+                        
+                        existing_prompt = raw_txt.split(" | MATCHUP: ")[0] if " | MATCHUP: " in raw_txt else raw_txt
+                        if not existing_prompt and f"manage_prompt_w{selected_manage_week}_q{i}" in st.session_state:
+                            existing_prompt = st.session_state[f"manage_prompt_w{selected_manage_week}_q{i}"]
+                            
+                        existing_away = "🏈 Free Agent / Neutral"
+                        existing_home = "🏈 Free Agent / Neutral"
+                        
+                        if " | MATCHUP: " in raw_txt:
+                            matchup_part = raw_txt.split(" | MATCHUP: ")[1]
+                            if " @ " in matchup_part:
+                                split_teams = matchup_part.split(" @ ")
+                                existing_away = split_teams[0] if split_teams[0] in NFL_TEAMS else "🏈 Free Agent / Neutral"
+                                existing_home = split_teams[1] if split_teams[1] in NFL_TEAMS else "🏈 Free Agent / Neutral"
+
+                        col_m1, col_m2 = st.columns(2)
+                        with col_m1:
+                            away_t = st.selectbox(f"Q{i} Away Team", NFL_TEAMS, index=NFL_TEAMS.index(existing_away) if existing_away in NFL_TEAMS else 0, key=f"m_away_w{selected_manage_week}_q{i}")
+                        with col_m2:
+                            home_t = st.selectbox(f"Q{i} Home Team", NFL_TEAMS, index=NFL_TEAMS.index(existing_home) if existing_home in NFL_TEAMS else 0, key=f"m_home_w{selected_manage_week}_q{i}")
+                            
+                        prompt_val = st.text_input(f"Question {i} Prompt", value=existing_prompt, key=f"m_prompt_w{selected_manage_week}_q{i}")
+                        
+                        question_payloads.append({
+                            "question_number": i,
+                            "prompt": prompt_val.strip(),
+                            "away": away_t,
+                            "home": home_t,
+                            "db_id": q_obj.get("id")
+                        })
+                        st.divider()
+                    
+                    save_all_questions_btn = st.form_submit_button("Save & Publish All Questions 💾", type="primary")
+                    
+                    if save_all_questions_btn:
+                        for item in question_payloads:
+                            if item["prompt"]:
+                                combined_text = f"{item['prompt']} | MATCHUP: {item['away']} @ {item['home']}"
+                                
+                                if item["db_id"]:
+                                    # Update existing question so it stays persistent and editable
+                                    supabase.table("weekly_questions").update({
+                                        "question_text": combined_text
+                                    }).eq("id", item["db_id"]).execute()
+                                else:
+                                    # Insert new question if it didn't exist yet
                                     supabase.table("weekly_questions").insert({
-                                        "week_number": new_week,
-                                        "question_number": idx + 1,
-                                        "question_text": full_combined_str,
+                                        "week_number": selected_manage_week,
+                                        "question_number": item["question_number"],
+                                        "question_text": combined_text,
                                         "winning_answer": "Pending"
                                     }).execute()
-                            st.success(f"Successfully published questions for Week {new_week}!")
-                            st.rerun()
-
-            elif admin_sec == "Edit Published Questions":
-                st.subheader("✏️ Edit Published Weekly Questions & Matchups")
-                edit_week = st.number_input("Select Week to Edit", min_value=1, max_value=24, step=1, key="admin_edit_week_sel")
-                
-                edit_qs = supabase.table("weekly_questions").select("*").eq("week_number", edit_week).order("question_number").execute().data
-                real_qs = [q for q in edit_qs if q.get("question_number", 0) <= 10]
-                
-                if not real_qs:
-                    st.info(f"No questions found for Week {edit_week}.")
-                else:
-                    with st.form("edit_published_questions_form"):
-                        updated_questions_cache = []
-                        
-                        for q in real_qs:
-                            st.markdown(f"#### Question {q['question_number']}")
-                            raw_txt = q['question_text']
-                            existing_prompt = raw_txt.split(" | MATCHUP: ")[0] if " | MATCHUP: " in raw_txt else raw_txt
-                            existing_away = "🏈 Free Agent / Neutral"
-                            existing_home = "🏈 Free Agent / Neutral"
-                            
-                            if " | MATCHUP: " in raw_txt:
-                                matchup_part = raw_txt.split(" | MATCHUP: ")[1]
-                                if " @ " in matchup_part:
-                                    split_teams = matchup_part.split(" @ ")
-                                    existing_away = split_teams[0] if split_teams[0] in NFL_TEAMS else "🏈 Free Agent / Neutral"
-                                    existing_home = split_teams[1] if split_teams[1] in NFL_TEAMS else "🏈 Free Agent / Neutral"
-
-                            col_e1, col_e2 = st.columns(2)
-                            with col_e1:
-                                new_away_sel = st.selectbox(f"Q{q['question_number']} Away Team", NFL_TEAMS, index=NFL_TEAMS.index(existing_away) if existing_away in NFL_TEAMS else 0, key=f"edit_away_{q['id']}")
-                            with col_e2:
-                                new_home_sel = st.selectbox(f"Q{q['question_number']} Home Team", NFL_TEAMS, index=NFL_TEAMS.index(existing_home) if existing_home in NFL_TEAMS else 0, key=f"edit_home_{q['id']}")
-                                
-                            new_prompt_input = st.text_input(f"Q{q['question_number']} Prompt", value=existing_prompt, key=f"edit_prompt_{q['id']}")
-                            
-                            updated_questions_cache.append({
-                                "id": q['id'],
-                                "prompt": new_prompt_input.strip(),
-                                "away": new_away_sel,
-                                "home": new_home_sel
-                            })
-                            st.divider()
-                            
-                        save_edits_btn = st.form_submit_button("Save Changes 💾", type="primary")
-                        
-                        if save_edits_btn:
-                            for item in updated_questions_cache:
-                                new_combined = f"{item['prompt']} | MATCHUP: {item['away']} @ {item['home']}"
-                                supabase.table("weekly_questions").update({"question_text": new_combined}).eq("id", item['id']).execute()
-                            st.success(f"Successfully updated Week {edit_week} questions!")
-                            st.rerun()
+                                    
+                        st.balloons()
+                        st.success(f"Successfully saved and updated Week {selected_manage_week} questions!")
+                        st.rerun()
 
             elif admin_sec == "Auto-Lockout Scheduler":
                 st.subheader("⏰ Auto-Lockout Scheduler & Emergency Override")
@@ -1549,15 +1528,14 @@ else:
                             st.info(f"🏟️ **{matchup_key}** | Status: `{info['status']}` | Score: {info['away_score']} - {info['home_score']}")
 
                 week_q = supabase.table("weekly_questions").select("*").eq("week_number", grade_week).order("question_number").execute().data
+                real_grade_q = [q for q in week_q if q.get("question_number", 0) <= 10]
                 
-                if not week_q:
+                if not real_grade_q:
                     st.warning("No questions found for this week.")
                 else:
                     with st.form("grade_form"):
                         answers = {}
-                        for q in week_q:
-                            if q.get("winning_answer", "").startswith("LOCKTIME:"):
-                                continue
+                        for q in real_grade_q:
                             default_val = q["winning_answer"] if q["winning_answer"] in ["Yes", "No"] else "Pending"
                             clean_prompt = q["question_text"].split(" | MATCHUP: ")[0] if " | MATCHUP: " in q["question_text"] else q["question_text"]
                             
