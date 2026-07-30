@@ -532,7 +532,7 @@ else:
     st.sidebar.subheader("📌 Quick Jump Menu")
     nav_choice = st.sidebar.radio(
         "Jump to Section:", 
-        ["Home", "Profile", "Rules & Info", "Place Bets", "My Current Picks", "My History", "Leaderboard", "Trophy Cabinet", "Hall of Fame"] + (["Admin Control"] if profile.get("is_admin") else []),
+        ["Home", "Profile & Trophies", "Rules & Info", "Place Bets", "My History", "Leaderboard", "Hall of Fame"] + (["Admin Control"] if profile.get("is_admin") else []),
         label_visibility="collapsed"
     )
     
@@ -544,17 +544,22 @@ else:
         st.session_state.user = None
         st.rerun()
 
+    # Reordered Tabs (Current Picks integrated directly into Home tab)
     if profile.get("is_admin"):
-        tab_home, tab_profile, tab_rules, tab_bet, tab_current_picks, tab_history, tab_leaders, tab_trophies, tab_hof, tab_admin = st.tabs(
-            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "👁️ Current Picks", "📜 My History", "🏆 Leaderboard", "🏆 Trophy Cabinet", "🏛️ Hall of Fame", "⚙️ Admin Control"]
+        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_hof, tab_admin = st.tabs(
+            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🏛️ Hall of Fame", "⚙️ Admin Control"]
         )
     else:
-        tab_home, tab_profile, tab_rules, tab_bet, tab_current_picks, tab_history, tab_leaders, tab_trophies, tab_hof = st.tabs(
-            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "👁️ Current Picks", "📜 My History", "🏆 Leaderboard", "🏆 Trophy Cabinet", "🏛️ Hall of Fame"]
+        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_hof = st.tabs(
+            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🏛️ Hall of Fame"]
         )
 
+    # Fetch available weeks for current picks section on home screen
+    weeks_res = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).execute()
+    available_weeks = sorted(list(set([r["week_number"] for r in weeks_res.data]))) if weeks_res.data else []
+
     # ------------------------------------------
-    # TAB 0: HOME
+    # TAB 0: HOME (WITH CURRENT PICKS & SHARE)
     # ------------------------------------------
     with tab_home:
         champ_setting = supabase.table("weekly_questions").select("question_text, winning_answer").eq("week_number", 999).execute().data
@@ -579,6 +584,52 @@ else:
                 <div style="font-size: 16px; color: #cbd5e1;">Touchdown Tokens</div>
             </div>
         """, unsafe_allow_html=True)
+
+        # --- CURRENT WEEKLY PICKS & SHARE BLOCK (MOVED TO HOME) ---
+        st.subheader("👁️ Your Current Weekly Picks & Share Hub")
+        st.caption("Review your active entries for the upcoming week and grab a quick share text for your group chat.")
+        
+        if not available_weeks:
+            st.info("No active weeks available.")
+        else:
+            view_week = st.selectbox("Select Week to View", available_weeks, index=len(available_weeks)-1, key="home_view_current_week_sel")
+            
+            curr_user_bets = supabase.table("user_bets").select("*, weekly_questions(question_number, question_text)").eq("user_id", user_id).eq("week_number", view_week).order("question_id").execute().data
+            curr_user_td = supabase.table("touchdown_picks").select("player_name").eq("user_id", user_id).eq("week_number", view_week).execute().data
+            
+            if not curr_user_bets and not curr_user_td:
+                st.warning(f"You haven't submitted any picks for Week {view_week} yet! Head over to the 'Place Bets' tab.")
+            else:
+                share_lines = [f"🏈 *{profile['full_name']} - Week {view_week} Lock-Ins* 🏈"]
+                
+                for b in curr_user_bets:
+                    q_num = b.get("weekly_questions", {}).get("question_number", "?")
+                    q_txt = b.get("weekly_questions", {}).get("question_text", "").split(" | MATCHUP: ")[0]
+                    pick_val = b["pick"]
+                    wager_amt = b["wager_amount"]
+                    
+                    st.markdown(f"""
+                        <div class="summary-box">
+                            <b>Q{q_num}: {q_txt}</b><br>
+                            • Your Pick: <b style="color:{user_team_color};">{pick_val}</b> | Wager: <b>{wager_amt} 🪙</b>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    share_lines.append(f"Q{q_num}: {pick_val} ({wager_amt} tokens)")
+                
+                td_name = curr_user_td[0]["player_name"] if curr_user_td else "None"
+                st.markdown(f"""
+                    <div class="summary-box" style="border-left-color: #38bdf8 !important;">
+                        <b>🏈 Touchdown Scorer Bonus Pick:</b><br>
+                        • Player: <b style="color:#38bdf8;">{td_name}</b>
+                    </div>
+                """, unsafe_allow_html=True)
+                share_lines.append(f"TD Scorer Pick: {td_name}")
+                
+                st.write("")
+                st.subheader("📋 Group Chat Share Text")
+                share_text_block = "\n".join(share_lines)
+                st.code(share_text_block, language="markdown")
+                st.success("Copy the text box above to share your picks directly into WhatsApp or group chat!")
 
         graded_q_badge = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
         
@@ -740,11 +791,11 @@ else:
             st.line_chart(chart_df)
 
     # ------------------------------------------
-    # TAB 1: PROFILE
+    # TAB 1: PROFILE & TROPHY CABINET
     # ------------------------------------------
     with tab_profile:
-        st.header("👤 Customize Profile")
-        st.caption("Personalize how your profile appears on the Leaderboard and Trash Talk feed!")
+        st.header("👤 Profile & Trophy Cabinet")
+        st.caption("Personalize your profile settings and inspect player badge collections across the league!")
         
         curr_team = profile.get("favorite_team", "🏈 Free Agent / Neutral")
         team_index = NFL_TEAMS.index(curr_team) if curr_team in NFL_TEAMS else 0
@@ -780,6 +831,48 @@ else:
                     }).eq("id", user_id).execute()
                     st.success("Profile updated successfully!")
                     st.rerun()
+
+        st.divider()
+        st.subheader("🏆 Virtual Trophy Cabinet")
+        st.caption("Inspect badge showcases across any league member.")
+        
+        all_league_profiles = supabase.table("profiles").select("id, full_name, avatar_emoji, favorite_team").execute().data
+        user_name_map = {p["full_name"]: p for p in all_league_profiles}
+        
+        selected_player_name = st.selectbox("Select Player Trophy Showcase", list(user_name_map.keys()), key="trophy_player_select")
+        selected_player = user_name_map[selected_player_name]
+        
+        selected_badges = get_user_badges(selected_player["id"])
+        selected_team_info = NFL_TEAM_DATA.get(selected_player.get("favorite_team"), NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
+        
+        col_t_logo, col_t_info = st.columns([1, 4])
+        with col_t_logo:
+            st.image(selected_team_info["logo"], width=70)
+        with col_t_info:
+            st.markdown(f"### {selected_player.get('avatar_emoji', '🏈')} {selected_player['full_name']}'s Showcase")
+            st.markdown(f"**Unlocked:** `{len(selected_badges)}` / `{len(MASTER_BADGES)}` Badges")
+        
+        st.write("")
+        t_col1, t_col2 = st.columns(2)
+        for idx, (b_name, b_desc) in enumerate(MASTER_BADGES.items()):
+            is_unlocked = b_name in selected_badges
+            target_col = t_col1 if idx % 2 == 0 else t_col2
+            
+            with target_col:
+                if is_unlocked:
+                    st.markdown(f"""
+                        <div class="trophy-card-unlocked">
+                            <b>{b_name}</b> <span style="color:#fbbf24; font-weight:bold;">(UNLOCKED)</span><br>
+                            <small style="color:#cbd5e1;">{b_desc}</small>
+                        </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                        <div class="trophy-card-locked">
+                            <b>🔒 {b_name}</b><br>
+                            <small>{b_desc}</small>
+                        </div>
+                    """, unsafe_allow_html=True)
 
     # ------------------------------------------
     # TAB 2: RULES & INFO
@@ -831,9 +924,6 @@ else:
         st.caption("Check real-time odds, matchups, and player news on ESPN before placing your bets!")
         st.write("")
 
-        weeks_res = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).execute()
-        available_weeks = sorted(list(set([r["week_number"] for r in weeks_res.data]))) if weeks_res.data else []
-        
         if not available_weeks:
             st.info("No active questions available yet. Check back soon when the Admin posts Week 1!")
         else:
@@ -993,56 +1083,7 @@ else:
                             st.success("Your bets and touchdown pick have been successfully locked in!")
 
     # ------------------------------------------
-    # TAB 4: CURRENT PICKS
-    # ------------------------------------------
-    with tab_current_picks:
-        st.header("👁️ View Current Weekly Picks")
-        st.caption("Review your active entries for the upcoming week and grab a quick share text for your group chat.")
-        
-        if not available_weeks:
-            st.info("No active weeks available.")
-        else:
-            view_week = st.selectbox("Select Week to View", available_weeks, index=len(available_weeks)-1, key="view_current_week_sel")
-            
-            curr_user_bets = supabase.table("user_bets").select("*, weekly_questions(question_number, question_text)").eq("user_id", user_id).eq("week_number", view_week).order("question_id").execute().data
-            curr_user_td = supabase.table("touchdown_picks").select("player_name").eq("user_id", user_id).eq("week_number", view_week).execute().data
-            
-            if not curr_user_bets and not curr_user_td:
-                st.warning(f"You haven't submitted any picks for Week {view_week} yet!")
-            else:
-                share_lines = [f"🏈 *{profile['full_name']} - Week {view_week} Lock-Ins* 🏈"]
-                
-                for b in curr_user_bets:
-                    q_num = b.get("weekly_questions", {}).get("question_number", "?")
-                    q_txt = b.get("weekly_questions", {}).get("question_text", "").split(" | MATCHUP: ")[0]
-                    pick_val = b["pick"]
-                    wager_amt = b["wager_amount"]
-                    
-                    st.markdown(f"""
-                        <div class="summary-box">
-                            <b>Q{q_num}: {q_txt}</b><br>
-                            • Your Pick: <b style="color:{user_team_color};">{pick_val}</b> | Wager: <b>{wager_amt} 🪙</b>
-                        </div>
-                    """, unsafe_allow_html=True)
-                    share_lines.append(f"Q{q_num}: {pick_val} ({wager_amt} tokens)")
-                
-                td_name = curr_user_td[0]["player_name"] if curr_user_td else "None"
-                st.markdown(f"""
-                    <div class="summary-box" style="border-left-color: #38bdf8 !important;">
-                        <b>🏈 Touchdown Scorer Bonus Pick:</b><br>
-                        • Player: <b style="color:#38bdf8;">{td_name}</b>
-                    </div>
-                """, unsafe_allow_html=True)
-                share_lines.append(f"TD Scorer Pick: {td_name}")
-                
-                st.write("")
-                st.subheader("📋 Group Chat Share Text")
-                share_text_block = "\n".join(share_lines)
-                st.code(share_text_block, language="markdown")
-                st.success("Copy the text box above to share your picks directly into WhatsApp or group chat!")
-
-    # ------------------------------------------
-    # TAB 5: MY HISTORY
+    # TAB 4: MY HISTORY
     # ------------------------------------------
     with tab_history:
         st.header("Your Past Bets & Results")
@@ -1076,7 +1117,7 @@ else:
             st.dataframe(formatted_data, use_container_width=True)
 
     # ------------------------------------------
-    # TAB 6: LEADERBOARD
+    # TAB 5: LEADERBOARD
     # ------------------------------------------
     with tab_leaders:
         st.header("🏆 Player Standings")
@@ -1154,53 +1195,7 @@ else:
                 """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 7: TROPHY CABINET
-    # ------------------------------------------
-    with tab_trophies:
-        st.header("🏆 League Virtual Trophy Cabinet")
-        st.caption("Inspect badge collections across the league and unlock dynamic silverware!")
-        
-        all_league_profiles = supabase.table("profiles").select("id, full_name, avatar_emoji, favorite_team").execute().data
-        user_name_map = {p["full_name"]: p for p in all_league_profiles}
-        
-        selected_player_name = st.selectbox("Select Player Trophy Showcase", list(user_name_map.keys()))
-        selected_player = user_name_map[selected_player_name]
-        
-        selected_badges = get_user_badges(selected_player["id"])
-        selected_team_info = NFL_TEAM_DATA.get(selected_player.get("favorite_team"), NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
-        
-        col_t_logo, col_t_info = st.columns([1, 4])
-        with col_t_logo:
-            st.image(selected_team_info["logo"], width=70)
-        with col_t_info:
-            st.markdown(f"### {selected_player.get('avatar_emoji', '🏈')} {selected_player['full_name']}'s Showcase")
-            st.markdown(f"**Unlocked:** `{len(selected_badges)}` / `{len(MASTER_BADGES)}` Badges")
-        
-        st.divider()
-        
-        t_col1, t_col2 = st.columns(2)
-        for idx, (b_name, b_desc) in enumerate(MASTER_BADGES.items()):
-            is_unlocked = b_name in selected_badges
-            target_col = t_col1 if idx % 2 == 0 else t_col2
-            
-            with target_col:
-                if is_unlocked:
-                    st.markdown(f"""
-                        <div class="trophy-card-unlocked">
-                            <b>{b_name}</b> <span style="color:#fbbf24; font-weight:bold;">(UNLOCKED)</span><br>
-                            <small style="color:#cbd5e1;">{b_desc}</small>
-                        </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.markdown(f"""
-                        <div class="trophy-card-locked">
-                            <b>🔒 {b_name}</b><br>
-                            <small>{b_desc}</small>
-                        </div>
-                    """, unsafe_allow_html=True)
-
-    # ------------------------------------------
-    # TAB 8: HALL OF FAME & SEASON ARCHIVES
+    # TAB 6: HALL OF FAME & SEASON ARCHIVES
     # ------------------------------------------
     with tab_hof:
         st.header("🏛️ Touchdown Tokens Hall of Fame")
@@ -1218,7 +1213,7 @@ else:
         st.info("No previous seasons archived yet. Once an admin resets a season at the conclusion of the year, final standings and champion histories will live here permanently!")
 
     # ------------------------------------------
-    # TAB 9: ADMIN CONTROL
+    # TAB 7: ADMIN CONTROL
     # ------------------------------------------
     if profile.get("is_admin"):
         with tab_admin:
