@@ -962,7 +962,7 @@ else:
             st.dataframe(formatted_data, use_container_width=True)
 
     # ------------------------------------------
-    # TAB 5: LEADERBOARD (CUSTOM RENDERED CARDS FIX)
+    # TAB 5: LEADERBOARD
     # ------------------------------------------
     with tab_leaders:
         st.header("🏆 Player Standings")
@@ -1110,7 +1110,7 @@ else:
         with tab_admin:
             st.header("⚙️ Admin Management Portal")
             
-            admin_sec = st.radio("Select Action", ["Create Questions", "Set Lockout Timer", "Grade Week & Calculate Points", "Adjust User Tokens", "Export League Data (CSV)", "League Chat Announcement", "Archive & Reset Season", "Season Champion Banner"], horizontal=True)
+            admin_sec = st.radio("Select Action", ["Create Questions", "Edit Published Questions", "Set Lockout Timer", "Grade Week & Calculate Points", "Adjust User Tokens", "Export League Data (CSV)", "League Chat Announcement", "Archive & Reset Season", "Season Champion Banner"], horizontal=True)
             
             # Sub-Section A: Enter Questions with Matchup Dropdowns
             if admin_sec == "Create Questions":
@@ -1171,7 +1171,60 @@ else:
                             st.success(f"Successfully published questions for Week {new_week}!")
                             st.rerun()
 
-            # Sub-Section B: Set Lockout Timer
+            # Sub-Section B: Edit Published Questions
+            elif admin_sec == "Edit Published Questions":
+                st.subheader("✏️ Edit Published Weekly Questions & Matchups")
+                edit_week = st.number_input("Select Week to Edit", min_value=1, max_value=24, step=1, key="admin_edit_week_sel")
+                
+                edit_qs = supabase.table("weekly_questions").select("*").eq("week_number", edit_week).order("question_number").execute().data
+                real_qs = [q for q in edit_qs if q.get("question_number", 0) <= 10]
+                
+                if not real_qs:
+                    st.info(f"No questions found for Week {edit_week}.")
+                else:
+                    with st.form("edit_published_questions_form"):
+                        updated_questions_cache = []
+                        
+                        for q in real_qs:
+                            st.markdown(f"#### Question {q['question_number']}")
+                            raw_txt = q['question_text']
+                            existing_prompt = raw_txt.split(" | MATCHUP: ")[0] if " | MATCHUP: " in raw_txt else raw_txt
+                            existing_away = "🏈 Free Agent / Neutral"
+                            existing_home = "🏈 Free Agent / Neutral"
+                            
+                            if " | MATCHUP: " in raw_txt:
+                                matchup_part = raw_txt.split(" | MATCHUP: ")[1]
+                                if " @ " in matchup_part:
+                                    split_teams = matchup_part.split(" @ ")
+                                    existing_away = split_teams[0] if split_teams[0] in NFL_TEAMS else "🏈 Free Agent / Neutral"
+                                    existing_home = split_teams[1] if split_teams[1] in NFL_TEAMS else "🏈 Free Agent / Neutral"
+
+                            col_e1, col_e2 = st.columns(2)
+                            with col_e1:
+                                new_away_sel = st.selectbox(f"Q{q['question_number']} Away Team", NFL_TEAMS, index=NFL_TEAMS.index(existing_away) if existing_away in NFL_TEAMS else 0, key=f"edit_away_{q['id']}")
+                            with col_e2:
+                                new_home_sel = st.selectbox(f"Q{q['question_number']} Home Team", NFL_TEAMS, index=NFL_TEAMS.index(existing_home) if existing_home in NFL_TEAMS else 0, key=f"edit_home_{q['id']}")
+                                
+                            new_prompt_input = st.text_input(f"Q{q['question_number']} Prompt", value=existing_prompt, key=f"edit_prompt_{q['id']}")
+                            
+                            updated_questions_cache.append({
+                                "id": q['id'],
+                                "prompt": new_prompt_input.strip(),
+                                "away": new_away_sel,
+                                "home": new_home_sel
+                            })
+                            st.divider()
+                            
+                        save_edits_btn = st.form_submit_button("Save Changes 💾", type="primary")
+                        
+                        if save_edits_btn:
+                            for item in updated_questions_cache:
+                                new_combined = f"{item['prompt']} | MATCHUP: {item['away']} @ {item['home']}"
+                                supabase.table("weekly_questions").update({"question_text": new_combined}).eq("id", item['id']).execute()
+                            st.success(f"Successfully updated Week {edit_week} questions!")
+                            st.rerun()
+
+            # Sub-Section C: Set Lockout Timer
             elif admin_sec == "Set Lockout Timer":
                 st.subheader("⏳ Set Weekly Kickoff Lockout Time")
                 lock_week = st.number_input("Select Week", min_value=1, max_value=24, step=1, key="admin_lock_week")
@@ -1190,7 +1243,7 @@ else:
                     }).execute()
                     st.success(f"Lockout set for Week {lock_week} at {combined_dt} UTC!")
 
-            # Sub-Section C: Grade Week & Calculate Points
+            # Sub-Section D: Grade Week & Calculate Points
             elif admin_sec == "Grade Week & Calculate Points":
                 st.subheader("Grade Weekly Results")
                 grade_week = st.number_input("Select Week to Grade", min_value=1, max_value=24, step=1, key="grade_week_num")
@@ -1273,7 +1326,7 @@ else:
                             st.balloons()
                             st.success("Scores graded and user token balances updated!")
 
-            # Sub-Section D: Manual Token Overrides
+            # Sub-Section E: Manual Token Overrides
             elif admin_sec == "Adjust User Tokens":
                 st.subheader("Manual Token Override")
                 all_users = supabase.table("profiles").select("id, full_name, tokens").execute().data
@@ -1324,7 +1377,7 @@ else:
                 st.subheader("📢 Pre-Formatted League Announcement Generator")
                 st.caption("Copy and paste this message directly into your WhatsApp or group chat!")
                 
-                ann_week = st.number_input("Week Number", min_value=1, max_value=24, step=1, key="admin_week_selector")
+                ann_week = st.number_input("Week Number", min_value=1, max_value=24, step=1, key="admin_ann_week")
                 top_player_res = supabase.table("profiles").select("full_name, tokens").order("tokens", desc=True).limit(1).execute().data
                 leader_str = f"{top_player_res[0]['full_name']} ({top_player_res[0]['tokens']} Tokens)" if top_player_res else "TBD"
                 
@@ -1367,7 +1420,7 @@ Good luck this week! 🚀"""
                     except Exception as e:
                         st.error(f"Error resetting season: {e}")
 
-            # Sub-Section G: Champion Banner Toggle
+            # Sub-Section H: Champion Banner Toggle
             elif admin_sec == "Season Champion Banner":
                 st.subheader("🏆 End-of-Season Celebration Banner")
                 st.caption("Enable this banner to show confetti and a gold Champion card on the Home tab when the season ends.")
