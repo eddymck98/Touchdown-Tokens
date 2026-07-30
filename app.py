@@ -178,14 +178,14 @@ st.markdown(f"""
         animation: teamPulse 2s infinite ease-in-out;
     }}
 
-    .matchup-card {{
-        background: rgba(15, 23, 42, 0.92);
-        border: 1px solid #334155;
-        border-left: 5px solid {user_team_color};
+    .mvp-banner {{
+        background: linear-gradient(135deg, rgba(147, 51, 234, 0.9) 0%, rgba(30, 58, 138, 0.95) 100%);
+        border: 2px solid #c084fc;
         padding: 20px;
         border-radius: 14px;
         margin-bottom: 20px;
-        box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+        text-align: center;
+        box-shadow: 0 0 15px rgba(192, 132, 252, 0.4);
     }}
 
     .trophy-card-unlocked {{
@@ -251,10 +251,10 @@ st.markdown(f"""
         color: {user_team_color};
         border: 1px solid {user_team_color};
         border-radius: 20px;
-        padding: 5px 12px;
-        font-size: 13px;
+        padding: 4px 10px;
+        font-size: 11px;
         font-weight: 700;
-        margin: 3px;
+        margin: 2px;
     }}
     
     .consensus-badge {{
@@ -491,10 +491,19 @@ else:
     user_team = profile.get('favorite_team', '🏈 Free Agent / Neutral')
     team_data = NFL_TEAM_DATA.get(user_team, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
     
+    # --- STICKY SIDEBAR NAVIGATION & QUICK JUMP ---
     st.sidebar.title(f"{user_avatar} {profile['full_name']}")
     st.sidebar.image(team_data["logo"], width=55)
     st.sidebar.caption(f"Team: {user_team}")
     st.sidebar.metric(label="Available Tokens", value=f"{profile['tokens']} 🪙")
+    
+    st.sidebar.divider()
+    st.sidebar.subheader("📌 Quick Jump Menu")
+    nav_choice = st.sidebar.radio(
+        "Jump to Section:", 
+        ["Home", "Profile", "Rules & Info", "Place Bets", "My History", "Leaderboard", "Trophy Cabinet", "Hall of Fame"] + (["Admin Control"] if profile.get("is_admin") else []),
+        label_visibility="collapsed"
+    )
     
     if profile.get("is_admin"):
         st.sidebar.success("👑 Admin Mode Active")
@@ -504,14 +513,14 @@ else:
         st.session_state.user = None
         st.rerun()
 
-    # Reordered Tabs with original descriptive names
+    # Reordered Tabs
     if profile.get("is_admin"):
-        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_trophies, tab_admin = st.tabs(
-            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🏆 Trophy Cabinet", "⚙️ Admin Control"]
+        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_trophies, tab_hof, tab_admin = st.tabs(
+            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🏆 Trophy Cabinet", "🏛️ Hall of Fame", "⚙️ Admin Control"]
         )
     else:
-        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_trophies = st.tabs(
-            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🏆 Trophy Cabinet"]
+        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_trophies, tab_hof = st.tabs(
+            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🏆 Trophy Cabinet", "🏛️ Hall of Fame"]
         )
 
     # ------------------------------------------
@@ -541,10 +550,45 @@ else:
             </div>
         """, unsafe_allow_html=True)
 
+        # --- WEEKLY MVP SHOUTOUT BANNER ---
+        graded_q_badge = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
+        
+        if graded_q_badge:
+            latest_mvp_week = graded_q_badge[0]["week_number"]
+            mvp_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("week_number", latest_mvp_week).execute().data
+            mvp_tds = supabase.table("touchdown_picks").select("*").eq("week_number", latest_mvp_week).eq("is_correct", True).execute().data
+            
+            user_weekly_net = {}
+            for b in mvp_bets:
+                u = b['user_id']
+                w_ans = b.get("weekly_questions", {}).get("winning_answer")
+                if u not in user_weekly_net:
+                    user_weekly_net[u] = 0
+                if w_ans in ["Yes", "No"]:
+                    if b['pick'] == w_ans:
+                        user_weekly_net[u] += b['wager_amount']
+                    else:
+                        user_weekly_net[u] -= b['wager_amount']
+            for td in mvp_tds:
+                u = td['user_id']
+                user_weekly_net[u] = user_weekly_net.get(u, 0) + 5
+                
+            if user_weekly_net and max(user_weekly_net.values(), default=-1) > 0:
+                top_mvp_id = max(user_weekly_net, key=user_weekly_net.get)
+                top_mvp_tokens = user_weekly_net[top_mvp_id]
+                mvp_profile = supabase.table("profiles").select("full_name, avatar_emoji, favorite_team").eq("id", top_mvp_id).single().execute().data
+                
+                if mvp_profile:
+                    st.markdown(f"""
+                        <div class="mvp-banner">
+                            <div style="font-size: 14px; letter-spacing: 2px; text-transform: uppercase; color: #f3e8ff;">🔥 Week {latest_mvp_week} League MVP 🔥</div>
+                            <div style="font-size: 32px; font-weight: 900; margin: 5px 0; color: #ffffff;">{mvp_profile.get('avatar_emoji', '🏈')} {mvp_profile['full_name']}</div>
+                            <div style="font-size: 15px; color: #d8b4fe;">Dominated the slate with <b>+{top_mvp_tokens} Net Tokens</b>! 🚀</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+
         st.divider()
         st.subheader("📊 Last Week's Performance Summary")
-        
-        graded_q_badge = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
         
         if not graded_q_badge:
             st.info("No weeks have been graded yet. Place your bets for Week 1 to get started!")
@@ -705,7 +749,7 @@ else:
         """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 3: PLACE BETS
+    # TAB 3: PLACE BETS (COLLAPSIBLE ACCORDIONS & DYNAMIC PROGRESS)
     # ------------------------------------------
     with tab_bet:
         st.header("Weekly Predictions & Wagers")
@@ -761,14 +805,12 @@ else:
                     picks = {}
                     
                     st.markdown("### 10 Weekly Questions")
-                    st.caption("Double your betted tokens if correct! Lose betted tokens if wrong.")
+                    st.caption("Expand any question below to make your pick and wager tokens.")
                     
                     for q in questions:
                         if q.get("winning_answer", "").startswith("LOCKTIME:"):
                             continue
                             
-                        st.markdown('<div class="matchup-card">', unsafe_allow_html=True)
-                        
                         full_q_text = q['question_text']
                         away_team_name = "🏈 Free Agent / Neutral"
                         home_team_name = "🏈 Free Agent / Neutral"
@@ -786,46 +828,47 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        col_away_logo, col_matchup_txt, col_home_logo = st.columns([1, 4, 1])
-                        with col_away_logo:
-                            st.image(away_info["logo"], width=45)
-                        with col_matchup_txt:
-                            st.markdown(f"""
-                                <div style="text-align:center; padding-top:4px;">
-                                    <span class="matchup-team-title">{away_team_name}</span>
-                                    <span style="color:#cbd5e1; font-weight:bold; margin: 0 8px;">@</span>
-                                    <span class="matchup-team-title">{home_team_name}</span>
-                                </div>
-                            """, unsafe_allow_html=True)
-                        with col_home_logo:
-                            st.image(home_info["logo"], width=45)
+                        # Collapsible Matchup Accordion
+                        with st.expander(f"Q{q['question_number']}: {prompt_text[:50]}... ({away_team_name} @ {home_team_name})", expanded=True):
+                            col_away_logo, col_matchup_txt, col_home_logo = st.columns([1, 4, 1])
+                            with col_away_logo:
+                                st.image(away_info["logo"], width=40)
+                            with col_matchup_txt:
+                                st.markdown(f"""
+                                    <div style="text-align:center; padding-top:2px;">
+                                        <span class="matchup-team-title">{away_team_name}</span>
+                                        <span style="color:#cbd5e1; font-weight:bold; margin: 0 6px;">@</span>
+                                        <span class="matchup-team-title">{home_team_name}</span>
+                                    </div>
+                                """, unsafe_allow_html=True)
+                            with col_home_logo:
+                                st.image(home_info["logo"], width=40)
 
-                        q_bets = [b for b in all_week_bets if b['question_id'] == q['id']]
-                        if q_bets:
-                            yes_cnt = sum(1 for b in q_bets if b['pick'] == "Yes")
-                            pct_yes = int((yes_cnt / len(q_bets)) * 100)
-                            st.markdown(f'<span class="consensus-badge">📊 League Pick: {pct_yes}% YES ({len(q_bets)} votes)</span>', unsafe_allow_html=True)
+                            q_bets = [b for b in all_week_bets if b['question_id'] == q['id']]
+                            if q_bets:
+                                yes_cnt = sum(1 for b in q_bets if b['pick'] == "Yes")
+                                pct_yes = int((yes_cnt / len(q_bets)) * 100)
+                                st.markdown(f'<span class="consensus-badge">📊 League Pick: {pct_yes}% YES ({len(q_bets)} votes)</span>', unsafe_allow_html=True)
 
-                        st.markdown(f"**Q{q['question_number']}: {prompt_text}**")
-                        col1, col2 = st.columns([1, 1])
-                        with col1:
-                            picks[q['id']] = st.radio(
-                                f"Pick for Q{q['question_number']}", 
-                                ["Yes", "No"], 
-                                key=f"pick_{q['id']}", 
-                                horizontal=True,
-                                disabled=is_locked
-                            )
-                        with col2:
-                            wagers[q['id']] = st.number_input(
-                                f"Wager (Tokens) Q{q['question_number']}", 
-                                min_value=0, 
-                                max_value=profile['tokens'], 
-                                value=0, 
-                                key=f"wager_{q['id']}",
-                                disabled=is_locked
-                            )
-                        st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown(f"**Question: {prompt_text}**")
+                            col1, col2 = st.columns([1, 1])
+                            with col1:
+                                picks[q['id']] = st.radio(
+                                    f"Pick Q{q['question_number']}", 
+                                    ["Yes", "No"], 
+                                    key=f"pick_{q['id']}", 
+                                    horizontal=True,
+                                    disabled=is_locked
+                                )
+                            with col2:
+                                wagers[q['id']] = st.number_input(
+                                    f"Wager Q{q['question_number']}", 
+                                    min_value=0, 
+                                    max_value=profile['tokens'], 
+                                    value=0, 
+                                    key=f"wager_{q['id']}",
+                                    disabled=is_locked
+                                )
 
                     st.markdown("### 🏈 Bonus Touchdown Scorer Pick")
                     st.caption("Name 1 player to score a TD this week (Rushing/Receiving only!). Correct pick = Bonus Tokens!")
@@ -840,10 +883,14 @@ else:
                     progress_val = min(1.0, total_wagered / max_available)
                     pct_str = int(progress_val * 100)
                     
-                    st.progress(
-                        progress_val, 
-                        text=f"**Tokens Wagered:** `{total_wagered}` / `{profile['tokens']}` Tokens ({pct_str}%)"
-                    )
+                    # Dynamic Wager Progress Bar Color Shift
+                    if total_wagered > profile['tokens']:
+                        st.error(f"⚠️ Over-wagered! You have allocated {total_wagered} tokens but only have {profile['tokens']} available.")
+                    else:
+                        st.progress(
+                            progress_val, 
+                            text=f"**Tokens Allocated:** `{total_wagered}` / `{profile['tokens']}` Tokens ({pct_str}%)"
+                        )
                     
                     submit_bet = st.form_submit_button("Submit Weekly Bets 🚀", type="primary", use_container_width=True, disabled=is_locked)
                     
@@ -870,7 +917,8 @@ else:
                                     "player_name": td_pick
                                 }).execute()
                                 
-                            st.success("Your bets and touchdown pick have been submitted!")
+                            st.balloons()
+                            st.success("Your bets and touchdown pick have been successfully locked in!")
 
     # ------------------------------------------
     # TAB 4: MY HISTORY
@@ -907,7 +955,7 @@ else:
             st.dataframe(formatted_data, use_container_width=True)
 
     # ------------------------------------------
-    # TAB 5: LEADERBOARD
+    # TAB 5: LEADERBOARD (WITH QUICK-JUMP BADGE PILLS)
     # ------------------------------------------
     with tab_leaders:
         st.header("🏆 Player Standings")
@@ -922,21 +970,24 @@ else:
                 t_info = NFL_TEAM_DATA.get(team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                 
                 p_badges = get_user_badges(p["id"])
-                badge_str = f"🏆 {len(p_badges)} Badges"
+                badges_html = "".join([f'<span class="badge-pill">{b}</span>' for b in p_badges]) if p_badges else '<span style="color:#64748b; font-size:12px;">No Badges Yet</span>'
                 
                 leader_data.append({
                     "Rank": f"#{idx + 1}",
                     "Logo": t_info["logo"],
                     "Player": f"{av} {p['full_name']}",
                     "Team": team_name,
-                    "Trophies": badge_str,
+                    "Badges Unlocked": badges_html,
                     "Tokens": f"{p['tokens']} 🪙",
                     "Catchphrase": p.get("bio", "")
                 })
                 
             st.dataframe(
                 pd.DataFrame(leader_data),
-                column_config={"Logo": st.column_config.ImageColumn("Badge", width="small")},
+                column_config={
+                    "Logo": st.column_config.ImageColumn("Badge", width="small"),
+                    "Badges Unlocked": st.column_config.Column("Badges Unlocked", help="Hover to review earned trophies")
+                },
                 use_container_width=True,
                 hide_index=True
             )
@@ -1028,7 +1079,25 @@ else:
                     """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 7: ADMIN CONTROL
+    # TAB 7: HALL OF FAME & SEASON ARCHIVES
+    # ------------------------------------------
+    with tab_hof:
+        st.header("🏛️ Touchdown Tokens Hall of Fame")
+        st.caption("Archive of past champions and legendary historical seasons.")
+        
+        st.markdown("""
+            <div class="champion-card">
+                <div style="font-size: 18px; letter-spacing: 2px;">👑 INAUGURAL SEASON CHAMPION</div>
+                <div style="font-size: 40px; font-weight: 900; margin: 8px 0;">TBD</div>
+                <div style="font-size: 14px;">The battle for the first-ever Touchdown Tokens crown is underway!</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.subheader("📜 Past Season Archives")
+        st.info("No previous seasons archived yet. Once an admin resets a season at the conclusion of the year, final standings and champion histories will live here permanently!")
+
+    # ------------------------------------------
+    # TAB 8: ADMIN CONTROL
     # ------------------------------------------
     if profile.get("is_admin"):
         with tab_admin:
@@ -1194,6 +1263,7 @@ else:
                                 new_balance = max(0, p_data["tokens"] + change)
                                 supabase.table("profiles").update({"tokens": new_balance}).eq("id", u_id).execute()
                                 
+                            st.balloons()
                             st.success("Scores graded and user token balances updated!")
 
             # Sub-Section D: Manual Token Overrides
