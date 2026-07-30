@@ -504,14 +504,14 @@ else:
         st.session_state.user = None
         st.rerun()
 
-    # Reordered Tabs: Home, Profile, Rules, Place Bets, My History, Leaderboard, Trophy, Admin
+    # Reordered Tabs with original descriptive names
     if profile.get("is_admin"):
         tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_trophies, tab_admin = st.tabs(
-            ["🏠 Home", "👤 Profile", "📖 Rules", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🥇 Trophy", "⚙️ Admin"]
+            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🏆 Trophy Cabinet", "⚙️ Admin Control"]
         )
     else:
         tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_trophies = st.tabs(
-            ["🏠 Home", "👤 Profile", "📖 Rules", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🥇 Trophy"]
+            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🏆 Trophy Cabinet"]
         )
 
     # ------------------------------------------
@@ -664,7 +664,7 @@ else:
                     st.rerun()
 
     # ------------------------------------------
-    # TAB 2: RULES
+    # TAB 2: RULES & INFO
     # ------------------------------------------
     with tab_rules:
         st.header("📖 Rules & Information")
