@@ -1213,10 +1213,39 @@ else:
     # ------------------------------------------
     with tab_leaders:
         st.header("🏆 Player Standings")
-        leader_res = supabase.table("profiles").select("id, full_name, tokens, favorite_team, bio, avatar_emoji").order("tokens", desc=True).execute().data
+        leader_res = supabase.table("profiles").select("id, full_name, tokens, favorite_team, bio, avatar_emoji").execute().data
         
         if leader_res:
-            for idx, p in enumerate(leader_res):
+            player_stats = []
+            for p in leader_res:
+                correct_tds = supabase.table("touchdown_picks").select("*").eq("user_id", p["id"]).eq("is_correct", True).execute().data
+                td_count = len(correct_tds) if correct_tds else 0
+                player_stats.append({
+                    **p,
+                    "correct_tds": td_count
+                })
+            
+            # Sort by Tokens DESC first, then Correct TDs DESC, then Full Name ASC
+            player_stats = sorted(player_stats, key=lambda x: (-x["tokens"], -x["correct_tds"], x["full_name"]))
+
+            current_rank = 1
+            prev_score = None
+            prev_tds = None
+            
+            for idx, p in enumerate(player_stats):
+                score = p["tokens"]
+                tds = p["correct_tds"]
+                
+                # Players only share the exact same rank if BOTH Tokens AND Correct TDs match
+                if idx > 0 and score == prev_score and tds == prev_tds:
+                    display_rank = current_rank
+                else:
+                    current_rank = idx + 1
+                    display_rank = current_rank
+                
+                prev_score = score
+                prev_tds = tds
+                
                 av = p.get("avatar_emoji") or "🏈"
                 team_name = p.get("favorite_team") or "🏈 Free Agent / Neutral"
                 t_info = NFL_TEAM_DATA.get(team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
@@ -1226,16 +1255,17 @@ else:
                 bio_text = p.get('bio', '')
                 
                 podium_class = "leaderboard-row"
-                rank_display = f"#{idx + 1}"
-                if idx == 0:
+                if display_rank == 1:
                     podium_class += " podium-rank-1"
                     rank_display = "🥇 #1"
-                elif idx == 1:
+                elif display_rank == 2:
                     podium_class += " podium-rank-2"
                     rank_display = "🥈 #2"
-                elif idx == 2:
+                elif display_rank == 3:
                     podium_class += " podium-rank-3"
                     rank_display = "🥉 #3"
+                else:
+                    rank_display = f"#{display_rank}"
                 
                 st.markdown(f"""
                     <div class="{podium_class}">
@@ -1245,7 +1275,7 @@ else:
                                 <img src="{t_info['logo']}" style="width: 32px; height: 32px;" />
                                 <div>
                                     <b style="font-size: 19px; color: #ffffff;">{av} {p['full_name']}</b>
-                                    <div style="font-size: 13px; color: #94a3b8;">{team_name} {f'• "{bio_text}"' if bio_text else ''}</div>
+                                    <div style="font-size: 13px; color: #94a3b8;">{team_name} {f'• "{bio_text}"' if bio_text else ''} • 🏈 Correct TD Picks (Tiebreaker): <b>{tds}</b></div>
                                 </div>
                             </div>
                             <div style="text-align: right;">
