@@ -1152,7 +1152,7 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        existing_bet_row = [b for b in all_week_bets if b.get('question_id') == q['id']]
+                        existing_bet_row = [b for b in all_week_bets if b.get('question_id'] == q['id']]
                         default_pick_val = existing_bet_row[0]['pick'] if existing_bet_row else "Yes"
                         default_wager_val = existing_bet_row[0]['wager_amount'] if existing_bet_row else 0
 
@@ -1228,15 +1228,7 @@ else:
                     if clear_bet and not is_locked:
                         supabase.table("user_bets").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
                         supabase.table("touchdown_picks").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
-                        
-                        # Reset all number input wagers and text inputs in session state instantly
-                        for q in questions:
-                            if f"wager_{q['id']}" in st.session_state:
-                                st.session_state[f"wager_{q['id']}"] = 0
-                        if "td_scorer" in st.session_state:
-                            st.session_state["td_scorer"] = ""
-                            
-                        st.success("Your bet choices and token wagers have been cleared and reset to 0!")
+                        st.success("Your bet choices for this week have been cleared!")
                         st.rerun()
 
                     if submit_bet and not is_locked:
