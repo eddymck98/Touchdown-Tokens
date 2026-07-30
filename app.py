@@ -600,7 +600,7 @@ if st.session_state.user is None:
                             "bio": "Ready for Kickoff!",
                             "avatar_emoji": "🏈"
                         }).execute()
-                        st.success("Account created successfully! Please authenticate your email using the link sent to your inbox before logging in.")
+                        st.success("Account created successfully! You can now log in using the Log In tab above.")
                 except Exception as e:
                     st.error(f"Sign up failed: {e}")
 
@@ -1148,7 +1148,7 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        existing_bet_row = [b for b in all_week_bets if b.get('question_id') == q['id']]
+                        existing_bet_row = [b for b in all_week_bets if b.get('question_id'] == q['id']]
                         default_pick_val = existing_bet_row[0]['pick'] if existing_bet_row else "Yes"
                         default_wager_val = existing_bet_row[0]['wager_amount'] if existing_bet_row else 0
 
@@ -1498,9 +1498,7 @@ else:
                 with col_btn2:
                     if st.button("🗑️ Clear Unpublished Questions", help="Deletes all unpublished questions for this week"):
                         try:
-                            # Delete only questions where winning_answer is Pending
                             supabase.table("weekly_questions").delete().eq("week_number", selected_manage_week).eq("winning_answer", "Pending").execute()
-                            # Clear session state keys for this week
                             for i in range(1, 11):
                                 skey = f"m_prompt_w{selected_manage_week}_q{i}"
                                 if skey in st.session_state:
