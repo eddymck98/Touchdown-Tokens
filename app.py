@@ -153,14 +153,15 @@ st.markdown(f"""
     }}
 
     .big-token-card {{
-        background: linear-gradient(135deg, rgba(30, 58, 138, 0.95) 0%, rgba(6, 10, 18, 0.95) 100%);
+        background: linear-gradient(135deg, rgba(30, 58, 138, 0.85) 0%, rgba(6, 10, 18, 0.90) 100%);
         padding: 30px;
         border-radius: 18px;
         color: #ffffff !important;
         text-align: center;
         border: 2px solid {user_team_color};
         margin-bottom: 25px;
-        backdrop-filter: blur(10px);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
         animation: teamPulse 3.5s infinite ease-in-out;
     }}
     .big-token-number {{
@@ -173,32 +174,35 @@ st.markdown(f"""
     }}
 
     .champion-card {{
-        background: linear-gradient(135deg, #78350f 0%, #b45309 50%, #f59e0b 100%);
+        background: linear-gradient(135deg, rgba(120, 53, 15, 0.9) 0%, rgba(180, 83, 9, 0.9) 50%, rgba(245, 158, 11, 0.9) 100%);
         padding: 30px;
         border-radius: 16px;
         color: #ffffff !important;
         text-align: center;
         border: 3px solid #fbbf24;
         margin-bottom: 30px;
+        backdrop-filter: blur(12px);
         animation: teamPulse 2s infinite ease-in-out;
     }}
 
     .mvp-banner {{
-        background: linear-gradient(135deg, rgba(147, 51, 234, 0.92) 0%, rgba(30, 58, 138, 0.95) 100%);
+        background: linear-gradient(135deg, rgba(147, 51, 234, 0.88) 0%, rgba(30, 58, 138, 0.92) 100%);
         border: 2px solid #c084fc;
         padding: 20px;
         border-radius: 14px;
         margin-bottom: 20px;
         text-align: center;
+        backdrop-filter: blur(12px);
         box-shadow: 0 0 18px rgba(192, 132, 252, 0.5);
     }}
 
     .trophy-card-unlocked {{
-        background: linear-gradient(135deg, rgba(30, 41, 59, 0.92) 0%, rgba(15, 23, 42, 0.96) 100%);
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.88) 0%, rgba(15, 23, 42, 0.92) 100%);
         border: 2px solid {user_team_color};
         padding: 15px;
         border-radius: 12px;
         margin-bottom: 12px;
+        backdrop-filter: blur(10px);
         box-shadow: 0 0 12px {user_team_color}44;
     }}
 
@@ -212,12 +216,36 @@ st.markdown(f"""
     }}
 
     .leaderboard-row {{
-        background: rgba(15, 23, 42, 0.9);
+        background: rgba(15, 23, 42, 0.88);
         border: 1px solid #334155;
         border-radius: 12px;
-        padding: 15px;
+        padding: 16px;
         margin-bottom: 12px;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        transition: all 0.25s ease-in-out;
+    }}
+    .leaderboard-row:hover {{
+        transform: translateY(-4px);
+        border-color: {user_team_color};
+        box-shadow: 0 8px 24px {user_team_color}66;
+    }}
+
+    .podium-rank-1 {{
+        border: 2px solid #fbbf24 !important;
+        background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%) !important;
+        box-shadow: 0 0 20px rgba(251, 191, 36, 0.4) !important;
+    }}
+    .podium-rank-2 {{
+        border: 2px solid #94a3b8 !important;
+        background: linear-gradient(135deg, rgba(148, 163, 184, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%) !important;
+        box-shadow: 0 0 15px rgba(148, 163, 184, 0.3) !important;
+    }}
+    .podium-rank-3 {{
+        border: 2px solid #b45309 !important;
+        background: linear-gradient(135deg, rgba(180, 83, 9, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%) !important;
+        box-shadow: 0 0 15px rgba(180, 83, 9, 0.3) !important;
     }}
 
     div[data-testid="stRadio"] div[role="radiogroup"] > label {{
@@ -257,6 +285,7 @@ st.markdown(f"""
         border-radius: 12px;
         text-align: center;
         margin-bottom: 20px;
+        backdrop-filter: blur(10px);
     }}
 
     .badge-pill {{
@@ -284,15 +313,18 @@ st.markdown(f"""
     }}
     
     .chat-bubble {{
-        background-color: rgba(15, 23, 42, 0.92);
-        border-left: 5px solid #fbbf24;
+        background-color: rgba(15, 23, 42, 0.90);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
         padding: 14px 18px;
         border-radius: 8px;
         margin-bottom: 12px;
+        border: 1px solid rgba(255,255,255,0.08);
     }}
 
     .summary-box {{
-        background-color: rgba(15, 23, 42, 0.92) !important;
+        background-color: rgba(15, 23, 42, 0.90) !important;
+        backdrop-filter: blur(10px);
         border-left: 5px solid {user_team_color} !important;
         padding: 18px;
         border-radius: 8px;
@@ -839,14 +871,21 @@ else:
         selected_badges = get_user_badges(selected_player["id"])
         selected_team_info = NFL_TEAM_DATA.get(selected_player.get("favorite_team"), NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
         
+        unlocked_count = len(selected_badges)
+        total_badges_count = len(MASTER_BADGES)
+        progress_ratio = unlocked_count / total_badges_count
+        progress_pct = int(progress_ratio * 100)
+        
         col_t_logo, col_t_info = st.columns([1, 4])
         with col_t_logo:
             st.image(selected_team_info["logo"], width=70)
         with col_t_info:
             st.markdown(f"### {selected_player.get('avatar_emoji', '🏈')} {selected_player['full_name']}'s Showcase")
-            st.markdown(f"**Unlocked:** `{len(selected_badges)}` / `{len(MASTER_BADGES)}` Badges")
+            st.markdown(f"**Unlocked:** `{unlocked_count}` / `{total_badges_count}` Badges")
         
+        st.progress(progress_ratio, text=f"**Cabinet Completion:** `{progress_pct}%` Unlocked")
         st.write("")
+        
         t_col1, t_col2 = st.columns(2)
         for idx, (b_name, b_desc) in enumerate(MASTER_BADGES.items()):
             is_unlocked = b_name in selected_badges
@@ -1159,11 +1198,23 @@ else:
                 badges_html = "".join([f'<span class="badge-pill">{b}</span>' for b in p_badges]) if p_badges else '<span style="color:#64748b; font-size:12px;">No Badges Yet</span>'
                 bio_text = p.get('bio', '')
                 
+                podium_class = "leaderboard-row"
+                rank_display = f"#{idx + 1}"
+                if idx == 0:
+                    podium_class += " podium-rank-1"
+                    rank_display = "🥇 #1"
+                elif idx == 1:
+                    podium_class += " podium-rank-2"
+                    rank_display = "🥈 #2"
+                elif idx == 2:
+                    podium_class += " podium-rank-3"
+                    rank_display = "🥉 #3"
+                
                 st.markdown(f"""
-                    <div class="leaderboard-row">
+                    <div class="{podium_class}">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                             <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="font-family: 'Bebas Neue'; font-size: 26px; color: #fbbf24; width: 35px;">#{idx + 1}</span>
+                                <span style="font-family: 'Bebas Neue'; font-size: 26px; color: #fbbf24; width: 45px;">{rank_display}</span>
                                 <img src="{t_info['logo']}" style="width: 32px; height: 32px;" />
                                 <div>
                                     <b style="font-size: 19px; color: #ffffff;">{av} {p['full_name']}</b>
@@ -1211,7 +1262,7 @@ else:
                 t_info = NFL_TEAM_DATA.get(author_team, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                 
                 st.markdown(f"""
-                <div class="chat-bubble" style="border-left-color: {t_info['color']};">
+                <div class="chat-bubble" style="border-left: 5px solid {t_info['color']} !important;">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <img src="{t_info['logo']}" style="width:28px; height:28px;" />
                         <b>{author_av} {author_name}</b> <small style="opacity:0.7;">({author_team})</small>
@@ -1221,22 +1272,69 @@ else:
                 """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 6: HALL OF FAME & SEASON ARCHIVES
+    # TAB 6: HALL OF FAME & SEASON ARCHIVES (2023 & 2024)
     # ------------------------------------------
     with tab_hof:
         st.header("🏛️ Touchdown Tokens Hall of Fame")
         st.caption("Archive of past champions and legendary historical seasons.")
         
-        st.markdown("""
-            <div class="champion-card">
-                <div style="font-size: 20px; letter-spacing: 2px;">👑 INAUGURAL SEASON CHAMPION</div>
-                <div style="font-size: 42px; font-weight: 900; margin: 8px 0;">TBD</div>
-                <div style="font-size: 16px;">The battle for the first-ever Touchdown Tokens crown is underway!</div>
-            </div>
-        """, unsafe_allow_html=True)
+        archive_year_sel = st.selectbox("Select Season Archive", ["2024 Season", "2023 Season"])
         
-        st.subheader("📜 Past Season Archives")
-        st.info("No previous seasons archived yet. Once an admin resets a season at the conclusion of the year, final standings and champion histories will live here permanently!")
+        if archive_year_sel == "2024 Season":
+            st.markdown(f"""
+                <div class="champion-card">
+                    <div style="font-size: 20px; letter-spacing: 2px;">👑 2024 SEASON CHAMPION</div>
+                    <div style="font-size: 48px; font-weight: 900; margin: 8px 0;">Louis Lynn (74 🪙)</div>
+                    <div style="font-size: 16px;">Crowned the ultimate Touchdown Tokens victor of the 2024 campaign!</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            st.subheader("📜 2024 Official Season Final Standings")
+            st.caption("Complete historical results from the 2024 Touchdown Tokens leaderboard.")
+            
+            data_2024 = [
+                {"Rank": "🥇", "Player": "Louis Lynn", "Final Tokens": 74},
+                {"Rank": "🥈", "Player": "John Willis", "Final Tokens": 66},
+                {"Rank": "🥉", "Player": "Will Granger", "Final Tokens": 29},
+                {"Rank": "3nd (Tied)", "Player": "Adam Volpin", "Final Tokens": 29},
+                {"Rank": "5th", "Player": "Gary Shaw", "Final Tokens": 23},
+                {"Rank": "6th", "Player": "Suzie McKenna", "Final Tokens": 21},
+                {"Rank": "7th", "Player": "Dan Hammerton", "Final Tokens": 14},
+                {"Rank": "7th (Tied)", "Player": "Tom Wood", "Final Tokens": 14},
+                {"Rank": "9th", "Player": "Patrick Smith", "Final Tokens": 13},
+                {"Rank": "10th", "Player": "Joe Kewley-Joy", "Final Tokens": 10},
+                {"Rank": "11th", "Player": "Paul Hindle", "Final Tokens": 6},
+                {"Rank": "12th", "Player": "Liam Murphy", "Final Tokens": 0},
+            ]
+            df_2024 = pd.DataFrame(data_2024)
+            st.dataframe(df_2024, use_container_width=True, hide_index=True)
+            
+        else:
+            st.markdown(f"""
+                <div class="champion-card">
+                    <div style="font-size: 20px; letter-spacing: 2px;">👑 2023 SEASON CHAMPION</div>
+                    <div style="font-size: 48px; font-weight: 900; margin: 8px 0;">Ed McKenna (117 🪙)</div>
+                    <div style="font-size: 16px;">Crowned the ultimate Touchdown Tokens victor of the 2023 campaign!</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            st.subheader("📜 2023 Official Season Final Standings")
+            st.caption("Complete historical results from the 2023 Touchdown Tokens leaderboard.")
+            
+            data_2023 = [
+                {"Rank": "🥇", "Player": "Ed McKenna", "Final Tokens": 117},
+                {"Rank": "🥈", "Player": "Suzie McKenna", "Final Tokens": 87},
+                {"Rank": "🥉", "Player": "Gary Shaw", "Final Tokens": 76},
+                {"Rank": "4th", "Player": "Adam Volpin", "Final Tokens": 67},
+                {"Rank": "5th", "Player": "Tom Wood", "Final Tokens": 49},
+                {"Rank": "6th", "Player": "Jay Kewley-Joy", "Final Tokens": 48},
+                {"Rank": "7th", "Player": "Will Granger", "Final Tokens": 47},
+                {"Rank": "8th", "Player": "John Willis", "Final Tokens": 28},
+                {"Rank": "9th", "Player": "Patrick Smith", "Final Tokens": 4},
+                {"Rank": "10th", "Player": "Ethan Lewis", "Final Tokens": 3},
+            ]
+            df_2023 = pd.DataFrame(data_2023)
+            st.dataframe(df_2023, use_container_width=True, hide_index=True)
 
     # ------------------------------------------
     # TAB 7: ADMIN CONTROL
@@ -1247,7 +1345,6 @@ else:
             
             admin_sec = st.radio("Select Action", ["Create Questions", "Edit Published Questions", "Auto-Lockout Scheduler", "Grade Week & Calculate Points", "Bulk Token Adjuster", "Export League Data (CSV)", "League Chat Announcement", "Archive & Reset Season", "Season Champion Banner"], horizontal=True)
             
-            # Sub-Section A: Enter Questions with Matchup Dropdowns
             if admin_sec == "Create Questions":
                 st.subheader("Add 10 New Weekly Questions")
                 new_week = st.number_input("Week Number", min_value=1, max_value=24, step=1, key="admin_week_selector")
@@ -1306,7 +1403,6 @@ else:
                             st.success(f"Successfully published questions for Week {new_week}!")
                             st.rerun()
 
-            # Sub-Section B: Edit Published Questions
             elif admin_sec == "Edit Published Questions":
                 st.subheader("✏️ Edit Published Weekly Questions & Matchups")
                 edit_week = st.number_input("Select Week to Edit", min_value=1, max_value=24, step=1, key="admin_edit_week_sel")
@@ -1359,7 +1455,6 @@ else:
                             st.success(f"Successfully updated Week {edit_week} questions!")
                             st.rerun()
 
-            # Sub-Section C: Auto-Lockout Scheduler & Manual Override
             elif admin_sec == "Auto-Lockout Scheduler":
                 st.subheader("⏰ Auto-Lockout Scheduler & Emergency Override")
                 lock_week = st.number_input("Select Week", min_value=1, max_value=24, step=1, key="admin_lock_week")
@@ -1399,12 +1494,10 @@ else:
                         }).execute()
                         st.success(f"Auto-lockout scheduled for Week {lock_week} at {combined_dt} UTC!")
 
-            # Sub-Section D: Grade Week & Calculate Points (WITH INTEGRATED API FEEDER)
             elif admin_sec == "Grade Week & Calculate Points":
                 st.subheader("Grade Weekly Results & Live Score Feeder")
                 grade_week = st.number_input("Select Week to Grade", min_value=1, max_value=24, step=1, key="grade_week_num")
                 
-                # --- INTEGRATED API SCORE FEEDER WIDGET ---
                 with st.expander("⚡ Fetch Live ESPN Scores for Reference", expanded=False):
                     st.caption("Pull live game scores from ESPN to verify outcomes before grading below.")
                     if st.button("🔄 Fetch Live Scores Now"):
@@ -1533,7 +1626,6 @@ else:
                             st.balloons()
                             st.success("Scores graded and user token balances updated!")
 
-            # Sub-Section E: Bulk Token Adjuster
             elif admin_sec == "Bulk Token Adjuster":
                 st.subheader("👥 Bulk Player Token Adjuster & Reset Wizard")
                 st.caption("Select multiple players at once and apply a token adjustment or reset.")
@@ -1582,7 +1674,6 @@ else:
                                 st.success(f"Successfully updated tokens for {len(selected_user_ids)} players!")
                                 st.rerun()
 
-            # Export League Data (CSV)
             elif admin_sec == "Export League Data (CSV)":
                 st.subheader("📥 Export League Data to CSV")
                 st.caption("Download full database dumps for Excel or record archives.")
@@ -1611,7 +1702,6 @@ else:
                             mime="text/csv"
                         )
 
-            # Pre-Formatted WhatsApp / League Chat Announcement
             elif admin_sec == "League Chat Announcement":
                 st.subheader("📢 Pre-Formatted League Announcement Generator")
                 st.caption("Copy and paste this message directly into your WhatsApp or group chat!")
@@ -1668,7 +1758,6 @@ Good luck this week! 🔥"""
                 
                 st.code(announcement_template, language="markdown")
 
-            # One-Click Season Reset / Archive Tool
             elif admin_sec == "Archive & Reset Season":
                 st.subheader("🧹 End-of-Season Reset & Archive Utility")
                 st.caption("Archive final season standings and reset all active player balances back to 10 tokens for a fresh pre-season launch.")
@@ -1697,7 +1786,6 @@ Good luck this week! 🔥"""
                     except Exception as e:
                         st.error(f"Error resetting season: {e}")
 
-            # Sub-Section H: Champion Banner Toggle
             elif admin_sec == "Season Champion Banner":
                 st.subheader("🏆 End-of-Season Celebration Banner")
                 st.caption("Enable this banner to show confetti and a gold Champion card on the Home tab when the season ends.")
