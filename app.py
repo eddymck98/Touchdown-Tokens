@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import random
+import requests
 from datetime import datetime, timezone
 from supabase import create_client, Client
 
@@ -544,7 +546,6 @@ else:
         st.session_state.user = None
         st.rerun()
 
-    # Reordered Tabs (Current Picks integrated directly into Home tab)
     if profile.get("is_admin"):
         tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_hof, tab_admin = st.tabs(
             ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🏛️ Hall of Fame", "⚙️ Admin Control"]
@@ -554,12 +555,11 @@ else:
             ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🏛️ Hall of Fame"]
         )
 
-    # Fetch available weeks for current picks section on home screen
     weeks_res = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).execute()
     available_weeks = sorted(list(set([r["week_number"] for r in weeks_res.data]))) if weeks_res.data else []
 
     # ------------------------------------------
-    # TAB 0: HOME (WITH CURRENT PICKS & SHARE)
+    # TAB 0: HOME
     # ------------------------------------------
     with tab_home:
         champ_setting = supabase.table("weekly_questions").select("question_text, winning_answer").eq("week_number", 999).execute().data
@@ -585,7 +585,6 @@ else:
             </div>
         """, unsafe_allow_html=True)
 
-        # --- CURRENT WEEKLY PICKS & SHARE BLOCK (MOVED TO HOME) ---
         st.subheader("👁️ Your Current Weekly Picks & Share Hub")
         st.caption("Review your active entries for the upcoming week and grab a quick share text for your group chat.")
         
@@ -916,7 +915,7 @@ else:
         """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 3: PLACE BETS
+    # TAB 3: PLACE BETS (WITH "FEELING LUCKY" RANDOM BET GENERATOR)
     # ------------------------------------------
     with tab_bet:
         st.header("Weekly Predictions & Wagers")
@@ -964,6 +963,35 @@ else:
             else:
                 all_week_bets = supabase.table("user_bets").select("question_id, pick").eq("week_number", selected_week).execute().data
                 
+                # --- "FEELING LUCKY" RANDOM BET GENERATOR BUTTON ---
+                if not is_locked and profile['tokens'] > 0:
+                    col_rand1, col_rand2 = st.columns([3, 1])
+                    with col_rand2:
+                        if st.button("🎲 Feeling Lucky (Randomize Bets)", help="Randomly distributes your available tokens across the questions!"):
+                            real_q_items = [q for q in questions if not q.get("winning_answer", "").startswith("LOCKTIME:")]
+                            if real_q_items:
+                                remaining_tokens = profile['tokens']
+                                supabase.table("user_bets").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
+                                
+                                # Distribute tokens randomly
+                                token_allocations = {q['id']: 0 for q in real_q_items}
+                                for _ in range(remaining_tokens):
+                                    chosen_q = random.choice(real_q_items)
+                                    token_allocations[chosen_q['id']] += 1
+                                    
+                                for q_item in real_q_items:
+                                    random_pick = random.choice(["Yes", "No"])
+                                    w_amt = token_allocations[q_item['id']]
+                                    supabase.table("user_bets").insert({
+                                        "user_id": user_id,
+                                        "week_number": selected_week,
+                                        "question_id": q_item['id'],
+                                        "pick": random_pick,
+                                        "wager_amount": w_amt
+                                    }).execute()
+                                st.success("🎲 Random bets generated successfully! Check your selections below.")
+                                st.rerurn()
+
                 with st.form("weekly_bet_form"):
                     wagers = {}
                     picks = {}
@@ -992,6 +1020,11 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
+                        # Fetch existing user pick/wager if any
+                        existing_bet_row = [b for b in all_week_bets if b.get('question_id') == q['id']]
+                        default_pick_val = existing_bet_row[0]['pick'] if existing_bet_row else "Yes"
+                        default_wager_val = existing_bet_row[0]['wager_amount'] if existing_bet_row else 0
+
                         with st.expander(f"Q{q['question_number']}: {prompt_text[:50]}... ({away_team_name} @ {home_team_name})", expanded=True):
                             col_away_logo, col_matchup_txt, col_home_logo = st.columns([1, 4, 1])
                             with col_away_logo:
@@ -1019,6 +1052,7 @@ else:
                                 picks[q['id']] = st.radio(
                                     f"Pick Q{q['question_number']}", 
                                     ["Yes", "No"], 
+                                    index=0 if default_pick_val == "Yes" else 1,
                                     key=f"pick_{q['id']}", 
                                     horizontal=True,
                                     disabled=is_locked
@@ -1028,7 +1062,7 @@ else:
                                     f"Wager Q{q['question_number']}", 
                                     min_value=0, 
                                     max_value=profile['tokens'], 
-                                    value=0, 
+                                    value=default_wager_val, 
                                     key=f"wager_{q['id']}",
                                     disabled=is_locked
                                 )
@@ -1219,7 +1253,7 @@ else:
         with tab_admin:
             st.header("⚙️ Admin Management Portal")
             
-            admin_sec = st.radio("Select Action", ["Create Questions", "Edit Published Questions", "Auto-Lockout Scheduler", "Grade Week & Calculate Points", "Adjust User Tokens", "Export League Data (CSV)", "League Chat Announcement", "Archive & Reset Season", "Season Champion Banner"], horizontal=True)
+            admin_sec = st.radio("Select Action", ["Create Questions", "Edit Published Questions", "Auto-Lockout Scheduler", "Grade Week & Calculate Points", "Auto-Score Feeder (API)", "Bulk Token Adjuster", "Export League Data (CSV)", "League Chat Announcement", "Archive & Reset Season", "Season Champion Banner"], horizontal=True)
             
             # Sub-Section A: Enter Questions with Matchup Dropdowns
             if admin_sec == "Create Questions":
@@ -1456,22 +1490,119 @@ else:
                             st.balloons()
                             st.success("Scores graded and user token balances updated!")
 
-            # Sub-Section E: Manual Token Overrides
-            elif admin_sec == "Adjust User Tokens":
-                st.subheader("Manual Token Override")
-                all_users = supabase.table("profiles").select("id, full_name, tokens").execute().data
+            # Sub-Section E: Automated Result Scraper / API Feeder
+            elif admin_sec == "Auto-Score Feeder (API)":
+                st.subheader("⚡ Automated NFL Score Feeder & API Matchup Grader")
+                st.caption("Pull live NFL scores from ESPN's public API to auto-detect game statuses and suggest outcomes!")
                 
-                user_dict = {u["full_name"]: u for u in all_users}
-                selected_user_name = st.selectbox("Select Player", list(user_dict.keys()))
+                api_week = st.number_input("Select Week to Fetch Scores", min_value=1, max_value=24, step=1, key="api_week_num")
                 
-                if selected_user_name:
-                    target_user = user_dict[selected_user_name]
-                    st.write(f"Current Token Total: **{target_user['tokens']}**")
-                    new_token_val = st.number_input("Set New Token Total", min_value=0, value=target_user["tokens"])
+                if st.button("🔄 Fetch Live Scores from ESPN API"):
+                    try:
+                        espn_url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+                        resp = requests.get(espn_url, timeout=10)
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            events = data.get("events", [])
+                            
+                            st.success(f"Successfully connected to ESPN API! Found {len(events)} active games on the slate.")
+                            
+                            game_results_cache = {}
+                            for ev in events:
+                                comp = ev.get("competitions", [{}])[0]
+                                status_type = ev.get("status", {}).get("type", {}).get("name", "")
+                                competitors = comp.get("competitors", [])
+                                
+                                home_team_abbr = ""
+                                away_team_abbr = ""
+                                home_score = 0
+                                away_score = 0
+                                
+                                for team_obj in competitors:
+                                    abbr = team_obj.get("team", {}).get("abbreviation", "")
+                                    score = int(team_obj.get("score", 0))
+                                    if team_obj.get("homeAway") == "home":
+                                        home_team_abbr = abbr
+                                        home_score = score
+                                    else:
+                                        away_team_abbr = abbr
+                                        away_score = score
+                                        
+                                if status_type == "STATUS_FINAL":
+                                    game_results_cache[f"{away_team_abbr} @ {home_team_abbr}"] = {
+                                        "status": "FINAL",
+                                        "home_score": home_score,
+                                        "away_score": away_score
+                                    }
+                            
+                            st.session_state["espn_fetched_scores"] = game_results_cache
+                        else:
+                            st.error("Failed to reach ESPN scoreboard API.")
+                    except Exception as e:
+                        st.error(f"API Error: {e}")
+                        
+                if "espn_fetched_scores" in st.session_state:
+                    st.write("### Live API Game Status Feed:")
+                    fetched_map = st.session_state["espn_fetched_scores"]
                     
-                    if st.button("Update Player Tokens"):
-                        supabase.table("profiles").update({"tokens": new_token_val}).eq("id", target_user["id"]).execute()
-                        st.success(f"Updated {selected_user_name}'s tokens to {new_token_val}!")
+                    for matchup_key, info in fetched_map.items():
+                        st.info(f"🏟️ **{matchup_key}** | Status: `{info['status']}` | Score: {info['away_score']} - {info['home_score']}")
+                        
+                    st.markdown("""
+                        <div class="summary-box">
+                            <b>💡 Automated Grading Tip:</b> Use the fetched final scores above to guide your grading in the 'Grade Week & Calculate Points' tab!
+                        </div>
+                    """, unsafe_allow_html=True)
+
+            # Sub-Section F: Bulk Player Token Adjuster / Reset Wizard
+            elif admin_sec == "Bulk Token Adjuster":
+                st.subheader("👥 Bulk Player Token Adjuster & Reset Wizard")
+                st.caption("Select multiple players at once and apply a token adjustment or reset.")
+                
+                all_profiles_bulk = supabase.table("profiles").select("id, full_name, tokens, favorite_team").order("tokens", desc=True).execute().data
+                
+                if not all_profiles_bulk:
+                    st.info("No players found.")
+                else:
+                    with st.form("bulk_token_form"):
+                        st.markdown("#### Select Players")
+                        selected_user_ids = []
+                        
+                        # Display checklist
+                        for p in all_profiles_bulk:
+                            is_checked = st.checkbox(f"**{p['full_name']}** (Current Balance: `{p['tokens']} 🪙` | Team: {p['favorite_team']})", key=f"bulk_chk_{p['id']}")
+                            if is_checked:
+                                selected_user_ids.append(p['id'])
+                                
+                        st.divider()
+                        st.markdown("#### Action to Apply")
+                        col_ba1, col_ba2 = st.columns(2)
+                        with col_ba1:
+                            action_type = st.selectbox("Operation", ["Add Tokens", "Subtract Tokens", "Set Exact Token Balance"])
+                        with col_ba2:
+                            token_amount_val = st.number_input("Token Value Amount", min_value=0, value=5, step=1)
+                            
+                        submit_bulk = st.form_submit_button("Apply Bulk Adjustment ⚡", type="primary")
+                        
+                        if submit_bulk:
+                            if not selected_user_ids:
+                                st.warning("Please check off at least one player above.")
+                            else:
+                                for u_id in selected_user_ids:
+                                    p_curr = supabase.table("profiles").select("tokens").eq("id", u_id).single().execute().data.get("tokens", 0)
+                                    
+                                    if action_type == "Add Tokens":
+                                        new_bal = p_curr + token_amount_val
+                                    elif action_type == "Subtract Tokens":
+                                        new_bal = max(0, p_curr - token_amount_val)
+                                    else: # Set Exact Token Balance
+                                        new_bal = token_amount_val
+                                        
+                                    supabase.table("profiles").update({"tokens": new_bal}).eq("id", u_id).execute()
+                                    
+                                st.balloons()
+                                st.success(f"Successfully updated tokens for {len(selected_user_ids)} players!")
+                                st.rerun()
 
             # Export League Data (CSV)
             elif admin_sec == "Export League Data (CSV)":
