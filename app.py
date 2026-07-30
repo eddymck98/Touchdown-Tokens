@@ -974,15 +974,20 @@ else:
                     now_dt = datetime.now(timezone.utc)
                     time_diff = lock_dt - now_dt
                     
-                    if time_diff.total_seconds() <= 0:
+                    total_seconds_left = int(time_diff.total_seconds())
+                    if total_seconds_left <= 0:
                         is_locked = True
                         st.error("🔒 Entries for this week are locked! Kickoff deadline has passed.")
                     else:
-                        hours, remainder = divmod(int(time_diff.total_seconds()), 3600)
+                        days, remainder = divmod(total_seconds_left, 86400)
+                        hours, remainder = divmod(remainder, 3600)
                         minutes, seconds = divmod(remainder, 60)
+                        
+                        time_display_str = f"{days}d {hours}h {minutes}m {seconds}s" if days > 0 else f"{hours}h {minutes}m {seconds}s"
+                        
                         st.markdown(f"""
                             <div class="timer-card">
-                                ⏳ <b>KICKOFF LOCKOUT COUNTDOWN:</b> <span style="font-size:20px; font-weight:bold; color:{user_team_color};">{hours}h {minutes}m {seconds}s remaining</span>
+                                ⏳ <b>KICKOFF LOCKOUT COUNTDOWN:</b> <span style="font-size:20px; font-weight:bold; color:{user_team_color};">{time_display_str} remaining</span>
                             </div>
                         """, unsafe_allow_html=True)
                 except Exception:
@@ -995,7 +1000,7 @@ else:
             if not questions:
                 st.info("No questions found for this week.")
             else:
-                all_week_bets = supabase.table("user_bets").select("question_id, pick").eq("week_number", selected_week).execute().data
+                all_week_bets = supabase.table("user_bets").select("question_id, pick, wager_amount").eq("user_id", user_id).eq("week_number", selected_week).execute().data
                 
                 if not is_locked and profile['tokens'] > 0:
                     col_rand1, col_rand2 = st.columns([3, 1])
@@ -1345,12 +1350,10 @@ else:
             
             admin_sec = st.radio("Select Action", ["Manage Questions", "Auto-Lockout Scheduler", "Grade Week & Calculate Points", "Bulk Token Adjuster", "Export League Data (CSV)", "League Chat Announcement", "Archive & Reset Season", "Season Champion Banner"], horizontal=True)
             
-            # COMBINED & PERSISTENT QUESTION MANAGEMENT
             if admin_sec == "Manage Questions":
                 st.subheader("📋 Manage & Edit Weekly Questions & Matchups")
                 st.caption("Select a week below to view, publish, or edit questions and matchups dynamically. They will stay right here for ongoing edits!")
                 
-                # Fetch all existing weeks in database + allow selecting a new/next week
                 all_db_weeks = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).execute().data
                 db_week_nums = sorted(list(set([r["week_number"] for r in all_db_weeks]))) if all_db_weeks else []
                 next_suggested_week = (db_week_nums[-1] + 1) if db_week_nums else 1
@@ -1358,7 +1361,6 @@ else:
                 week_options = db_week_nums + [next_suggested_week] if next_suggested_week not in db_week_nums else db_week_nums
                 selected_manage_week = st.selectbox("Select Week to Manage", week_options, index=len(week_options)-1, key="admin_manage_week_sel")
                 
-                # Load existing questions for this week
                 existing_week_qs = supabase.table("weekly_questions").select("*").eq("week_number", selected_manage_week).order("question_number").execute().data
                 real_existing_qs = {q["question_number"]: q for q in existing_week_qs if q.get("question_number", 0) <= 10}
                 
@@ -1374,7 +1376,6 @@ else:
                     for i in range(1, 11):
                         st.markdown(f"#### Question {i}")
                         
-                        # Extract existing data if present in DB
                         q_obj = real_existing_qs.get(i, {})
                         raw_txt = q_obj.get("question_text", "")
                         
@@ -1417,12 +1418,10 @@ else:
                                 combined_text = f"{item['prompt']} | MATCHUP: {item['away']} @ {item['home']}"
                                 
                                 if item["db_id"]:
-                                    # Update existing question so it stays persistent and editable
                                     supabase.table("weekly_questions").update({
                                         "question_text": combined_text
                                     }).eq("id", item["db_id"]).execute()
                                 else:
-                                    # Insert new question if it didn't exist yet
                                     supabase.table("weekly_questions").insert({
                                         "week_number": selected_manage_week,
                                         "question_number": item["question_number"],
