@@ -89,7 +89,6 @@ DEFAULT_QUESTION_TEMPLATES = [
     "Will Home Team record 3 or more sacks?"
 ]
 
-# Fetch current user team for theme colors & logo watermark if logged in
 user_team_color = "#fbbf24"
 user_team_logo = "https://a.espncdn.com/i/teamlogos/nfl/500/nfl.png"
 if st.session_state.user:
@@ -103,7 +102,6 @@ if st.session_state.user:
     except Exception:
         pass
 
-# Enhanced Dynamic Styling with Cool Fonts (Bebas Neue & Teko) and Team Logo Watermark
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Teko:wght@500;700&display=swap');
@@ -356,7 +354,6 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# Header NFL Shield Banner
 st.markdown("""
     <div class="nfl-header">
         <img src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" class="header-logo" alt="NFL Logo" />
@@ -366,7 +363,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 st.write("")
 
-# Helper function to compute player badges with automatic celebratory popups/balloons on new badge unlocks
 def get_user_badges(target_user_id, check_celebration=False):
     p_data = supabase.table("profiles").select("tokens").eq("id", target_user_id).single().execute().data
     toks = p_data.get("tokens", 0) if p_data else 0
@@ -524,7 +520,6 @@ else:
     
     get_user_badges(user_id, check_celebration=True)
 
-    # --- STICKY SIDEBAR NAVIGATION & QUICK JUMP ---
     st.sidebar.title(f"{user_avatar} {profile['full_name']}")
     st.sidebar.image(team_data["logo"], width=55)
     st.sidebar.caption(f"Team: {user_team}")
@@ -915,7 +910,7 @@ else:
         """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 3: PLACE BETS (WITH "FEELING LUCKY" RANDOM BET GENERATOR)
+    # TAB 3: PLACE BETS
     # ------------------------------------------
     with tab_bet:
         st.header("Weekly Predictions & Wagers")
@@ -963,7 +958,6 @@ else:
             else:
                 all_week_bets = supabase.table("user_bets").select("question_id, pick").eq("week_number", selected_week).execute().data
                 
-                # --- "FEELING LUCKY" RANDOM BET GENERATOR BUTTON ---
                 if not is_locked and profile['tokens'] > 0:
                     col_rand1, col_rand2 = st.columns([3, 1])
                     with col_rand2:
@@ -973,7 +967,6 @@ else:
                                 remaining_tokens = profile['tokens']
                                 supabase.table("user_bets").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
                                 
-                                # Distribute tokens randomly
                                 token_allocations = {q['id']: 0 for q in real_q_items}
                                 for _ in range(remaining_tokens):
                                     chosen_q = random.choice(real_q_items)
@@ -990,7 +983,7 @@ else:
                                         "wager_amount": w_amt
                                     }).execute()
                                 st.success("🎲 Random bets generated successfully! Check your selections below.")
-                                st.rerurn()
+                                st.rerun()
 
                 with st.form("weekly_bet_form"):
                     wagers = {}
@@ -1020,8 +1013,7 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        # Fetch existing user pick/wager if any
-                        existing_bet_row = [b for b in all_week_bets if b.get('question_id') == q['id']]
+                        existing_bet_row = [b for b in all_week_bets if b.get('question_id'] == q['id']]
                         default_pick_val = existing_bet_row[0]['pick'] if existing_bet_row else "Yes"
                         default_wager_val = existing_bet_row[0]['wager_amount'] if existing_bet_row else 0
 
@@ -1253,7 +1245,7 @@ else:
         with tab_admin:
             st.header("⚙️ Admin Management Portal")
             
-            admin_sec = st.radio("Select Action", ["Create Questions", "Edit Published Questions", "Auto-Lockout Scheduler", "Grade Week & Calculate Points", "Auto-Score Feeder (API)", "Bulk Token Adjuster", "Export League Data (CSV)", "League Chat Announcement", "Archive & Reset Season", "Season Champion Banner"], horizontal=True)
+            admin_sec = st.radio("Select Action", ["Create Questions", "Edit Published Questions", "Auto-Lockout Scheduler", "Grade Week & Calculate Points", "Bulk Token Adjuster", "Export League Data (CSV)", "League Chat Announcement", "Archive & Reset Season", "Season Champion Banner"], horizontal=True)
             
             # Sub-Section A: Enter Questions with Matchup Dropdowns
             if admin_sec == "Create Questions":
@@ -1407,11 +1399,62 @@ else:
                         }).execute()
                         st.success(f"Auto-lockout scheduled for Week {lock_week} at {combined_dt} UTC!")
 
-            # Sub-Section D: Grade Week & Calculate Points
+            # Sub-Section D: Grade Week & Calculate Points (WITH INTEGRATED API FEEDER)
             elif admin_sec == "Grade Week & Calculate Points":
-                st.subheader("Grade Weekly Results")
+                st.subheader("Grade Weekly Results & Live Score Feeder")
                 grade_week = st.number_input("Select Week to Grade", min_value=1, max_value=24, step=1, key="grade_week_num")
                 
+                # --- INTEGRATED API SCORE FEEDER WIDGET ---
+                with st.expander("⚡ Fetch Live ESPN Scores for Reference", expanded=False):
+                    st.caption("Pull live game scores from ESPN to verify outcomes before grading below.")
+                    if st.button("🔄 Fetch Live Scores Now"):
+                        try:
+                            espn_url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+                            resp = requests.get(espn_url, timeout=10)
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                events = data.get("events", [])
+                                st.success(f"Connected to ESPN! Found {len(events)} games.")
+                                
+                                game_results_cache = {}
+                                for ev in events:
+                                    comp = ev.get("competitions", [{}])[0]
+                                    status_type = ev.get("status", {}).get("type", {}).get("name", "")
+                                    competitors = comp.get("competitors", [])
+                                    
+                                    home_team_abbr = ""
+                                    away_team_abbr = ""
+                                    home_score = 0
+                                    away_score = 0
+                                    
+                                    for team_obj in competitors:
+                                        abbr = team_obj.get("team", {}).get("abbreviation", "")
+                                        score = int(team_obj.get("score", 0))
+                                        if team_obj.get("homeAway") == "home":
+                                            home_team_abbr = abbr
+                                            home_score = score
+                                        else:
+                                            away_team_abbr = abbr
+                                            away_score = score
+                                            
+                                    if status_type == "STATUS_FINAL":
+                                        game_results_cache[f"{away_team_abbr} @ {home_team_abbr}"] = {
+                                            "status": "FINAL",
+                                            "home_score": home_score,
+                                            "away_score": away_score
+                                        }
+                                st.session_state["espn_fetched_scores"] = game_results_cache
+                            else:
+                                st.error("Failed to reach ESPN scoreboard API.")
+                        except Exception as e:
+                            st.error(f"API Error: {e}")
+                            
+                    if "espn_fetched_scores" in st.session_state:
+                        st.write("**Live API Game Status Feed:**")
+                        fetched_map = st.session_state["espn_fetched_scores"]
+                        for matchup_key, info in fetched_map.items():
+                            st.info(f"🏟️ **{matchup_key}** | Status: `{info['status']}` | Score: {info['away_score']} - {info['home_score']}")
+
                 week_q = supabase.table("weekly_questions").select("*").eq("week_number", grade_week).order("question_number").execute().data
                 
                 if not week_q:
@@ -1490,71 +1533,7 @@ else:
                             st.balloons()
                             st.success("Scores graded and user token balances updated!")
 
-            # Sub-Section E: Automated Result Scraper / API Feeder
-            elif admin_sec == "Auto-Score Feeder (API)":
-                st.subheader("⚡ Automated NFL Score Feeder & API Matchup Grader")
-                st.caption("Pull live NFL scores from ESPN's public API to auto-detect game statuses and suggest outcomes!")
-                
-                api_week = st.number_input("Select Week to Fetch Scores", min_value=1, max_value=24, step=1, key="api_week_num")
-                
-                if st.button("🔄 Fetch Live Scores from ESPN API"):
-                    try:
-                        espn_url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
-                        resp = requests.get(espn_url, timeout=10)
-                        if resp.status_code == 200:
-                            data = resp.json()
-                            events = data.get("events", [])
-                            
-                            st.success(f"Successfully connected to ESPN API! Found {len(events)} active games on the slate.")
-                            
-                            game_results_cache = {}
-                            for ev in events:
-                                comp = ev.get("competitions", [{}])[0]
-                                status_type = ev.get("status", {}).get("type", {}).get("name", "")
-                                competitors = comp.get("competitors", [])
-                                
-                                home_team_abbr = ""
-                                away_team_abbr = ""
-                                home_score = 0
-                                away_score = 0
-                                
-                                for team_obj in competitors:
-                                    abbr = team_obj.get("team", {}).get("abbreviation", "")
-                                    score = int(team_obj.get("score", 0))
-                                    if team_obj.get("homeAway") == "home":
-                                        home_team_abbr = abbr
-                                        home_score = score
-                                    else:
-                                        away_team_abbr = abbr
-                                        away_score = score
-                                        
-                                if status_type == "STATUS_FINAL":
-                                    game_results_cache[f"{away_team_abbr} @ {home_team_abbr}"] = {
-                                        "status": "FINAL",
-                                        "home_score": home_score,
-                                        "away_score": away_score
-                                    }
-                            
-                            st.session_state["espn_fetched_scores"] = game_results_cache
-                        else:
-                            st.error("Failed to reach ESPN scoreboard API.")
-                    except Exception as e:
-                        st.error(f"API Error: {e}")
-                        
-                if "espn_fetched_scores" in st.session_state:
-                    st.write("### Live API Game Status Feed:")
-                    fetched_map = st.session_state["espn_fetched_scores"]
-                    
-                    for matchup_key, info in fetched_map.items():
-                        st.info(f"🏟️ **{matchup_key}** | Status: `{info['status']}` | Score: {info['away_score']} - {info['home_score']}")
-                        
-                    st.markdown("""
-                        <div class="summary-box">
-                            <b>💡 Automated Grading Tip:</b> Use the fetched final scores above to guide your grading in the 'Grade Week & Calculate Points' tab!
-                        </div>
-                    """, unsafe_allow_html=True)
-
-            # Sub-Section F: Bulk Player Token Adjuster / Reset Wizard
+            # Sub-Section E: Bulk Token Adjuster
             elif admin_sec == "Bulk Token Adjuster":
                 st.subheader("👥 Bulk Player Token Adjuster & Reset Wizard")
                 st.caption("Select multiple players at once and apply a token adjustment or reset.")
@@ -1568,7 +1547,6 @@ else:
                         st.markdown("#### Select Players")
                         selected_user_ids = []
                         
-                        # Display checklist
                         for p in all_profiles_bulk:
                             is_checked = st.checkbox(f"**{p['full_name']}** (Current Balance: `{p['tokens']} 🪙` | Team: {p['favorite_team']})", key=f"bulk_chk_{p['id']}")
                             if is_checked:
@@ -1595,7 +1573,7 @@ else:
                                         new_bal = p_curr + token_amount_val
                                     elif action_type == "Subtract Tokens":
                                         new_bal = max(0, p_curr - token_amount_val)
-                                    else: # Set Exact Token Balance
+                                    else:
                                         new_bal = token_amount_val
                                         
                                     supabase.table("profiles").update({"tokens": new_bal}).eq("id", u_id).execute()
