@@ -1228,7 +1228,15 @@ else:
                     if clear_bet and not is_locked:
                         supabase.table("user_bets").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
                         supabase.table("touchdown_picks").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
-                        st.success("Your bet choices for this week have been cleared!")
+                        
+                        # Reset all number input wagers and text inputs in session state instantly
+                        for q in questions:
+                            if f"wager_{q['id']}" in st.session_state:
+                                st.session_state[f"wager_{q['id']}"] = 0
+                        if "td_scorer" in st.session_state:
+                            st.session_state["td_scorer"] = ""
+                            
+                        st.success("Your bet choices and token wagers have been cleared and reset to 0!")
                         st.rerun()
 
                     if submit_bet and not is_locked:
