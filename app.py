@@ -1111,6 +1111,7 @@ else:
                                     w_amt = token_allocations[q_item['id']]
                                     supabase.table("user_bets").insert({
                                         "user_id": user_id,
+                                        "user_name": profile["full_name"],
                                         "week_number": selected_week,
                                         "question_id": q_item['id'],
                                         "pick": random_pick,
@@ -1225,6 +1226,7 @@ else:
                                 supabase.table("user_bets").delete().eq("user_id", user_id).eq("question_id", q_id).execute()
                                 supabase.table("user_bets").insert({
                                     "user_id": user_id,
+                                    "user_name": profile["full_name"],
                                     "week_number": selected_week,
                                     "question_id": q_id,
                                     "pick": pick_val,
@@ -1486,11 +1488,27 @@ else:
                 existing_week_qs = supabase.table("weekly_questions").select("*").eq("week_number", selected_manage_week).order("question_number").execute().data
                 real_existing_qs = {q["question_number"]: q for q in existing_week_qs if q.get("question_number", 0) <= 10}
                 
-                if st.button("📋 Load 10 Default Question Templates"):
-                    for i in range(1, 11):
-                        st.session_state[f"m_prompt_w{selected_manage_week}_q{i}"] = DEFAULT_QUESTION_TEMPLATES[i-1]
-                    st.success("Default templates loaded instantly!")
-                    st.rerun()
+                col_btn1, col_btn2 = st.columns([1, 1])
+                with col_btn1:
+                    if st.button("📋 Load 10 Default Question Templates"):
+                        for i in range(1, 11):
+                            st.session_state[f"m_prompt_w{selected_manage_week}_q{i}"] = DEFAULT_QUESTION_TEMPLATES[i-1]
+                        st.success("Default templates loaded instantly!")
+                        st.rerun()
+                with col_btn2:
+                    if st.button("🗑️ Clear Unpublished Questions", help="Deletes all unpublished questions for this week"):
+                        try:
+                            # Delete only questions where winning_answer is Pending
+                            supabase.table("weekly_questions").delete().eq("week_number", selected_manage_week).eq("winning_answer", "Pending").execute()
+                            # Clear session state keys for this week
+                            for i in range(1, 11):
+                                skey = f"m_prompt_w{selected_manage_week}_q{i}"
+                                if skey in st.session_state:
+                                    del st.session_state[skey]
+                            st.success(f"Cleared unpublished questions for Week {selected_manage_week}!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error clearing questions: {e}")
 
                 with st.form(key=f"manage_questions_form_week_{selected_manage_week}"):
                     question_payloads = []
@@ -1504,7 +1522,6 @@ else:
                         db_prompt = raw_txt.split(" | MATCHUP: ")[0] if " | MATCHUP: " in raw_txt else raw_txt
                         session_key = f"m_prompt_w{selected_manage_week}_q{i}"
                         
-                        # Use session state if populated by default button, otherwise DB value
                         existing_prompt = st.session_state.get(session_key, db_prompt)
                             
                         existing_away = "🏈 Free Agent / Neutral"
