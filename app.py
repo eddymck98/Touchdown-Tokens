@@ -16,9 +16,15 @@ supabase = init_supabase()
 
 st.set_page_config(page_title="Touchdown Tokens", page_icon="🏈", layout="centered")
 
-# --- AUTHENTICATION STATE ---
+# --- AUTHENTICATION STATE & PERSISTENCE ---
 if "user" not in st.session_state:
     st.session_state.user = None
+    try:
+        current_session = supabase.auth.get_session()
+        if current_session and current_session.user:
+            st.session_state.user = current_session.user
+    except Exception:
+        pass
 
 # Comprehensive NFL Team Logos & Primary Accent Hex Colors
 NFL_TEAM_DATA = {
@@ -1072,7 +1078,7 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        existing_bet_row = [b for b in all_week_bets if b.get('question_id') == q['id']]
+                        existing_bet_row = [b for b in all_week_bets if b.get('question_id'] == q['id']]
                         default_pick_val = existing_bet_row[0]['pick'] if existing_bet_row else "Yes"
                         default_wager_val = existing_bet_row[0]['wager_amount'] if existing_bet_row else 0
 
@@ -1162,7 +1168,7 @@ else:
                                     "user_id": user_id,
                                     "week_number": selected_week,
                                     "player_name": td_pick,
-                                    "is_correct": None  # Reset to un-graded/pending on new submission
+                                    "is_correct": None
                                 }).execute()
                                 
                             st.balloons()
