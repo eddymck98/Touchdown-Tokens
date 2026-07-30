@@ -61,9 +61,15 @@ AVATAR_OPTIONS = ["🏈", "🐐", "⚡", "👑", "🎯", "💣", "💎", "🔥",
 MASTER_BADGES = {
     "🚀 Token Tycoon": "Reach a balance of 30+ tokens",
     "🎯 High Roller": "Wager 10+ tokens on a single question",
+    "⚡ Double Down Legend": "Wager 15+ total tokens in a single week",
+    "💣 All-In Maverick": "Wager 100% of your remaining token balance on a slate",
     "🏈 TD Guru": "Correctly predict 2+ Touchdown Scorers",
+    "🎯 Sniper": "Correctly predict 3+ Touchdown Scorers across the season",
     "👑 Weekly High Scorer": "Win the most net tokens in a single week",
     "🎯 Perfect 10/10": "Correctly answer all 10 scenarios in a single week",
+    "🧊 Clutch Gene": "Win a scenario where 75%+ of the league picked the wrong side",
+    "🛡️ Iron Defender": "Submit bets for 5 or more weeks without missing",
+    "💰 Century Club": "Accumulate 100+ total cumulative tokens won across history",
     "📉 Wall Street Bets": "Take the largest token loss in a single week",
     "📉 Down Bad": "Reach a token balance of 0 tokens"
 }
@@ -346,7 +352,7 @@ def get_user_badges(target_user_id):
     p_data = supabase.table("profiles").select("tokens").eq("id", target_user_id).single().execute().data
     toks = p_data.get("tokens", 0) if p_data else 0
     
-    u_bets = supabase.table("user_bets").select("*").eq("user_id", target_user_id).execute().data
+    u_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("user_id", target_user_id).execute().data
     u_td = supabase.table("touchdown_picks").select("*").eq("user_id", target_user_id).eq("is_correct", True).execute().data
     
     badges = []
@@ -356,9 +362,24 @@ def get_user_badges(target_user_id):
         badges.append("🎯 High Roller")
     if len(u_td) >= 2:
         badges.append("🏈 TD Guru")
+    if len(u_td) >= 3:
+        badges.append("🎯 Sniper")
     if toks == 0:
         badges.append("📉 Down Bad")
         
+    weeks_played = set()
+    total_lifetime_won = 0
+    for b in u_bets:
+        weeks_played.add(b['week_number'])
+        w_ans = b.get("weekly_questions", {}).get("winning_answer")
+        if w_ans in ["Yes", "No"] and b['pick'] == w_ans:
+            total_lifetime_won += b['wager_amount']
+            
+    if len(weeks_played) >= 5:
+        badges.append("🛡️ Iron Defender")
+    if total_lifetime_won >= 100:
+        badges.append("💰 Century Club")
+
     graded_q = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
     if graded_q:
         latest_w = graded_q[0]["week_number"]
@@ -483,13 +504,14 @@ else:
         st.session_state.user = None
         st.rerun()
 
+    # Reordered Tabs: Home, Profile, Rules, Place Bets, My History, Leaderboard, Trophy, Admin
     if profile.get("is_admin"):
-        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_admin = st.tabs(
-            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "⚙️ Admin Control"]
+        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_trophies, tab_admin = st.tabs(
+            ["🏠 Home", "👤 Profile", "📖 Rules", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🥇 Trophy", "⚙️ Admin"]
         )
     else:
-        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders = st.tabs(
-            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard"]
+        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_trophies = st.tabs(
+            ["🏠 Home", "👤 Profile", "📖 Rules", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🥇 Trophy"]
         )
 
     # ------------------------------------------
@@ -518,33 +540,6 @@ else:
                 <div style="font-size: 14px; color: #cbd5e1;">Touchdown Tokens</div>
             </div>
         """, unsafe_allow_html=True)
-
-        # --- VIRTUAL TROPHY CABINET SHOWCASE ---
-        my_earned_badges = get_user_badges(user_id)
-        
-        st.subheader("🏆 Virtual Trophy Cabinet")
-        st.caption(f"Unlocked {len(my_earned_badges)} / {len(MASTER_BADGES)} Total Badges")
-        
-        t_col1, t_col2 = st.columns(2)
-        for idx, (b_name, b_desc) in enumerate(MASTER_BADGES.items()):
-            is_unlocked = b_name in my_earned_badges
-            target_col = t_col1 if idx % 2 == 0 else t_col2
-            
-            with target_col:
-                if is_unlocked:
-                    st.markdown(f"""
-                        <div class="trophy-card-unlocked">
-                            <b>{b_name}</b> <span style="color:#fbbf24;">(UNLOCKED)</span><br>
-                            <small style="color:#cbd5e1;">{b_desc}</small>
-                        </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.markdown(f"""
-                        <div class="trophy-card-locked">
-                            <b>🔒 {b_name}</b><br>
-                            <small>{b_desc}</small>
-                        </div>
-                    """, unsafe_allow_html=True)
 
         st.divider()
         st.subheader("📊 Last Week's Performance Summary")
@@ -710,7 +705,7 @@ else:
         """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 3: BETTING FORM & LOCKOUT TIMER
+    # TAB 3: PLACE BETS
     # ------------------------------------------
     with tab_bet:
         st.header("Weekly Predictions & Wagers")
@@ -878,7 +873,7 @@ else:
                             st.success("Your bets and touchdown pick have been submitted!")
 
     # ------------------------------------------
-    # TAB 4: HISTORY
+    # TAB 4: MY HISTORY
     # ------------------------------------------
     with tab_history:
         st.header("Your Past Bets & Results")
@@ -912,7 +907,7 @@ else:
             st.dataframe(formatted_data, use_container_width=True)
 
     # ------------------------------------------
-    # TAB 5: LEADERBOARD & TRASH TALK
+    # TAB 5: LEADERBOARD
     # ------------------------------------------
     with tab_leaders:
         st.header("🏆 Player Standings")
@@ -987,7 +982,53 @@ else:
                 """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 6: ADMIN CONTROL
+    # TAB 6: TROPHY CABINET
+    # ------------------------------------------
+    with tab_trophies:
+        st.header("🏆 League Virtual Trophy Cabinet")
+        st.caption("Inspect badge collections across the league and unlock dynamic silverware!")
+        
+        all_league_profiles = supabase.table("profiles").select("id, full_name, avatar_emoji, favorite_team").execute().data
+        user_name_map = {p["full_name"]: p for p in all_league_profiles}
+        
+        selected_player_name = st.selectbox("Select Player Trophy Showcase", list(user_name_map.keys()))
+        selected_player = user_name_map[selected_player_name]
+        
+        selected_badges = get_user_badges(selected_player["id"])
+        selected_team_info = NFL_TEAM_DATA.get(selected_player.get("favorite_team"), NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
+        
+        col_t_logo, col_t_info = st.columns([1, 4])
+        with col_t_logo:
+            st.image(selected_team_info["logo"], width=70)
+        with col_t_info:
+            st.markdown(f"### {selected_player.get('avatar_emoji', '🏈')} {selected_player['full_name']}'s Showcase")
+            st.markdown(f"**Unlocked:** `{len(selected_badges)}` / `{len(MASTER_BADGES)}` Badges")
+        
+        st.divider()
+        
+        t_col1, t_col2 = st.columns(2)
+        for idx, (b_name, b_desc) in enumerate(MASTER_BADGES.items()):
+            is_unlocked = b_name in selected_badges
+            target_col = t_col1 if idx % 2 == 0 else t_col2
+            
+            with target_col:
+                if is_unlocked:
+                    st.markdown(f"""
+                        <div class="trophy-card-unlocked">
+                            <b>{b_name}</b> <span style="color:#fbbf24; font-weight:bold;">(UNLOCKED)</span><br>
+                            <small style="color:#cbd5e1;">{b_desc}</small>
+                        </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                        <div class="trophy-card-locked">
+                            <b>🔒 {b_name}</b><br>
+                            <small>{b_desc}</small>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+    # ------------------------------------------
+    # TAB 7: ADMIN CONTROL
     # ------------------------------------------
     if profile.get("is_admin"):
         with tab_admin:
