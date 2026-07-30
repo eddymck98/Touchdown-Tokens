@@ -87,7 +87,7 @@ DEFAULT_QUESTION_TEMPLATES = [
     "Will Home Team record 3 or more sacks?"
 ]
 
-# Fetch current user team for theme colors if logged in
+# Fetch current user team for theme colors & logo watermark if logged in
 user_team_color = "#fbbf24"
 user_team_logo = "https://a.espncdn.com/i/teamlogos/nfl/500/nfl.png"
 if st.session_state.user:
@@ -101,17 +101,18 @@ if st.session_state.user:
     except Exception:
         pass
 
-# Dynamic Styling injection with Dynamic Team Watermark / Background Accent
+# Enhanced Dynamic Styling with Cool Fonts (Bebas Neue & Teko) and Team Logo Watermark
 st.markdown(f"""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Teko:wght@700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Teko:wght@500;700&display=swap');
 
     .stApp, div[data-testid="stAppViewContainer"] {{
         background: 
-            radial-gradient(circle at 50% 20%, rgba(15, 23, 42, 0.85), rgba(7, 13, 25, 0.98)),
-            url('{user_team_logo}') center center / 35% no-repeat fixed,
+            radial-gradient(circle at 50% 20%, rgba(15, 23, 42, 0.88), rgba(7, 13, 25, 0.98)),
+            url('{user_team_logo}') center center / 30% no-repeat fixed,
             url('https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&w=1920&q=80') center center / cover no-repeat fixed !important;
         color: #ffffff !important;
+        font-family: 'Teko', sans-serif !important;
     }}
     
     section[data-testid="stSidebar"] {{
@@ -122,33 +123,33 @@ st.markdown(f"""
     .nfl-header {{ text-align: center; padding: 10px 0 5px 0; }}
     .nfl-title {{
         font-family: 'Bebas Neue', cursive, sans-serif !important;
-        font-size: 64px !important;
-        letter-spacing: 4px;
+        font-size: 72px !important;
+        letter-spacing: 5px;
         text-transform: uppercase;
-        background: linear-gradient(180deg, #ffffff 20%, {user_team_color} 70%, #d97706 100%);
+        background: linear-gradient(180deg, #ffffff 15%, {user_team_color} 65%, #d97706 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        text-shadow: 0px 4px 20px {user_team_color}88;
+        text-shadow: 0px 4px 25px {user_team_color}88;
         margin: 0;
         line-height: 1.0;
     }}
     .nfl-subtitle {{
         font-family: 'Teko', sans-serif;
-        font-size: 22px;
-        letter-spacing: 3px;
+        font-size: 24px;
+        letter-spacing: 4px;
         color: #93c5fd;
         text-transform: uppercase;
-        margin-top: -5px;
+        margin-top: -2px;
     }}
     .header-logo {{
-        width: 90px;
-        filter: drop-shadow(0px 6px 15px {user_team_color}aa);
+        width: 95px;
+        filter: drop-shadow(0px 8px 18px {user_team_color}cc);
     }}
     
     @keyframes teamPulse {{
-        0% {{ box-shadow: 0 0 10px {user_team_color}33; }}
-        50% {{ box-shadow: 0 0 25px {user_team_color}99; }}
-        100% {{ box-shadow: 0 0 10px {user_team_color}33; }}
+        0% {{ box-shadow: 0 0 12px {user_team_color}33; }}
+        50% {{ box-shadow: 0 0 28px {user_team_color}aa; }}
+        100% {{ box-shadow: 0 0 12px {user_team_color}33; }}
     }}
 
     .big-token-card {{
@@ -159,16 +160,16 @@ st.markdown(f"""
         text-align: center;
         border: 2px solid {user_team_color};
         margin-bottom: 25px;
-        backdrop-filter: blur(8px);
+        backdrop-filter: blur(10px);
         animation: teamPulse 3.5s infinite ease-in-out;
     }}
     .big-token-number {{
         font-family: 'Bebas Neue', sans-serif;
-        font-size: 68px;
-        letter-spacing: 2px;
+        font-size: 74px;
+        letter-spacing: 3px;
         margin: 0;
         color: {user_team_color} !important;
-        text-shadow: 0px 4px 15px {user_team_color}88;
+        text-shadow: 0px 4px 18px {user_team_color}88;
     }}
 
     .champion-card {{
@@ -183,19 +184,19 @@ st.markdown(f"""
     }}
 
     .mvp-banner {{
-        background: linear-gradient(135deg, rgba(147, 51, 234, 0.9) 0%, rgba(30, 58, 138, 0.95) 100%);
+        background: linear-gradient(135deg, rgba(147, 51, 234, 0.92) 0%, rgba(30, 58, 138, 0.95) 100%);
         border: 2px solid #c084fc;
         padding: 20px;
         border-radius: 14px;
         margin-bottom: 20px;
         text-align: center;
-        box-shadow: 0 0 15px rgba(192, 132, 252, 0.4);
+        box-shadow: 0 0 18px rgba(192, 132, 252, 0.5);
     }}
 
     .trophy-card-unlocked {{
-        background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%);
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.92) 0%, rgba(15, 23, 42, 0.96) 100%);
         border: 2px solid {user_team_color};
-        padding: 14px;
+        padding: 15px;
         border-radius: 12px;
         margin-bottom: 12px;
         box-shadow: 0 0 12px {user_team_color}44;
@@ -204,37 +205,37 @@ st.markdown(f"""
     .trophy-card-locked {{
         background: rgba(15, 23, 42, 0.5);
         border: 1px dashed #475569;
-        padding: 14px;
+        padding: 15px;
         border-radius: 12px;
         margin-bottom: 12px;
         opacity: 0.55;
     }}
 
     .leaderboard-row {{
-        background: rgba(15, 23, 42, 0.85);
+        background: rgba(15, 23, 42, 0.9);
         border: 1px solid #334155;
         border-radius: 12px;
         padding: 15px;
         margin-bottom: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
     }}
 
     div[data-testid="stRadio"] div[role="radiogroup"] > label {{
-        background-color: rgba(30, 41, 59, 0.7) !important;
+        background-color: rgba(30, 41, 59, 0.8) !important;
         border: 1px solid #475569 !important;
         border-radius: 8px !important;
-        padding: 6px 14px !important;
+        padding: 8px 16px !important;
         margin-right: 8px !important;
         transition: all 0.2s ease-in-out !important;
     }}
     div[data-testid="stRadio"] div[role="radiogroup"] > label:hover {{
         border-color: {user_team_color} !important;
-        box-shadow: 0 0 10px {user_team_color}55 !important;
+        box-shadow: 0 0 12px {user_team_color}66 !important;
     }}
     div[data-testid="stRadio"] div[role="radiogroup"] label[aria-checked="true"] {{
-        background: linear-gradient(135deg, {user_team_color}33 0%, rgba(15,23,42,0.9) 100%) !important;
+        background: linear-gradient(135deg, {user_team_color}44 0%, rgba(15,23,42,0.95) 100%) !important;
         border: 2px solid {user_team_color} !important;
-        box-shadow: 0 0 12px {user_team_color}aa !important;
+        box-shadow: 0 0 15px {user_team_color}bb !important;
     }}
     div[data-testid="stRadio"] div[role="radiogroup"] label[aria-checked="true"] * {{
         color: #ffffff !important;
@@ -243,16 +244,16 @@ st.markdown(f"""
 
     .matchup-team-title {{
         font-family: 'Teko', sans-serif;
-        font-size: 20px;
-        letter-spacing: 1px;
+        font-size: 22px;
+        letter-spacing: 1.5px;
         color: #fbbf24;
         text-transform: uppercase;
     }}
 
     .timer-card {{
-        background: rgba(15, 23, 42, 0.9);
+        background: rgba(15, 23, 42, 0.92);
         border: 2px solid {user_team_color};
-        padding: 15px;
+        padding: 16px;
         border-radius: 12px;
         text-align: center;
         margin-bottom: 20px;
@@ -264,8 +265,8 @@ st.markdown(f"""
         color: {user_team_color};
         border: 1px solid {user_team_color};
         border-radius: 20px;
-        padding: 4px 10px;
-        font-size: 11px;
+        padding: 4px 12px;
+        font-size: 12px;
         font-weight: 700;
         margin: 2px;
     }}
@@ -275,23 +276,23 @@ st.markdown(f"""
         color: #38bdf8;
         border: 1px solid #0284c7;
         border-radius: 6px;
-        padding: 3px 8px;
-        font-size: 12px;
+        padding: 4px 10px;
+        font-size: 13px;
         font-weight: 700;
         display: inline-block;
         margin-bottom: 8px;
     }}
     
     .chat-bubble {{
-        background-color: rgba(15, 23, 42, 0.9);
+        background-color: rgba(15, 23, 42, 0.92);
         border-left: 5px solid #fbbf24;
-        padding: 12px 16px;
+        padding: 14px 18px;
         border-radius: 8px;
         margin-bottom: 12px;
     }}
 
     .summary-box {{
-        background-color: rgba(15, 23, 42, 0.9) !important;
+        background-color: rgba(15, 23, 42, 0.92) !important;
         border-left: 5px solid {user_team_color} !important;
         padding: 18px;
         border-radius: 8px;
@@ -304,19 +305,19 @@ st.markdown(f"""
         background-color: rgba(30, 41, 59, 0.9) !important;
         border: 1px solid #334155 !important;
         border-radius: 8px !important;
-        padding: 10px 18px !important;
-        margin-right: 4px !important;
+        padding: 10px 20px !important;
+        margin-right: 6px !important;
     }}
     button[data-baseweb="tab"] * {{
         font-family: 'Teko', sans-serif !important;
-        font-size: 18px !important;
-        letter-spacing: 1px !important;
+        font-size: 20px !important;
+        letter-spacing: 1.5px !important;
         color: #cbd5e1 !important;
     }}
     button[aria-selected="true"] {{
         background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%) !important;
         border: 2px solid {user_team_color} !important;
-        box-shadow: 0 4px 15px {user_team_color}66 !important;
+        box-shadow: 0 4px 18px {user_team_color}77 !important;
     }}
     button[aria-selected="true"] * {{
         color: {user_team_color} !important;
@@ -326,8 +327,8 @@ st.markdown(f"""
         background: linear-gradient(135deg, {user_team_color} 0%, #d97706 100%) !important;
         color: #000000 !important;
         font-family: 'Teko', sans-serif !important;
-        font-size: 22px !important;
-        letter-spacing: 1.5px !important;
+        font-size: 24px !important;
+        letter-spacing: 2px !important;
         text-transform: uppercase !important;
         border-radius: 10px !important;
         border: none !important;
@@ -335,17 +336,20 @@ st.markdown(f"""
     }}
     div.stButton > button[kind="primary"]:hover, div.stFormSubmitButton > button:hover {{
         transform: translateY(-2px);
-        box-shadow: 0 6px 18px {user_team_color}88 !important;
+        box-shadow: 0 6px 20px {user_team_color}99 !important;
     }}
 
     .stTextInput > label, .stNumberInput > label, .stRadio > label, .stSelectbox > label {{
         color: #f8fafc !important;
         font-weight: 700 !important;
+        font-size: 18px !important;
+        letter-spacing: 1px;
     }}
     .stTextInput input, .stNumberInput input {{
-        background-color: rgba(15, 23, 42, 0.9) !important;
+        background-color: rgba(15, 23, 42, 0.92) !important;
         color: #ffffff !important;
         border: 1px solid #334155 !important;
+        border-radius: 8px !important;
     }}
     </style>
 """, unsafe_allow_html=True)
@@ -360,8 +364,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 st.write("")
 
-# Helper function to compute player badges
-def get_user_badges(target_user_id):
+# Helper function to compute player badges with automatic celebratory popups/balloons on new badge unlocks
+def get_user_badges(target_user_id, check_celebration=False):
     p_data = supabase.table("profiles").select("tokens").eq("id", target_user_id).single().execute().data
     toks = p_data.get("tokens", 0) if p_data else 0
     
@@ -427,6 +431,18 @@ def get_user_badges(target_user_id):
                 
         if user_correct.get(target_user_id, 0) == 10:
             badges.append("🎯 Perfect 10/10")
+
+    if check_celebration and target_user_id == st.session_state.user.id:
+        cache_key = f"seen_badges_{target_user_id}"
+        if cache_key not in st.session_state:
+            st.session_state[cache_key] = badges
+        else:
+            new_badges = [b for b in badges if b not in st.session_state[cache_key]]
+            if new_badges:
+                st.balloons()
+                for nb in new_badges:
+                    st.toast(f"🏆 NEW TROPHY UNLOCKED: {nb}!", icon="🎉")
+                st.session_state[cache_key] = badges
             
     return badges
 
@@ -504,6 +520,8 @@ else:
     user_team = profile.get('favorite_team', '🏈 Free Agent / Neutral')
     team_data = NFL_TEAM_DATA.get(user_team, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
     
+    get_user_badges(user_id, check_celebration=True)
+
     # --- STICKY SIDEBAR NAVIGATION & QUICK JUMP ---
     st.sidebar.title(f"{user_avatar} {profile['full_name']}")
     st.sidebar.image(team_data["logo"], width=55)
@@ -526,7 +544,6 @@ else:
         st.session_state.user = None
         st.rerun()
 
-    # Reordered Tabs including "My Current Picks"
     if profile.get("is_admin"):
         tab_home, tab_profile, tab_rules, tab_bet, tab_current_picks, tab_history, tab_leaders, tab_trophies, tab_hof, tab_admin = st.tabs(
             ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "👁️ Current Picks", "📜 My History", "🏆 Leaderboard", "🏆 Trophy Cabinet", "🏛️ Hall of Fame", "⚙️ Admin Control"]
@@ -547,9 +564,9 @@ else:
             champ_name = champ_setting[0]["question_text"]
             st.markdown(f"""
                 <div class="champion-card">
-                    <div style="font-size: 20px; letter-spacing: 2px; text-transform: uppercase;">🏆 LEAGUE CHAMPION DECLARED 🏆</div>
-                    <div style="font-size: 48px; font-weight: 900; margin: 10px 0;">{champ_name}</div>
-                    <div style="font-size: 16px;">Congratulations to the Touchdown Tokens Champion! 👑</div>
+                    <div style="font-size: 22px; letter-spacing: 2px; text-transform: uppercase;">🏆 LEAGUE CHAMPION DECLARED 🏆</div>
+                    <div style="font-size: 52px; font-weight: 900; margin: 10px 0;">{champ_name}</div>
+                    <div style="font-size: 18px;">Congratulations to the Touchdown Tokens Champion! 👑</div>
                 </div>
             """, unsafe_allow_html=True)
 
@@ -557,13 +574,12 @@ else:
         
         st.markdown(f"""
             <div class="big-token-card">
-                <div style="font-size: 16px; letter-spacing: 2px; text-transform: uppercase; color: #93c5fd;">Current Balance</div>
+                <div style="font-size: 18px; letter-spacing: 2px; text-transform: uppercase; color: #93c5fd;">Current Balance</div>
                 <div class="big-token-number">{profile['tokens']} 🪙</div>
-                <div style="font-size: 14px; color: #cbd5e1;">Touchdown Tokens</div>
+                <div style="font-size: 16px; color: #cbd5e1;">Touchdown Tokens</div>
             </div>
         """, unsafe_allow_html=True)
 
-        # --- WEEKLY MVP SHOUTOUT BANNER ---
         graded_q_badge = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
         
         if graded_q_badge:
@@ -594,13 +610,12 @@ else:
                 if mvp_profile:
                     st.markdown(f"""
                         <div class="mvp-banner">
-                            <div style="font-size: 14px; letter-spacing: 2px; text-transform: uppercase; color: #f3e8ff;">🔥 Week {latest_mvp_week} League MVP 🔥</div>
-                            <div style="font-size: 32px; font-weight: 900; margin: 5px 0; color: #ffffff;">{mvp_profile.get('avatar_emoji', '🏈')} {mvp_profile['full_name']}</div>
-                            <div style="font-size: 15px; color: #d8b4fe;">Dominated the slate with <b>+{top_mvp_tokens} Net Tokens</b>! 🚀</div>
+                            <div style="font-size: 16px; letter-spacing: 2px; text-transform: uppercase; color: #f3e8ff;">🔥 Week {latest_mvp_week} League MVP 🔥</div>
+                            <div style="font-size: 36px; font-weight: 900; margin: 5px 0; color: #ffffff;">{mvp_profile.get('avatar_emoji', '🏈')} {mvp_profile['full_name']}</div>
+                            <div style="font-size: 16px; color: #d8b4fe;">Dominated the slate with <b>+{top_mvp_tokens} Net Tokens</b>! 🚀</div>
                         </div>
                     """, unsafe_allow_html=True)
 
-        # --- HOME SCREEN: MOST PICKED LINES FROM LAST WEEK ---
         if graded_q_badge:
             last_w_num = graded_q_badge[0]["week_number"]
             st.divider()
@@ -618,7 +633,6 @@ else:
                     q_stats[clean_q]["TotalWager"] += b["wager_amount"]
                     q_stats[clean_q]["Votes"] += 1
                 
-                # Find most heavily bet or most consensus-driven question
                 trend_list = []
                 for q_name, data in q_stats.items():
                     yes_v = data["Yes"]
@@ -827,7 +841,6 @@ else:
             q_res = supabase.table("weekly_questions").select("*").eq("week_number", selected_week).order("question_number").execute()
             questions = q_res.data
             
-            # --- AUTO-LOCKOUT SCHEDULER CHECK ---
             is_locked = False
             lock_time_row = [q for q in questions if q.get("winning_answer", "").startswith("LOCKTIME:")]
             
@@ -980,7 +993,7 @@ else:
                             st.success("Your bets and touchdown pick have been successfully locked in!")
 
     # ------------------------------------------
-    # TAB 4: CURRENT PICKS (WITH EASY VIEW & SHARE)
+    # TAB 4: CURRENT PICKS
     # ------------------------------------------
     with tab_current_picks:
         st.header("👁️ View Current Weekly Picks")
@@ -1083,19 +1096,19 @@ else:
                     <div class="leaderboard-row">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                             <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="font-family: 'Bebas Neue'; font-size: 24px; color: #fbbf24; width: 35px;">#{idx + 1}</span>
-                                <img src="{t_info['logo']}" style="width: 30px; height: 30px;" />
+                                <span style="font-family: 'Bebas Neue'; font-size: 26px; color: #fbbf24; width: 35px;">#{idx + 1}</span>
+                                <img src="{t_info['logo']}" style="width: 32px; height: 32px;" />
                                 <div>
-                                    <b style="font-size: 18px; color: #ffffff;">{av} {p['full_name']}</b>
-                                    <div style="font-size: 12px; color: #94a3b8;">{team_name} {f'• "{bio_text}"' if bio_text else ''}</div>
+                                    <b style="font-size: 19px; color: #ffffff;">{av} {p['full_name']}</b>
+                                    <div style="font-size: 13px; color: #94a3b8;">{team_name} {f'• "{bio_text}"' if bio_text else ''}</div>
                                 </div>
                             </div>
                             <div style="text-align: right;">
-                                <span style="font-family: 'Bebas Neue'; font-size: 28px; color: #38bdf8;">{p['tokens']} 🪙</span>
+                                <span style="font-family: 'Bebas Neue'; font-size: 30px; color: #38bdf8;">{p['tokens']} 🪙</span>
                             </div>
                         </div>
                         <div style="border-top: 1px solid #334155; padding-top: 8px; margin-top: 4px;">
-                            <span style="font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: bold; margin-right: 8px;">Trophies:</span> {badges_html}
+                            <span style="font-size: 12px; text-transform: uppercase; color: #94a3b8; font-weight: bold; margin-right: 8px;">Trophies:</span> {badges_html}
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
@@ -1195,9 +1208,9 @@ else:
         
         st.markdown("""
             <div class="champion-card">
-                <div style="font-size: 18px; letter-spacing: 2px;">👑 INAUGURAL SEASON CHAMPION</div>
-                <div style="font-size: 40px; font-weight: 900; margin: 8px 0;">TBD</div>
-                <div style="font-size: 14px;">The battle for the first-ever Touchdown Tokens crown is underway!</div>
+                <div style="font-size: 20px; letter-spacing: 2px;">👑 INAUGURAL SEASON CHAMPION</div>
+                <div style="font-size: 42px; font-weight: 900; margin: 8px 0;">TBD</div>
+                <div style="font-size: 16px;">The battle for the first-ever Touchdown Tokens crown is underway!</div>
             </div>
         """, unsafe_allow_html=True)
         
@@ -1500,16 +1513,54 @@ else:
                 st.caption("Copy and paste this message directly into your WhatsApp or group chat!")
                 
                 ann_week = st.number_input("Week Number", min_value=1, max_value=24, step=1, key="admin_ann_week")
+                
+                graded_q_badge_ann = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
+                
+                top_winner_str = "TBD"
+                biggest_loser_str = "TBD"
+                
+                if graded_q_badge_ann:
+                    ann_graded_w = graded_q_badge_ann[0]["week_number"]
+                    w_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("week_number", ann_graded_w).execute().data
+                    w_tds = supabase.table("touchdown_picks").select("*").eq("week_number", ann_graded_w).eq("is_correct", True).execute().data
+                    
+                    u_net = {}
+                    for b in w_bets:
+                        u = b['user_id']
+                        w_ans = b.get("weekly_questions", {}).get("winning_answer")
+                        if u not in u_net: u_net[u] = 0
+                        if w_ans in ["Yes", "No"]:
+                            if b['pick'] == w_ans: u_net[u] += b['wager_amount']
+                            else: u_net[u] -= b['wager_amount']
+                    for td in w_tds:
+                        u = td['user_id']
+                        u_net[u] = u_net.get(u, 0) + 5
+                        
+                    if u_net:
+                        best_u_id = max(u_net, key=u_net.get)
+                        worst_u_id = min(u_net, key=u_net.get)
+                        
+                        b_prof = supabase.table("profiles").select("full_name").eq("id", best_u_id).single().execute().data
+                        w_prof = supabase.table("profiles").select("full_name").eq("id", worst_u_id).single().execute().data
+                        
+                        if b_prof and u_net[best_u_id] > 0:
+                            top_winner_str = f"{b_prof['full_name']} (+{u_net[best_u_id]} tokens)"
+                        if w_prof and u_net[worst_u_id] < 0:
+                            biggest_loser_str = f"{w_prof['full_name']} ({u_net[worst_u_id]} tokens)"
+
                 top_player_res = supabase.table("profiles").select("full_name, tokens").order("tokens", desc=True).limit(1).execute().data
                 leader_str = f"{top_player_res[0]['full_name']} ({top_player_res[0]['tokens']} Tokens)" if top_player_res else "TBD"
                 
                 announcement_template = f"""🏈 *TOUCHDOWN TOKENS - WEEK {ann_week} IS LIVE!* 🏈
 
-🪙 *Current League Leader:* {leader_str}
+👑 *Current League Leader:* {leader_str}
+🚀 *Biggest Winner Last Week:* {top_winner_str}
+📉 *Wall Street Bets Award (Biggest Loss):* {biggest_loser_str}
+
 ⏰ *Kickoff Cutoff:* Sunday before 1st Kickoff
 
 👉 Place your wagers and TD scorer pick now on Touchdown Tokens!
-Good luck this week! 🚀"""
+Good luck this week! 🔥"""
                 
                 st.code(announcement_template, language="markdown")
 
