@@ -89,23 +89,27 @@ DEFAULT_QUESTION_TEMPLATES = [
 
 # Fetch current user team for theme colors if logged in
 user_team_color = "#fbbf24"
+user_team_logo = "https://a.espncdn.com/i/teamlogos/nfl/500/nfl.png"
 if st.session_state.user:
     try:
         res = supabase.table("profiles").select("favorite_team").eq("id", st.session_state.user.id).single().execute()
         if res.data:
             t_name = res.data.get("favorite_team", "🏈 Free Agent / Neutral")
-            user_team_color = NFL_TEAM_DATA.get(t_name, {}).get("color", "#fbbf24")
+            t_info = NFL_TEAM_DATA.get(t_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
+            user_team_color = t_info["color"]
+            user_team_logo = t_info["logo"]
     except Exception:
         pass
 
-# Dynamic Styling injection
+# Dynamic Styling injection with Dynamic Team Watermark / Background Accent
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Teko:wght@700&display=swap');
 
     .stApp, div[data-testid="stAppViewContainer"] {{
         background: 
-            radial-gradient(circle at 50% 20%, rgba(15, 23, 42, 0.8), rgba(7, 13, 25, 0.96)),
+            radial-gradient(circle at 50% 20%, rgba(15, 23, 42, 0.85), rgba(7, 13, 25, 0.98)),
+            url('{user_team_logo}') center center / 35% no-repeat fixed,
             url('https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&w=1920&q=80') center center / cover no-repeat fixed !important;
         color: #ffffff !important;
     }}
@@ -510,7 +514,7 @@ else:
     st.sidebar.subheader("📌 Quick Jump Menu")
     nav_choice = st.sidebar.radio(
         "Jump to Section:", 
-        ["Home", "Profile", "Rules & Info", "Place Bets", "My History", "Leaderboard", "Trophy Cabinet", "Hall of Fame"] + (["Admin Control"] if profile.get("is_admin") else []),
+        ["Home", "Profile", "Rules & Info", "Place Bets", "My Current Picks", "My History", "Leaderboard", "Trophy Cabinet", "Hall of Fame"] + (["Admin Control"] if profile.get("is_admin") else []),
         label_visibility="collapsed"
     )
     
@@ -522,14 +526,14 @@ else:
         st.session_state.user = None
         st.rerun()
 
-    # Reordered Tabs
+    # Reordered Tabs including "My Current Picks"
     if profile.get("is_admin"):
-        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_trophies, tab_hof, tab_admin = st.tabs(
-            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🏆 Trophy Cabinet", "🏛️ Hall of Fame", "⚙️ Admin Control"]
+        tab_home, tab_profile, tab_rules, tab_bet, tab_current_picks, tab_history, tab_leaders, tab_trophies, tab_hof, tab_admin = st.tabs(
+            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "👁️ Current Picks", "📜 My History", "🏆 Leaderboard", "🏆 Trophy Cabinet", "🏛️ Hall of Fame", "⚙️ Admin Control"]
         )
     else:
-        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_trophies, tab_hof = st.tabs(
-            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🏆 Trophy Cabinet", "🏛️ Hall of Fame"]
+        tab_home, tab_profile, tab_rules, tab_bet, tab_current_picks, tab_history, tab_leaders, tab_trophies, tab_hof = st.tabs(
+            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "👁️ Current Picks", "📜 My History", "🏆 Leaderboard", "🏆 Trophy Cabinet", "🏛️ Hall of Fame"]
         )
 
     # ------------------------------------------
@@ -595,6 +599,53 @@ else:
                             <div style="font-size: 15px; color: #d8b4fe;">Dominated the slate with <b>+{top_mvp_tokens} Net Tokens</b>! 🚀</div>
                         </div>
                     """, unsafe_allow_html=True)
+
+        # --- HOME SCREEN: MOST PICKED LINES FROM LAST WEEK ---
+        if graded_q_badge:
+            last_w_num = graded_q_badge[0]["week_number"]
+            st.divider()
+            st.subheader(f"📈 Week {last_w_num} Community Trends & Most Picked Lines")
+            
+            lw_all_bets = supabase.table("user_bets").select("question_id, pick, wager_amount, weekly_questions(question_text)").eq("week_number", last_w_num).execute().data
+            if lw_all_bets:
+                q_stats = {}
+                for b in lw_all_bets:
+                    q_text = b.get("weekly_questions", {}).get("question_text", "Question")
+                    clean_q = q_text.split(" | MATCHUP: ")[0] if " | MATCHUP: " in q_text else q_text
+                    if clean_q not in q_stats:
+                        q_stats[clean_q] = {"Yes": 0, "No": 0, "TotalWager": 0, "Votes": 0}
+                    q_stats[clean_q][b["pick"]] += 1
+                    q_stats[clean_q]["TotalWager"] += b["wager_amount"]
+                    q_stats[clean_q]["Votes"] += 1
+                
+                # Find most heavily bet or most consensus-driven question
+                trend_list = []
+                for q_name, data in q_stats.items():
+                    yes_v = data["Yes"]
+                    no_v = data["No"]
+                    tot = data["Votes"]
+                    if tot > 0:
+                        yes_pct = int((yes_v / tot) * 100)
+                        no_pct = 100 - yes_pct
+                        majority_pick = "YES" if yes_pct >= 50 else "NO"
+                        majority_pct = max(yes_pct, no_pct)
+                        trend_list.append({
+                            "question": q_name,
+                            "consensus": f"{majority_pct}% {majority_pick}",
+                            "total_wagered": data["TotalWager"],
+                            "votes": tot
+                        })
+                
+                if trend_list:
+                    trend_df = pd.DataFrame(trend_list).sort_values(by="total_wagered", ascending=False).head(3)
+                    for _, row in trend_df.iterrows():
+                        st.markdown(f"""
+                            <div class="summary-box">
+                                <b>🔥 Heaviest Action: {row['question']}</b><br>
+                                • <b>League Consensus:</b> {row['consensus']} ({row['votes']} total player bets)<br>
+                                • <b>Total Tokens Wagered on Matchup:</b> {row['total_wagered']} 🪙
+                            </div>
+                        """, unsafe_allow_html=True)
 
         st.divider()
         st.subheader("📊 Last Week's Performance Summary")
@@ -776,6 +827,7 @@ else:
             q_res = supabase.table("weekly_questions").select("*").eq("week_number", selected_week).order("question_number").execute()
             questions = q_res.data
             
+            # --- AUTO-LOCKOUT SCHEDULER CHECK ---
             is_locked = False
             lock_time_row = [q for q in questions if q.get("winning_answer", "").startswith("LOCKTIME:")]
             
@@ -928,7 +980,56 @@ else:
                             st.success("Your bets and touchdown pick have been successfully locked in!")
 
     # ------------------------------------------
-    # TAB 4: MY HISTORY
+    # TAB 4: CURRENT PICKS (WITH EASY VIEW & SHARE)
+    # ------------------------------------------
+    with tab_current_picks:
+        st.header("👁️ View Current Weekly Picks")
+        st.caption("Review your active entries for the upcoming week and grab a quick share text for your group chat.")
+        
+        if not available_weeks:
+            st.info("No active weeks available.")
+        else:
+            view_week = st.selectbox("Select Week to View", available_weeks, index=len(available_weeks)-1, key="view_current_week_sel")
+            
+            curr_user_bets = supabase.table("user_bets").select("*, weekly_questions(question_number, question_text)").eq("user_id", user_id).eq("week_number", view_week).order("question_id").execute().data
+            curr_user_td = supabase.table("touchdown_picks").select("player_name").eq("user_id", user_id).eq("week_number", view_week).execute().data
+            
+            if not curr_user_bets and not curr_user_td:
+                st.warning(f"You haven't submitted any picks for Week {view_week} yet!")
+            else:
+                share_lines = [f"🏈 *{profile['full_name']} - Week {view_week} Lock-Ins* 🏈"]
+                
+                for b in curr_user_bets:
+                    q_num = b.get("weekly_questions", {}).get("question_number", "?")
+                    q_txt = b.get("weekly_questions", {}).get("question_text", "").split(" | MATCHUP: ")[0]
+                    pick_val = b["pick"]
+                    wager_amt = b["wager_amount"]
+                    
+                    st.markdown(f"""
+                        <div class="summary-box">
+                            <b>Q{q_num}: {q_txt}</b><br>
+                            • Your Pick: <b style="color:{user_team_color};">{pick_val}</b> | Wager: <b>{wager_amt} 🪙</b>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    share_lines.append(f"Q{q_num}: {pick_val} ({wager_amt} tokens)")
+                
+                td_name = curr_user_td[0]["player_name"] if curr_user_td else "None"
+                st.markdown(f"""
+                    <div class="summary-box" style="border-left-color: #38bdf8 !important;">
+                        <b>🏈 Touchdown Scorer Bonus Pick:</b><br>
+                        • Player: <b style="color:#38bdf8;">{td_name}</b>
+                    </div>
+                """, unsafe_allow_html=True)
+                share_lines.append(f"TD Scorer Pick: {td_name}")
+                
+                st.write("")
+                st.subheader("📋 Group Chat Share Text")
+                share_text_block = "\n".join(share_lines)
+                st.code(share_text_block, language="markdown")
+                st.success("Copy the text box above to share your picks directly into WhatsApp or group chat!")
+
+    # ------------------------------------------
+    # TAB 5: MY HISTORY
     # ------------------------------------------
     with tab_history:
         st.header("Your Past Bets & Results")
@@ -962,7 +1063,7 @@ else:
             st.dataframe(formatted_data, use_container_width=True)
 
     # ------------------------------------------
-    # TAB 5: LEADERBOARD
+    # TAB 6: LEADERBOARD
     # ------------------------------------------
     with tab_leaders:
         st.header("🏆 Player Standings")
@@ -1040,7 +1141,7 @@ else:
                 """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 6: TROPHY CABINET
+    # TAB 7: TROPHY CABINET
     # ------------------------------------------
     with tab_trophies:
         st.header("🏆 League Virtual Trophy Cabinet")
@@ -1086,7 +1187,7 @@ else:
                     """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 7: HALL OF FAME & SEASON ARCHIVES
+    # TAB 8: HALL OF FAME & SEASON ARCHIVES
     # ------------------------------------------
     with tab_hof:
         st.header("🏛️ Touchdown Tokens Hall of Fame")
@@ -1104,13 +1205,13 @@ else:
         st.info("No previous seasons archived yet. Once an admin resets a season at the conclusion of the year, final standings and champion histories will live here permanently!")
 
     # ------------------------------------------
-    # TAB 8: ADMIN CONTROL
+    # TAB 9: ADMIN CONTROL
     # ------------------------------------------
     if profile.get("is_admin"):
         with tab_admin:
             st.header("⚙️ Admin Management Portal")
             
-            admin_sec = st.radio("Select Action", ["Create Questions", "Edit Published Questions", "Set Lockout Timer", "Grade Week & Calculate Points", "Adjust User Tokens", "Export League Data (CSV)", "League Chat Announcement", "Archive & Reset Season", "Season Champion Banner"], horizontal=True)
+            admin_sec = st.radio("Select Action", ["Create Questions", "Edit Published Questions", "Auto-Lockout Scheduler", "Grade Week & Calculate Points", "Adjust User Tokens", "Export League Data (CSV)", "League Chat Announcement", "Archive & Reset Season", "Season Champion Banner"], horizontal=True)
             
             # Sub-Section A: Enter Questions with Matchup Dropdowns
             if admin_sec == "Create Questions":
@@ -1224,24 +1325,45 @@ else:
                             st.success(f"Successfully updated Week {edit_week} questions!")
                             st.rerun()
 
-            # Sub-Section C: Set Lockout Timer
-            elif admin_sec == "Set Lockout Timer":
-                st.subheader("⏳ Set Weekly Kickoff Lockout Time")
+            # Sub-Section C: Auto-Lockout Scheduler & Manual Override
+            elif admin_sec == "Auto-Lockout Scheduler":
+                st.subheader("⏰ Auto-Lockout Scheduler & Emergency Override")
                 lock_week = st.number_input("Select Week", min_value=1, max_value=24, step=1, key="admin_lock_week")
                 
-                lock_date = st.date_input("Lockout Date")
-                lock_time = st.time_input("Lockout Time (UTC / Kickoff Cutoff)")
+                existing_lock_row = supabase.table("weekly_questions").select("winning_answer").eq("week_number", lock_week).eq("question_number", 99).execute().data
+                current_lock_val = existing_lock_row[0]["winning_answer"] if existing_lock_row else "Not Set"
                 
-                if st.button("Save Lockout Cutoff 🔒"):
-                    combined_dt = datetime.combine(lock_date, lock_time).isoformat()
-                    supabase.table("weekly_questions").delete().eq("week_number", lock_week).eq("question_number", 99).execute()
-                    supabase.table("weekly_questions").insert({
-                        "week_number": lock_week,
-                        "question_number": 99,
-                        "question_text": "WEEK LOCKOUT TIMESTAMP",
-                        "winning_answer": f"LOCKTIME:{combined_dt}"
-                    }).execute()
-                    st.success(f"Lockout set for Week {lock_week} at {combined_dt} UTC!")
+                st.info(f"Current Lock Status for Week {lock_week}: `{current_lock_val}`")
+                
+                col_sch1, col_sch2 = st.columns(2)
+                with col_sch1:
+                    lock_date = st.date_input("Automatic Lockout Date (UTC)")
+                    lock_time = st.time_input("Automatic Lockout Time (UTC)")
+                with col_sch2:
+                    st.write("")
+                    st.write("")
+                    manual_override_toggle = st.toggle("🚨 Manual Emergency Lockout Override", value=(current_lock_val == "LOCKED"))
+                
+                if st.button("Save Lockout Configuration 🔒", type="primary"):
+                    if manual_override_toggle:
+                        supabase.table("weekly_questions").delete().eq("week_number", lock_week).eq("question_number", 99).execute()
+                        supabase.table("weekly_questions").insert({
+                            "week_number": lock_week,
+                            "question_number": 99,
+                            "question_text": "WEEK LOCKOUT TIMESTAMP",
+                            "winning_answer": "LOCKED"
+                        }).execute()
+                        st.success(f"Week {lock_week} has been MANUALLY LOCKED by Admin override!")
+                    else:
+                        combined_dt = datetime.combine(lock_date, lock_time).isoformat()
+                        supabase.table("weekly_questions").delete().eq("week_number", lock_week).eq("question_number", 99).execute()
+                        supabase.table("weekly_questions").insert({
+                            "week_number": lock_week,
+                            "question_number": 99,
+                            "question_text": "WEEK LOCKOUT TIMESTAMP",
+                            "winning_answer": f"LOCKTIME:{combined_dt}"
+                        }).execute()
+                        st.success(f"Auto-lockout scheduled for Week {lock_week} at {combined_dt} UTC!")
 
             # Sub-Section D: Grade Week & Calculate Points
             elif admin_sec == "Grade Week & Calculate Points":
