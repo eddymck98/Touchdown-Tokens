@@ -766,8 +766,15 @@ else:
                         else:
                             bet_losses += b["wager_amount"]
                 
-                td_bonus = 5 if (lw_td and lw_td[0].get("is_correct")) else 0
-                td_player = lw_td[0]["player_name"] if lw_td else "None"
+                td_record = lw_td[0] if lw_td else None
+                td_is_graded = td_record is not None and td_record.get("is_correct") is not None
+                
+                if td_is_graded:
+                    td_bonus = 5 if td_record.get("is_correct") else 0
+                else:
+                    td_bonus = 0
+                    
+                td_player = td_record["player_name"] if td_record else "None"
                 
                 net_total = bet_gains - bet_losses + td_bonus
                 
@@ -782,14 +789,22 @@ else:
                 with col2:
                     st.metric("Questions Correct", f"{correct_count} / {total_bets_placed}")
                 with col3:
-                    st.metric("TD Scorer Bonus", f"+{td_bonus} 🪙" if td_bonus > 0 else "0 🪙")
+                    if not td_is_graded:
+                        st.metric("TD Scorer Bonus", "Pending ⏳")
+                    else:
+                        st.metric("TD Scorer Bonus", f"+{td_bonus} 🪙" if td_bonus > 0 else "0 🪙")
                 
+                if not td_is_graded:
+                    td_display_status = "⏳ Pending (Awaiting Admin Grading)"
+                else:
+                    td_display_status = "✅ +5 Tokens" if td_bonus > 0 else "❌ Missed"
+
                 st.markdown(f"""
                 <div class="summary-box">
                     <b>Week {latest_graded_week} Breakdown:</b><br>
                     • <b>Question Wins:</b> +{bet_gains} Tokens<br>
                     • <b>Question Losses:</b> -{bet_losses} Tokens<br>
-                    • <b>Touchdown Scorer Pick:</b> '{td_player}' ({'✅ +5 Tokens' if td_bonus > 0 else '❌ Missed'})
+                    • <b>Touchdown Scorer Pick:</b> '{td_player}' ({td_display_status})
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -1146,7 +1161,8 @@ else:
                                 supabase.table("touchdown_picks").insert({
                                     "user_id": user_id,
                                     "week_number": selected_week,
-                                    "player_name": td_pick
+                                    "player_name": td_pick,
+                                    "is_correct": None  # Reset to un-graded/pending on new submission
                                 }).execute()
                                 
                             st.balloons()
@@ -1559,9 +1575,12 @@ else:
                         else:
                             for td in td_picks_data:
                                 player_user_name = profile_dict.get(td["user_id"], "Unknown Player")
+                                current_is_correct = td.get("is_correct")
+                                default_checkbox_val = bool(current_is_correct) if current_is_correct is not None else False
+                                
                                 is_winner = st.checkbox(
                                     f"**{player_user_name}** picked: *{td['player_name']}*", 
-                                    value=bool(td.get("is_correct")),
+                                    value=default_checkbox_val,
                                     key=f"td_check_{td['id']}"
                                 )
                                 if is_winner:
