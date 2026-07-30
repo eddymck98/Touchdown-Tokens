@@ -79,7 +79,13 @@ MASTER_BADGES = {
     "🛡️ Iron Defender": "Submit bets for 5 or more weeks without missing",
     "💰 Century Club": "Accumulate 100+ total cumulative tokens won across history",
     "📉 Wall Street Bets": "Take the largest token loss in a single week",
-    "📉 Down Bad": "Reach a token balance of 0 tokens"
+    "📉 Down Bad": "Reach a token balance of 0 tokens",
+    # --- New Harder / Elite Trophies ---
+    "🏆 League Champion": "Be crowned the official end-of-season League Champion",
+    "🔮 Oracle of Delphi": "Successfully call a 5+ token wager correctly 4 weeks in a row",
+    "🔥 Untouchable Run": "Gain 20+ net tokens in a single weekly slate",
+    "⚡ Gridiron Prophet": "Correctly predict 5+ Touchdown Scorers across the season",
+    "💎 Diamond Hands": "Survive with fewer than 3 tokens remaining and bounce back to 30+"
 }
 
 DEFAULT_QUESTION_TEMPLATES = [
@@ -417,21 +423,85 @@ def get_user_badges(target_user_id, check_celebration=False):
         badges.append("🏈 TD Guru")
     if len(u_td) >= 3:
         badges.append("🎯 Sniper")
+    if len(u_td) >= 5:
+        badges.append("⚡ Gridiron Prophet")
     if toks == 0:
         badges.append("📉 Down Bad")
         
     weeks_played = set()
     total_lifetime_won = 0
+    
+    # Group bets by week to calculate weekly net gains
+    weekly_nets = {}
     for b in u_bets:
-        weeks_played.add(b['week_number'])
+        w_num = b['week_number']
+        weeks_played.add(w_num)
         w_ans = b.get("weekly_questions", {}).get("winning_answer")
-        if w_ans in ["Yes", "No"] and b['pick'] == w_ans:
-            total_lifetime_won += b['wager_amount']
+        
+        if w_num not in weekly_nets:
+            weekly_nets[w_num] = {"gains": 0, "losses": 0, "large_wager_hits": 0}
             
+        if w_ans in ["Yes", "No"]:
+            if b['pick'] == w_ans:
+                total_lifetime_won += b['wager_amount']
+                weekly_nets[w_num]["gains"] += b['wager_amount']
+                if b['wager_amount'] >= 5:
+                    weekly_nets[w_num]["large_wager_hits"] += 1
+            else:
+                weekly_nets[w_num]["losses"] += b['wager_amount']
+                
+    # Add TD bonus to weekly nets if correct
+    for td in u_td:
+        w_num = td['week_number']
+        if w_num in weekly_nets:
+            weekly_nets[w_num]["gains"] += 5
+
+    # Check for Oracle of Delphi (4 weeks in a row with a correct 5+ token wager)
+    sorted_weeks = sorted(list(weekly_nets.keys()))
+    consecutive_oracle_weeks = 0
+    for w in sorted_weeks:
+        # Check if user had a >=5 token winning wager in this week
+        w_slate_bets = [b for b in u_bets if b['week_number'] == w]
+        has_large_win = any(b['wager_amount'] >= 5 and b['pick'] == b.get("weekly_questions", {}).get("winning_answer") for b in w_slate_bets)
+        if has_large_win:
+            consecutive_oracle_weeks += 1
+            if consecutive_oracle_weeks >= 4:
+                badges.append("🔮 Oracle of Delphi")
+        else:
+            consecutive_oracle_weeks = 0
+
+    # Check for Untouchable Run (+20 net tokens in a single week)
+    for w, w_data in weekly_nets.items():
+        net_w_tokens = w_data["gains"] - w_data["losses"]
+        if net_w_tokens >= 20:
+            badges.append("🔥 Untouchable Run")
+
+    # Check for Diamond Hands (bounced back from <3 tokens to 30+)
+    if toks >= 30:
+        # Check if they ever dropped below 3 tokens in history
+        # We can simulate historical balance week by week
+        sim_tokens = 10
+        ever_low = False
+        for w in sorted_weeks:
+            if sim_tokens < 3:
+                ever_low = True
+            w_data = weekly_nets[w]
+            sim_tokens += (w_data["gains"] - w_data["losses"])
+        if ever_low:
+            badges.append("💎 Diamond Hands")
+
     if len(weeks_played) >= 5:
         badges.append("🛡️ Iron Defender")
     if total_lifetime_won >= 100:
         badges.append("💰 Century Club")
+
+    # Check Season Champion Banner for League Champion trophy
+    champ_setting = supabase.table("weekly_questions").select("question_text, winning_answer").eq("week_number", 999).execute().data
+    if champ_setting and champ_setting[0]["winning_answer"] == "ON":
+        champ_name = champ_setting[0]["question_text"]
+        user_prof = supabase.table("profiles").select("full_name").eq("id", target_user_id).single().execute().data
+        if user_prof and user_prof.get("full_name") == champ_name:
+            badges.append("🏆 League Champion")
 
     graded_q = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
     if graded_q:
@@ -1225,26 +1295,26 @@ else:
                     "correct_tds": td_count
                 })
             
-            # Sort by Tokens DESC first, then Correct TDs DESC, then Full Name ASC
-            player_stats = sorted(player_stats, key=lambda x: (-x["tokens"], -x["correct_tds"], x["full_name"]))
+            # Tiebreaker first (-correct_tds), then tokens (-tokens), then full_name ASC
+            player_stats = sorted(player_stats, key=lambda x: (-x["correct_tds"], -x["tokens"], x["full_name"]))
 
             current_rank = 1
-            prev_score = None
             prev_tds = None
+            prev_score = None
             
             for idx, p in enumerate(player_stats):
                 score = p["tokens"]
                 tds = p["correct_tds"]
                 
-                # Players only share the exact same rank if BOTH Tokens AND Correct TDs match
-                if idx > 0 and score == prev_score and tds == prev_tds:
+                # Players only share the exact same rank if BOTH Correct TDs AND Tokens match
+                if idx > 0 and tds == prev_tds and score == prev_score:
                     display_rank = current_rank
                 else:
                     current_rank = idx + 1
                     display_rank = current_rank
                 
-                prev_score = score
                 prev_tds = tds
+                prev_score = score
                 
                 av = p.get("avatar_emoji") or "🏈"
                 team_name = p.get("favorite_team") or "🏈 Free Agent / Neutral"
@@ -1275,7 +1345,7 @@ else:
                                 <img src="{t_info['logo']}" style="width: 32px; height: 32px;" />
                                 <div>
                                     <b style="font-size: 19px; color: #ffffff;">{av} {p['full_name']}</b>
-                                    <div style="font-size: 13px; color: #94a3b8;">{team_name} {f'• "{bio_text}"' if bio_text else ''} • 🏈 Correct TD Picks (Tiebreaker): <b>{tds}</b></div>
+                                    <div style="font-size: 13px; color: #94a3b8;">{team_name} {f'• "{bio_text}"' if bio_text else ''} • 🏈 Correct TDs (Tiebreaker): <b>{tds}</b></div>
                                 </div>
                             </div>
                             <div style="text-align: right;">
