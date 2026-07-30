@@ -1078,7 +1078,11 @@ else:
                         """, unsafe_allow_html=True)
                         
                         st.markdown("""
-                            <meta http-equiv="refresh" content="60">
+                            <script>
+                                setTimeout(function(){
+                                    window.location.reload();
+                                }, 60000);
+                            </script>
                         """, unsafe_allow_html=True)
                 except Exception:
                     pass
@@ -1215,8 +1219,18 @@ else:
                             text=f"**Tokens Allocated:** `{total_wagered}` / `{profile['tokens']}` Tokens ({pct_str}%)"
                         )
                     
-                    submit_bet = st.form_submit_button("Submit Weekly Bets 🚀", type="primary", use_container_width=True, disabled=is_locked)
+                    col_sub1, col_sub2 = st.columns([2, 1])
+                    with col_sub1:
+                        submit_bet = st.form_submit_button("Submit Weekly Bets 🚀", type="primary", use_container_width=True, disabled=is_locked)
+                    with col_sub2:
+                        clear_bet = st.form_submit_button("Clear Bet Choices 🗑️", use_container_width=True, disabled=is_locked)
                     
+                    if clear_bet and not is_locked:
+                        supabase.table("user_bets").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
+                        supabase.table("touchdown_picks").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
+                        st.success("Your bet choices for this week have been cleared!")
+                        st.rerun()
+
                     if submit_bet and not is_locked:
                         if total_wagered > profile['tokens']:
                             st.error(f"Cannot wager {total_wagered} tokens! You only have {profile['tokens']} tokens available.")
