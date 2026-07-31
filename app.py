@@ -27,6 +27,22 @@ if "user" not in st.session_state:
     except Exception:
         pass
 
+# --- CACHED HELPERS FOR ADMIN & PERFORMANCE ---
+@st.cache_data(ttl=30)
+def get_cached_profiles():
+    res = supabase.table("profiles").select("id, full_name, tokens, favorite_team, is_admin, avatar_emoji, avatar_border, avatar_color, selected_title, featured_badges, favorite_player, bio").execute()
+    return res.data if res.data else []
+
+@st.cache_data(ttl=30)
+def get_cached_weekly_questions(w_num):
+    res = supabase.table("weekly_questions").select("*").eq("week_number", w_num).order("question_number").execute()
+    return res.data if res.data else []
+
+@st.cache_data(ttl=30)
+def get_cached_all_weekly_questions_meta():
+    res = supabase.table("weekly_questions").select("week_number, winning_answer").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).execute()
+    return res.data if res.data else []
+
 # Comprehensive NFL Team Logos & Primary Accent Hex Colors (Safe to cache globally as it's static reference data)
 @st.cache_data
 def get_static_nfl_team_data():
@@ -1283,7 +1299,7 @@ else:
         st.subheader("🏆 Virtual Trophy Cabinet")
         st.caption("Inspect badge showcases across any league member.")
         
-        all_league_profiles = supabase.table("profiles").select("id, full_name, avatar_emoji, favorite_team").execute().data
+        all_league_profiles = get_cached_profiles()
         user_name_map = {p["full_name"]: p for p in all_league_profiles}
         
         default_profile_name = profile.get("full_name", list(user_name_map.keys())[0] if user_name_map else "")
@@ -1444,8 +1460,8 @@ else:
             st.info("No active questions available yet. Check back soon when the Admin posts Week 1!")
         else:
             selected_week = st.selectbox("Select Week:", available_weeks, index=len(available_weeks)-1)
-            q_res = supabase.table("weekly_questions").select("*").eq("week_number", selected_week).order("question_number").execute()
-            questions = q_res.data
+            q_res = get_cached_weekly_questions(selected_week)
+            questions = q_res
             
             is_locked = False
             lock_time_row = [q for q in questions if q.get("winning_answer", "").startswith("LOCKTIME:")]
@@ -1656,7 +1672,7 @@ else:
     with tab_history:
         st.header("Your Past Bets & Results")
         
-        all_graded_weeks_res = supabase.table("weekly_questions").select("week_number, winning_answer").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).execute().data
+        all_graded_weeks_res = get_cached_all_weekly_questions_meta()
         graded_weeks_set = set()
         if all_graded_weeks_res:
             week_ans_map = {}
@@ -1677,7 +1693,7 @@ else:
             with st.expander("⚔️ Side-by-Side History Comparison vs. Rival", expanded=False):
                 st.caption("Compare your graded week bets side by side against any league member!")
                 
-                all_profiles_hist = supabase.table("profiles").select("id, full_name, avatar_emoji").execute().data
+                all_profiles_hist = get_cached_profiles()
                 rival_options = {p["full_name"]: p["id"] for p in all_profiles_hist if p["id"] != user_id}
                 
                 if rival_options:
@@ -1791,7 +1807,7 @@ else:
     # ------------------------------------------
     with tab_leaders:
         st.header("🏆 League Standings & Head-to-Head")
-        leader_res = supabase.table("profiles").select("*").execute().data
+        leader_res = get_cached_profiles()
         player_stats = []
         
         if leader_res:
@@ -1943,7 +1959,7 @@ else:
                     st.error(f"Error posting message: {e}")
 
         recent_chats = supabase.table("trash_talk").select("message, created_at, user_id").order("created_at", desc=True).limit(10).execute().data
-        all_profiles_chat = supabase.table("profiles").select("id, full_name, avatar_emoji, favorite_team").execute().data
+        all_profiles_chat = get_cached_profiles()
         profile_map_chat = {p["id"]: p for p in all_profiles_chat}
 
         if recent_chats:
@@ -2041,7 +2057,7 @@ else:
                 week_options = db_week_nums + [next_suggested_week] if next_suggested_week not in db_week_nums else db_week_nums
                 selected_manage_week = st.selectbox("Select Week to Manage", week_options, index=len(week_options)-1, key="admin_manage_week_sel")
                 
-                existing_week_qs = supabase.table("weekly_questions").select("*").eq("week_number", selected_manage_week).order("question_number").execute().data
+                existing_week_qs = get_cached_weekly_questions(selected_manage_week)
                 real_existing_qs = {q["question_number"]: q for q in existing_week_qs if q.get("question_number", 0) <= 10}
                 
                 col_btn1, col_btn2 = st.columns([1, 1])
@@ -2221,7 +2237,7 @@ else:
                         for matchup_key, info in fetched_map.items():
                             st.info(f"🏟️ **{matchup_key}** | Status: `{info['status']}` | Score: {info['away_score']} - {info['home_score']}")
 
-                week_q = supabase.table("weekly_questions").select("*").eq("week_number", grade_week).order("question_number").execute().data
+                week_q = get_cached_weekly_questions(grade_week)
                 real_grade_q = [q for q in week_q if q.get("question_number", 0) <= 10]
                 
                 if not real_grade_q:
@@ -2245,7 +2261,7 @@ else:
                         st.caption("Check the box next to any player who successfully scored a TD (+5 bonus tokens).")
                         
                         td_picks_data = supabase.table("touchdown_picks").select("*").eq("week_number", grade_week).execute().data
-                        all_profiles = supabase.table("profiles").select("id, full_name").execute().data
+                        all_profiles = get_cached_profiles()
                         profile_dict = {p["id"]: p["full_name"] for p in all_profiles}
                         
                         td_winners = []
@@ -2305,7 +2321,7 @@ else:
                 st.subheader("👥 Bulk Player Token Adjuster & Reset Wizard")
                 st.caption("Select multiple players at once and apply a token adjustment or reset.")
                 
-                all_profiles_bulk = supabase.table("profiles").select("id, full_name, tokens, favorite_team").order("tokens", desc=True).execute().data
+                all_profiles_bulk = get_cached_profiles()
                 
                 if not all_profiles_bulk:
                     st.info("No players found.")
@@ -2367,9 +2383,9 @@ else:
                         )
                 
                 with col_exp2:
-                    users_data = supabase.table("profiles").select("full_name, tokens, favorite_team, bio").order("tokens", desc=True).execute().data
+                    users_data = get_cached_profiles()
                     if users_data:
-                        df_users = pd.DataFrame(users_data)
+                        df_users = pd.DataFrame(users_data)[["full_name", "tokens", "favorite_team", "bio"]]
                         st.download_button(
                             label="Download Standings & Tokens (CSV)",
                             data=df_users.to_csv(index=False),
@@ -2443,7 +2459,7 @@ Good luck this week! 🔥"""
                 
                 if st.button("Archive & Reset Balances Now 🔄", type="primary", disabled=not confirm_check):
                     try:
-                        all_profiles = supabase.table("profiles").select("id, full_name, tokens, favorite_team").order("tokens", desc=True).execute().data
+                        all_profiles = get_cached_profiles()
                         
                         df_archive = pd.DataFrame(all_profiles)
                         df_archive["season_label"] = season_label
@@ -2465,7 +2481,7 @@ Good luck this week! 🔥"""
                 st.subheader("🏆 End-of-Season Celebration Banner")
                 st.caption("Enable this banner to show confetti and a gold Champion card on the Home tab when the season ends.")
                 
-                all_players = supabase.table("profiles").select("full_name").order("tokens", desc=True).execute().data
+                all_players = get_cached_profiles()
                 player_names = [p["full_name"] for p in all_players] if all_players else ["Player"]
                 
                 champ_row = supabase.table("weekly_questions").select("*").eq("week_number", 999).execute().data
