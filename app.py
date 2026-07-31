@@ -1512,7 +1512,7 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        existing_bet_row = [b for b in all_week_bets if b.get('question_id'] == q['id']]
+                        existing_bet_row = [b for b in all_week_bets if b.get['question_id'] == q['id']]
                         default_pick_val = existing_bet_row[0]['pick'] if existing_bet_row else "Yes"
                         default_wager_val = existing_bet_row[0]['wager_amount'] if existing_bet_row else 0
 
