@@ -4,22 +4,13 @@ import random
 import requests
 from datetime import datetime, timezone
 from supabase import create_client, Client
-from supabase.lib.client_options import ClientOptions
 
 # --- SUPABASE CONFIGURATION ---
 @st.cache_resource
 def init_supabase():
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
-    # Fixed: Uses ClientOptions instead of a raw dictionary to disable session persistence
-    return create_client(
-        url, 
-        key, 
-        options=ClientOptions(
-            auto_refresh_token=True,
-            persist_session=False
-        )
-    )
+    return create_client(url, key)
 
 supabase = init_supabase()
 
