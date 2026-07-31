@@ -83,6 +83,18 @@ BORDER_STYLE_OPTIONS = {
     "Inset Shaded": "inset"
 }
 
+# Master list of all available titles mapped to their unlocking badge & requirement description
+AVAILABLE_TITLES = {
+    "🏈 Gridiron Contender": {"badge": None, "req": "Default baseline title for all players."},
+    "👑 League Champion": {"badge": "🏆 League Champion", "req": "Be crowned the official end-of-season League Champion."},
+    "🔮 The Oracle": {"badge": "🔮 Oracle of Delphi", "req": "Successfully call a 5+ token wager correctly 4 weeks in a row."},
+    "💰 Token Tycoon": {"badge": "🚀 Token Tycoon", "req": "Reach a balance of 30+ tokens."},
+    "⚡ Gridiron Prophet": {"badge": "⚡ Gridiron Prophet", "req": "Correctly predict 5+ Touchdown Scorers across the season."},
+    "🎯 Sharp Shooter": {"badge": "🎯 Sniper", "req": "Correctly predict 3+ Touchdown Scorers across the season."},
+    "🏈 TD Specialist": {"badge": "🏈 TD Guru", "req": "Correctly predict 2+ Touchdown Scorers."},
+    "📉 Bankrupt Gambler": {"badge": "📉 Down Bad", "req": "Reach a token balance of 0 tokens."}
+}
+
 MASTER_BADGES = {
     "🚀 Token Tycoon": "Reach a balance of 30+ tokens",
     "🎯 High Roller": "Wager 10+ tokens on a single question",
@@ -644,23 +656,25 @@ def get_user_badges(target_user_id, check_celebration=False):
     return badges
 
 def get_earned_title(target_user_id):
-    badges = get_user_badges(target_user_id)
-    if "🏆 League Champion" in badges:
-        return "👑 League Champion"
-    elif "🔮 Oracle of Delphi" in badges:
-        return "🔮 The Oracle"
-    elif "🚀 Token Tycoon" in badges:
-        return "💰 Token Tycoon"
-    elif "⚡ Gridiron Prophet" in badges:
-        return "⚡ Gridiron Prophet"
-    elif "🎯 Sniper" in badges:
-        return "🎯 Sharp Shooter"
-    elif "🏈 TD Guru" in badges:
-        return "🏈 TD Specialist"
-    elif "📉 Down Bad" in badges:
-        return "📉 Bankrupt Gambler"
-    else:
-        return "🏈 Gridiron Contender"
+    try:
+        prof_res = supabase.table("profiles").select("selected_title").eq("id", target_user_id).single().execute().data
+        if prof_res and prof_res.get("selected_title"):
+            saved_title = prof_res.get("selected_title")
+            # Verify if player still meets requirements for saved title
+            req_info = AVAILABLE_TITLES.get(saved_title)
+            if req_info and req_info["badge"]:
+                user_badges = get_user_badges(target_user_id)
+                if req_info["badge"] in user_badges:
+                    return saved_title
+    except Exception:
+        pass
+        
+    # Fallback to highest unlocked title or default
+    user_badges = get_user_badges(target_user_id)
+    for title, info in AVAILABLE_TITLES.items():
+        if info["badge"] and info["badge"] in user_badges:
+            return title
+    return "🏈 Gridiron Contender"
 
 def calculate_nemesis(target_user_id):
     try:
@@ -785,7 +799,8 @@ if st.session_state.user is None:
                             "featured_badges": [],
                             "avatar_border": "solid",
                             "favorite_player": "",
-                            "avatar_color": "#1e3a8a"
+                            "avatar_color": "#1e3a8a",
+                            "selected_title": "🏈 Gridiron Contender"
                         }).execute()
                         st.success("Account created successfully! You can now log in using the Log In tab above.")
                 except Exception as e:
@@ -1144,7 +1159,7 @@ else:
     # ------------------------------------------
     with tab_profile:
         st.header("👤 Profile & Customization Hub")
-        st.caption("Personalize your display avatar, border style, avatar color, favorite player, favorite team, and featured badges!")
+        st.caption("Personalize your display avatar, title nametag, border style, avatar color, favorite player, favorite team, and featured badges!")
         
         curr_team = profile.get("favorite_team", "🏈 Free Agent / Neutral")
         team_index = NFL_TEAMS.index(curr_team) if curr_team in NFL_TEAMS else 0
@@ -1158,14 +1173,34 @@ else:
         with col_info:
             st.markdown(f"### {new_team}")
 
+        # Determine unlocked titles
+        user_badges_for_titles = get_user_badges(user_id)
+        unlocked_title_options = []
+        locked_title_info = []
+
+        for title_name, info in AVAILABLE_TITLES.items():
+            if info["badge"] is None or info["badge"] in user_badges_for_titles:
+                unlocked_title_options.append(title_name)
+            else:
+                locked_title_info.append((title_name, info["req"]))
+
+        curr_selected_title = profile.get("selected_title", "🏈 Gridiron Contender")
+        if curr_selected_title not in unlocked_title_options:
+            curr_selected_title = unlocked_title_options[0] if unlocked_title_options else "🏈 Gridiron Contender"
+        title_index = unlocked_title_options.index(curr_selected_title) if curr_selected_title in unlocked_title_options else 0
+
         with st.form("profile_customization_form"):
             new_display_name = st.text_input("Display Name", value=profile.get("full_name", ""))
             
-            col_av1, col_av2, col_av3 = st.columns(3)
-            with col_av1:
+            col_t1, col_t2 = st.columns(2)
+            with col_t1:
+                new_title = st.selectbox("Active Nametag Title", unlocked_title_options, index=title_index, help="Select from your unlocked prestigious titles!")
+            with col_t2:
                 curr_avatar = profile.get("avatar_emoji", "🏈")
                 avatar_index = AVATAR_OPTIONS.index(curr_avatar) if curr_avatar in AVATAR_OPTIONS else 0
                 new_avatar = st.selectbox("Avatar Emoji", AVATAR_OPTIONS, index=avatar_index)
+
+            col_av2, col_av3 = st.columns(2)
             with col_av2:
                 curr_border = profile.get("avatar_border", "solid")
                 border_keys = list(BORDER_STYLE_OPTIONS.keys())
@@ -1189,6 +1224,7 @@ else:
                     supabase.table("profiles").update({
                         "full_name": new_display_name.strip(),
                         "favorite_team": new_team,
+                        "selected_title": new_title,
                         "avatar_emoji": new_avatar,
                         "avatar_border": new_border,
                         "avatar_color": new_av_color,
@@ -1197,6 +1233,14 @@ else:
                     }).eq("id", user_id).execute()
                     st.success("Profile updated successfully!")
                     st.rerun()
+
+        # Display locked titles guide
+        if locked_title_info:
+            st.write("")
+            with st.expander("🔒 Locked Nametag Titles & How to Unlock Them"):
+                st.caption("Complete achievements and unlock badges to add these titles to your selectable collection!")
+                for l_title, l_req in locked_title_info:
+                    st.markdown(f"• **{l_title}** — *Requirement:* {l_req}")
 
         # --- FEATURED BADGES SELECTION ---
         st.divider()
@@ -1468,7 +1512,7 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        existing_bet_row = [b for b in all_week_bets if b.get['question_id'] == q['id']]
+                        existing_bet_row = [b for b in all_week_bets if b.get('question_id'] == q['id']]
                         default_pick_val = existing_bet_row[0]['pick'] if existing_bet_row else "Yes"
                         default_wager_val = existing_bet_row[0]['wager_amount'] if existing_bet_row else 0
 
@@ -2370,10 +2414,10 @@ Good luck this week! 🔥"""
                 player_names = [p["full_name"] for p in all_players] if all_players else ["Player"]
                 
                 champ_row = supabase.table("weekly_questions").select("*").eq("week_number", 999).execute().data
-                current_state = champ_row[0]["winning_answer"] if champ_row else "OFF"
+                current_state = champ_row[0]["winning_answer"] in ["ON"] if champ_row else False
                 current_champ = champ_row[0]["question_text"] if champ_row else player_names[0]
                 
-                banner_toggle = st.toggle("Enable Season Champion Banner", value=(current_state == "ON"))
+                banner_toggle = st.toggle("Enable Season Champion Banner", value=current_state)
                 selected_champion = st.selectbox("Select Season Winner", player_names, index=player_names.index(current_champ) if current_champ in player_names else 0)
                 
                 if st.button("Save Champion Banner Settings 🏆"):
