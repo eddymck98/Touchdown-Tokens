@@ -66,7 +66,11 @@ NFL_TEAM_DATA = {
 }
 
 NFL_TEAMS = list(NFL_TEAM_DATA.keys())
-AVATAR_OPTIONS = ["🏈", "🐐", "⚡", "👑", "🎯", "💣", "💎", "🔥", "🛡️", "🚀"]
+AVATAR_OPTIONS = [
+    "🏈", "🐐", "⚡", "👑", "🎯", "💣", "💎", "🔥", "🛡️", "🚀",
+    "🦁", "🐯", "🐻", "🦅", "🐺", "🦈", "🐉", "💀", "👽", "🤖",
+    "⭐", "🏆", "🥇", "💪", "⚡", "🎲", "🎩", "🍻", "🍕", "🍔"
+]
 
 BORDER_STYLE_OPTIONS = {
     "Classic Solid": "solid",
@@ -1407,7 +1411,7 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        existing_bet_row = [b for b in all_week_bets if b.get['question_id'] == q['id']]
+                        existing_bet_row = [b for b in all_week_bets if b.get('question_id'] == q['id']]
                         default_pick_val = existing_bet_row[0]['pick'] if existing_bet_row else "Yes"
                         default_wager_val = existing_bet_row[0]['wager_amount'] if existing_bet_row else 0
 
@@ -2279,7 +2283,7 @@ Good luck this week! 🔥"""
                         for p in all_profiles:
                             supabase.table("profiles").update({"tokens": 10}).eq("id", p["id"]).execute()
                             
-                        st.success("All player balances have been reset to 10 tokens! Season archived.")
+                        st.success("All player balances have0 been reset to 10 tokens! Season archived.")
                         st.download_button(
                             label="📥 Download Archived Season Summary (CSV)",
                             data=df_archive.to_csv(index=False),
