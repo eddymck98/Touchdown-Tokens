@@ -602,7 +602,7 @@ def get_user_badges(target_user_id, check_celebration=False):
         if user_prof and user_prof.get("full_name") == champ_name:
             badges.append("🏆 League Champion")
 
-    graded_q = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
+    graded_q = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
     if graded_q:
         latest_w = graded_q[0]["week_number"]
         all_latest_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("week_number", latest_w).execute().data
@@ -1477,7 +1477,7 @@ else:
                 if not is_locked and profile['tokens'] > 0:
                     col_rand_sp1, col_rand_btn = st.columns([3, 1])
                     with col_rand_btn:
-                        if st.button("🎲 Feeling Lucky (Randomize)", help="Randomly distributes your available tokens across the questions and stages them!"):
+                        if st.button("🎲 Feeling Lucky (Randomize)", help="Randomly distributes your available tokens and picks across the questions!"):
                             real_q_items = [q for q in questions if not q.get("winning_answer", "").startswith("LOCKTIME:")]
                             if real_q_items:
                                 remaining_tokens = profile['tokens']
@@ -1491,6 +1491,10 @@ else:
                                 for q_item in real_q_items:
                                     random_pick = random.choice(["Yes", "No"])
                                     w_amt = token_allocations[q_item['id']]
+                                    # Save directly to session state so form widgets populate immediately upon rerun
+                                    st.session_state[f"pick_{q_item['id']}"] = random_pick
+                                    st.session_state[f"wager_{q_item['id']}"] = w_amt
+                                    
                                     supabase.table("user_bets").insert({
                                         "user_id": user_id,
                                         "user_name": profile["full_name"],
@@ -1499,7 +1503,7 @@ else:
                                         "pick": random_pick,
                                         "wager_amount": w_amt
                                     }).execute()
-                                st.success("🎲 Random bets generated and locked in successfully!")
+                                st.success("🎲 Random bets generated and populated successfully!")
                                 st.rerun()
 
                 all_week_bets = supabase.table("user_bets").select("question_id, pick, wager_amount").eq("user_id", user_id).eq("week_number", selected_week).execute().data
