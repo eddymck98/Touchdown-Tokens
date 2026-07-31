@@ -1419,7 +1419,7 @@ else:
             """)
 
     # ------------------------------------------
-    # TAB 3: PLACE BETS (Simplified & Instant Form)
+    # TAB 3: PLACE BETS (Simplified Form + Feeling Lucky Button)
     # ------------------------------------------
     with tab_bet:
         st.header("Weekly Predictions & Wagers")
@@ -1470,6 +1470,35 @@ else:
             if not questions:
                 st.info("No questions found for this week.")
             else:
+                # --- FEELING LUCKY / RANDOMIZE BUTTON ---
+                if not is_locked and profile['tokens'] > 0:
+                    col_rand_sp1, col_rand_btn = st.columns([3, 1])
+                    with col_rand_btn:
+                        if st.button("🎲 Feeling Lucky (Randomize)", help="Randomly distributes your available tokens across the questions!"):
+                            real_q_items = [q for q in questions if not q.get("winning_answer", "").startswith("LOCKTIME:")]
+                            if real_q_items:
+                                remaining_tokens = profile['tokens']
+                                supabase.table("user_bets").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
+                                
+                                token_allocations = {q['id']: 0 for q in real_q_items}
+                                for _ in range(remaining_tokens):
+                                    chosen_q = random.choice(real_q_items)
+                                    token_allocations[chosen_q['id']] += 1
+                                    
+                                for q_item in real_q_items:
+                                    random_pick = random.choice(["Yes", "No"])
+                                    w_amt = token_allocations[q_item['id']]
+                                    supabase.table("user_bets").insert({
+                                        "user_id": user_id,
+                                        "user_name": profile["full_name"],
+                                        "week_number": selected_week,
+                                        "question_id": q_item['id'],
+                                        "pick": random_pick,
+                                        "wager_amount": w_amt
+                                    }).execute()
+                                st.success("🎲 Random bets generated and allocated successfully!")
+                                st.rerun()
+
                 all_week_bets = supabase.table("user_bets").select("question_id, pick, wager_amount").eq("user_id", user_id).eq("week_number", selected_week).execute().data
                 existing_bets_map = {b['question_id']: b for b in all_week_bets}
                 
