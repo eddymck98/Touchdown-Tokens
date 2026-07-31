@@ -1320,7 +1320,7 @@ else:
                     """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 2: RULES & INFO (WITH EXPANDED FAQ & 0-TOKEN BETTING RULE)
+    # TAB 2: RULES & INFO
     # ------------------------------------------
     with tab_rules:
         st.markdown("## 📖 Rules & Information Hub")
@@ -1419,12 +1419,12 @@ else:
             """)
 
     # ------------------------------------------
-    # TAB 3: PLACE BETS (Modern Selectable Bet Cards)
+    # TAB 3: PLACE BETS (Simplified & Instant Form)
     # ------------------------------------------
     with tab_bet:
         st.header("Weekly Predictions & Wagers")
         st.link_button("🏈 View NFL Scores, Lines & Fixtures ↗️", "https://www.espn.com/nfl/schedule", use_container_width=True)
-        st.caption("Check real-time odds, matchups, and player news on ESPN before placing your bets!")
+        st.caption("Check real-time odds and matchups on ESPN before locking in your picks below.")
         st.write("")
 
         if not available_weeks:
@@ -1460,14 +1460,6 @@ else:
                                 ⏳ <b>KICKOFF LOCKOUT COUNTDOWN:</b> <span style="font-size:20px; font-weight:bold; color:{user_team_color};">{time_display_str} remaining</span>
                             </div>
                         """, unsafe_allow_html=True)
-                        
-                        st.markdown("""
-                            <script>
-                                setTimeout(function(){
-                                    window.location.reload();
-                                }, 60000);
-                            </script>
-                        """, unsafe_allow_html=True)
                 except Exception:
                     pass
             
@@ -1479,41 +1471,17 @@ else:
                 st.info("No questions found for this week.")
             else:
                 all_week_bets = supabase.table("user_bets").select("question_id, pick, wager_amount").eq("user_id", user_id).eq("week_number", selected_week).execute().data
+                existing_bets_map = {b['question_id']: b for b in all_week_bets}
                 
-                if not is_locked and profile['tokens'] > 0:
-                    col_rand1, col_rand2 = st.columns([3, 1])
-                    with col_rand2:
-                        if st.button("🎲 Feeling Lucky (Randomize Bets)", help="Randomly distributes your available tokens across the questions!"):
-                            real_q_items = [q for q in questions if not q.get("winning_answer", "").startswith("LOCKTIME:")]
-                            if real_q_items:
-                                remaining_tokens = profile['tokens']
-                                supabase.table("user_bets").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
-                                
-                                token_allocations = {q['id']: 0 for q in real_q_items}
-                                for _ in range(remaining_tokens):
-                                    chosen_q = random.choice(real_q_items)
-                                    token_allocations[chosen_q['id']] += 1
-                                    
-                                for q_item in real_q_items:
-                                    random_pick = random.choice(["Yes", "No"])
-                                    w_amt = token_allocations[q_item['id']]
-                                    supabase.table("user_bets").insert({
-                                        "user_id": user_id,
-                                        "user_name": profile["full_name"],
-                                        "week_number": selected_week,
-                                        "question_id": q_item['id'],
-                                        "pick": random_pick,
-                                        "wager_amount": w_amt
-                                    }).execute()
-                                st.success("🎲 Random bets generated and allocated successfully!")
-                                st.rerun()
+                existing_td = supabase.table("touchdown_picks").select("player_name").eq("user_id", user_id).eq("week_number", selected_week).execute().data
+                default_td = existing_td[0]["player_name"] if existing_td else ""
 
                 with st.form("weekly_bet_form"):
                     wagers = {}
                     picks = {}
                     
                     st.markdown("### 10 Weekly Questions")
-                    st.caption("Click your choice card for Yes/No, then set your wager tokens (or set to 0 to test picks without risking tokens!).")
+                    st.caption("Select your pick (Yes/No) and assign your token wagers smoothly without interruptions. Hit submit at the bottom when ready!")
                     
                     for q in questions:
                         if q.get("winning_answer", "").startswith("LOCKTIME:"):
@@ -1536,48 +1504,38 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        existing_bet_row = [b for b in all_week_bets if b.get['question_id'] == q['id']]
-                        default_pick_val = existing_bet_row[0]['pick'] if existing_bet_row else "Yes"
-                        default_wager_val = existing_bet_row[0]['wager_amount'] if existing_bet_row else 0
+                        prev_bet = existing_bets_map.get(q['id'], {})
+                        default_pick_val = prev_bet.get('pick', 'Yes')
+                        default_wager_val = prev_bet.get('wager_amount', 0)
+                        
+                        pick_index = 0 if default_pick_val == "Yes" else 1
 
-                        with st.expander(f"Q{q['question_number']}: {prompt_text[:50]}... ({away_team_name} @ {home_team_name})", expanded=True):
+                        with st.expander(f"Q{q['question_number']}: {prompt_text[:45]}... ({away_team_name} @ {home_team_name})", expanded=True):
                             col_away_logo, col_matchup_txt, col_home_logo = st.columns([1, 4, 1])
                             with col_away_logo:
-                                st.image(away_info["logo"], width=40)
+                                st.image(away_info["logo"], width=35)
                             with col_matchup_txt:
                                 st.markdown(f"""
                                     <div style="text-align:center; padding-top:2px;">
-                                        <span class="matchup-team-title">{away_team_name}</span>
+                                        <span class="matchup-team-title" style="font-size:20px;">{away_team_name}</span>
                                         <span style="color:#cbd5e1; font-weight:bold; margin: 0 6px;">@</span>
-                                        <span class="matchup-team-title">{home_team_name}</span>
+                                        <span class="matchup-team-title" style="font-size:20px;">{home_team_name}</span>
                                     </div>
                                 """, unsafe_allow_html=True)
                             with col_home_logo:
-                                st.image(home_info["logo"], width=40)
+                                st.image(home_info["logo"], width=35)
 
                             st.markdown(f"**Question: {prompt_text}**")
                             
-                            col_card1, col_card2, col_wager = st.columns([1, 1, 1.5])
-                            
-                            with col_card1:
-                                is_yes_selected = (default_pick_val == "Yes")
-                                btn_label = "✅ YES (Selected)" if is_yes_selected else "YES"
-                                if st.form_submit_button(f"🟢 {btn_label} (Q{q['question_number']})", use_container_width=True):
-                                    default_pick_val = "Yes"
-                            with col_card2:
-                                is_no_selected = (default_pick_val == "No")
-                                btn_label_no = "❌ NO (Selected)" if is_no_selected else "NO"
-                                if st.form_submit_button(f"🔴 {btn_label_no} (Q{q['question_number']})", use_container_width=True):
-                                    default_pick_val = "No"
-                                    
-                            picks[q['id']] = st.selectbox(
-                                f"Selection Q{q['question_number']}", 
-                                ["Yes", "No"], 
-                                index=0 if default_pick_val == "Yes" else 1,
-                                key=f"pick_{q['id']}",
-                                label_visibility="collapsed"
-                            )
-                            
+                            col_pick, col_wager = st.columns([1, 1])
+                            with col_pick:
+                                picks[q['id']] = st.radio(
+                                    f"Pick Q{q['question_number']}",
+                                    ["Yes", "No"],
+                                    index=pick_index,
+                                    key=f"pick_{q['id']}",
+                                    horizontal=True
+                                )
                             with col_wager:
                                 wagers[q['id']] = st.number_input(
                                     f"Wager Q{q['question_number']}", 
@@ -1589,9 +1547,6 @@ else:
 
                     st.markdown("### 🏈 Bonus Touchdown Scorer Pick")
                     st.caption("Name 1 player to score a TD this week (Rushing/Receiving only!). Correct pick = Bonus Tokens!")
-                    
-                    existing_td = supabase.table("touchdown_picks").select("player_name").eq("user_id", user_id).eq("week_number", selected_week).execute().data
-                    default_td = existing_td[0]["player_name"] if existing_td else ""
                     
                     td_pick = st.text_input("Player Name (e.g., Patrick Mahomes)", value=default_td, key="td_scorer", disabled=is_locked)
                     
@@ -1608,7 +1563,7 @@ else:
                             text=f"**Tokens Allocated:** `{total_wagered}` / `{profile['tokens']}` Tokens ({pct_str}%)"
                         )
                     
-                    st.caption("💡 *Note: Your final submit will be your real one and it will completely override your previous picks for this week.*")
+                    st.caption("💡 *Tip: Remember that even if you don't want to risk tokens on a question, you can set the wager to 0 tokens to submit your answer and test how you would have done!*")
 
                     col_sub1, col_sub2 = st.columns([2, 1])
                     with col_sub1:
