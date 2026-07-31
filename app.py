@@ -268,6 +268,15 @@ st.markdown(f"""
         box-shadow: 0 0 15px rgba(180, 83, 9, 0.3) !important;
     }}
 
+    .vs-card {{
+        background: rgba(15, 23, 42, 0.92);
+        border: 2px solid {user_team_color};
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+        backdrop-filter: blur(10px);
+    }}
+
     div[data-testid="stRadio"] div[role="radiogroup"] > label {{
         background-color: rgba(30, 41, 59, 0.8) !important;
         border: 1px solid #475569 !important;
@@ -728,25 +737,13 @@ else:
 
         st.markdown(f"## Welcome back, {profile['full_name']}! 👋")
         
-        nem_name, nem_score = calculate_nemesis(user_id)
-        
-        col_hb1, col_hb2 = st.columns(2)
-        with col_hb1:
-            st.markdown(f"""
-                <div class="big-token-card" style="padding: 20px;">
-                    <div style="font-size: 16px; letter-spacing: 2px; text-transform: uppercase; color: #93c5fd;">Available Balance</div>
-                    <div class="big-token-number" style="font-size: 60px;">{active_tokens_display} 🪙</div>
-                    <div style="font-size: 14px; color: #cbd5e1;">Total Bank: {profile['tokens']} 🪙</div>
-                </div>
-            """, unsafe_allow_html=True)
-        with col_hb2:
-            st.markdown(f"""
-                <div class="big-token-card" style="padding: 20px; border-color: #ef4444; background: linear-gradient(135deg, rgba(127, 29, 29, 0.75) 0%, rgba(6, 10, 18, 0.90) 100%);">
-                    <div style="font-size: 16px; letter-spacing: 2px; text-transform: uppercase; color: #fca5a5;">⚔️ League Nemesis</div>
-                    <div style="font-family: 'Bebas Neue', sans-serif; font-size: 48px; letter-spacing: 2px; margin: 5px 0; color: #f87171;">{nem_name}</div>
-                    <div style="font-size: 14px; color: #cbd5e1;">Beaten you on {nem_score} head-to-head picks!</div>
-                </div>
-            """, unsafe_allow_html=True)
+        st.markdown(f"""
+            <div class="big-token-card">
+                <div style="font-size: 18px; letter-spacing: 2px; text-transform: uppercase; color: #93c5fd;">Available Balance</div>
+                <div class="big-token-number">{active_tokens_display} 🪙</div>
+                <div style="font-size: 16px; color: #cbd5e1;">Total Bank: {profile['tokens']} 🪙 (Active Wagers Deducted)</div>
+            </div>
+        """, unsafe_allow_html=True)
 
         st.subheader("👁️ Your Current Weekly Picks & Share Hub")
         st.caption("Review your active entries for the upcoming week and grab a quick share text for your group chat.")
@@ -1405,91 +1402,120 @@ else:
             st.dataframe(formatted_data, use_container_width=True)
 
     # ------------------------------------------
-    # TAB 5: LEADERBOARD
+    # TAB 5: LEADERBOARD & HEAD-TO-HEAD
     # ------------------------------------------
     with tab_leaders:
-        st.header("🏆 Player Standings")
-        st.caption("Ranked by Correct Touchdown Scorers (Tiebreaker), then Token Balance.")
-        
-        leader_res = supabase.table("profiles").select("id, full_name, tokens, favorite_team, bio, avatar_emoji, featured_badges, avatar_border, favorite_player").execute().data
+        st.header("🏆 League Standings & Head-to-Head")
+        leader_res = supabase.table("profiles").select("*").execute().data
+        player_stats = []
         
         if leader_res:
-            player_stats = []
             for p in leader_res:
                 correct_tds = supabase.table("touchdown_picks").select("*").eq("user_id", p["id"]).eq("is_correct", True).execute().data
                 td_count = len(correct_tds) if correct_tds else 0
+                u_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("user_id", p["id"]).execute().data
+                wins, total_graded = 0, 0
+                for b in u_bets:
+                    w_ans = b.get("weekly_questions", {}).get("winning_answer")
+                    if w_ans in ["Yes", "No"]:
+                        total_graded += 1
+                        if b["pick"] == w_ans: wins += 1
+                win_rate = int((wins / total_graded) * 100) if total_graded > 0 else 0
+                
+                # Auto-calculate nemesis for each player
+                nem_name, nem_score = calculate_nemesis(p["id"])
+                
                 player_stats.append({
-                    **p,
-                    "correct_tds": td_count
+                    **p, 
+                    "correct_tds": td_count, 
+                    "win_rate": win_rate, 
+                    "total_bets": total_graded,
+                    "nemesis_name": nem_name,
+                    "nemesis_score": nem_score
                 })
             
-            player_stats = sorted(player_stats, key=lambda x: (-x["correct_tds"], -x["tokens"], x["full_name"]))
-
-            current_rank = 1
-            prev_tds = None
-            prev_score = None
+            player_stats = sorted(player_stats, key=lambda x: (-x["tokens"], -x["correct_tds"], x["full_name"]))
             
+            # Head-to-Head Rival Comparison
+            with st.expander("⚔️ Head-to-Head Player Comparison", expanded=False):
+                all_other_names = [p["full_name"] for p in player_stats if p["id"] != user_id]
+                if all_other_names:
+                    compare_name = st.selectbox("Select Rival to Compare Against:", all_other_names)
+                    my_stat = next(p for p in player_stats if p["id"] == user_id)
+                    rival_stat = next(p for p in player_stats if p["full_name"] == compare_name)
+                    
+                    c1, c2, c3 = st.columns([3, 1, 3])
+                    with c1:
+                        st.markdown(f"""
+                        <div class="vs-card">
+                            <h3>{my_stat.get('avatar_emoji', '🏈')} You ({my_stat['full_name']})</h3>
+                            <h2 style="color: {user_team_color};">{my_stat['tokens']} 🪙</h2>
+                            <p><b>Win Rate:</b> {my_stat['win_rate']}%</p>
+                            <p><b>Correct TDs:</b> {my_stat['correct_tds']}</p>
+                            <p><b>Nemesis:</b> <span style="color:#f87171;">{my_stat['nemesis_name']}</span> ({my_stat['nemesis_score']})</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with c2: st.markdown("<h1 style='text-align:center; margin-top:50px;'>VS</h1>", unsafe_allow_html=True)
+                    with c3:
+                        r_color = NFL_TEAM_DATA.get(rival_stat.get("favorite_team"), NFL_TEAM_DATA["🏈 Free Agent / Neutral"])["color"]
+                        st.markdown(f"""
+                        <div class="vs-card">
+                            <h3>{rival_stat.get('avatar_emoji','🏈')} {rival_stat['full_name']}</h3>
+                            <h2 style="color: {r_color};">{rival_stat['tokens']} 🪙</h2>
+                            <p><b>Win Rate:</b> {rival_stat['win_rate']}%</p>
+                            <p><b>Correct TDs:</b> {rival_stat['correct_tds']}</p>
+                            <p><b>Nemesis:</b> <span style="color:#f87171;">{rival_stat['nemesis_name']}</span> ({rival_stat['nemesis_score']})</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+            
+            st.divider()
+            
+            current_rank = 1
+            prev_score, prev_tds = None, None
             for idx, p in enumerate(player_stats):
-                score = p["tokens"]
-                tds = p["correct_tds"]
-                
-                if idx > 0 and tds == prev_tds and score == prev_score:
-                    display_rank = current_rank
-                else:
-                    current_rank = idx + 1
-                    display_rank = current_rank
-                
-                prev_tds = tds
-                prev_score = score
+                score, tds = p["tokens"], p["correct_tds"]
+                if idx > 0 and score == prev_score and tds == prev_tds: display_rank = current_rank
+                else: current_rank, display_rank = idx + 1, idx + 1
+                prev_score, prev_tds = score, tds
                 
                 av = p.get("avatar_emoji") or "🏈"
+                p_border = p.get("avatar_border", "solid")
+                t_info = NFL_TEAM_DATA.get(p.get("favorite_team"), NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                 team_name = p.get("favorite_team") or "🏈 Free Agent / Neutral"
-                t_info = NFL_TEAM_DATA.get(team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
-                border_style = p.get("avatar_border", "solid")
                 fav_pl = p.get("favorite_player", "")
+                nem_name_card = p.get("nemesis_name", "None")
+                nem_score_card = p.get("nemesis_score", 0)
                 
-                # Fetch featured badges (fallback to first 3 unlocked if none selected)
-                feat_badges = p.get("featured_badges", [])
-                if not feat_badges or not isinstance(feat_badges, list):
-                    all_p_badges = get_user_badges(p["id"])
-                    feat_badges = all_p_badges[:3]
+                showcased = p.get("featured_badges") or []
+                if not showcased or not isinstance(showcased, list):
+                    showcased = get_user_badges(p["id"])[:3]
                 
-                badges_html = "".join([f'<span class="badge-pill">{b}</span>' for b in feat_badges]) if feat_badges else '<span style="color:#64748b; font-size:12px;">No Badges Featured</span>'
-                bio_text = p.get('bio', '')
+                badges_html = "".join([f'<span class="badge-pill">{b}</span>' for b in showcased]) if showcased else '<span style="color:#64748b; font-size:12px;">No Badges Displayed</span>'
                 
                 podium_class = "leaderboard-row"
-                if display_rank == 1:
-                    podium_class += " podium-rank-1"
-                    rank_display = "🥇 #1"
-                elif display_rank == 2:
-                    podium_class += " podium-rank-2"
-                    rank_display = "🥈 #2"
-                elif display_rank == 3:
-                    podium_class += " podium-rank-3"
-                    rank_display = "🥉 #3"
-                else:
-                    rank_display = f"#{display_rank}"
+                if display_rank == 1: podium_class, rank_display = podium_class + " podium-rank-1", "🥇 #1"
+                elif display_rank == 2: podium_class, rank_display = podium_class + " podium-rank-2", "🥈 #2"
+                elif display_rank == 3: podium_class, rank_display = podium_class + " podium-rank-3", "🥉 #3"
+                else: rank_display = f"#{display_rank}"
                 
                 st.markdown(f"""
                     <div class="{podium_class}">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
                                 <span style="font-family: 'Bebas Neue'; font-size: 26px; color: #fbbf24; width: 45px;">{rank_display}</span>
-                                <div style="border: 3px {border_style} {t_info['color']}; border-radius: 8px; padding: 2px 6px; background: rgba(15,23,42,0.6);">
+                                <div style="border: 3px {p_border} {t_info['color']}; border-radius: 8px; padding: 2px 6px; background: rgba(15,23,42,0.6);">
                                     <span style="font-size: 24px;">{av}</span>
                                 </div>
                                 <img src="{t_info['logo']}" style="width: 32px; height: 32px;" />
                                 <div>
                                     <b style="font-size: 19px; color: #ffffff;">{p['full_name']}</b> {f'<span style="font-size:13px; color:#38bdf8; margin-left:6px;">⭐ {fav_pl}</span>' if fav_pl else ''}
-                                    <div style="font-size: 13px; color: #94a3b8;">{team_name} {f'• "{bio_text}"' if bio_text else ''} • 🏈 Correct TDs (Tiebreaker): <b>{tds}</b></div>
+                                    <div style="font-size: 13px; color: #94a3b8;">{team_name} • Correct TDs: <b>{tds}</b> • Win Rate: <b>{p['win_rate']}%</b> • ⚔️ Nemesis: <span style="color:#f87171;">{nem_name_card}</span> ({nem_score_card})</div>
                                 </div>
                             </div>
-                            <div style="text-align: right;">
-                                <span style="font-family: 'Bebas Neue'; font-size: 30px; color: #38bdf8;">{p['tokens']} 🪙</span>
-                            </div>
+                            <div style="text-align: right;"><span style="font-family: 'Bebas Neue'; font-size: 30px; color: #38bdf8;">{p['tokens']} 🪙</span></div>
                         </div>
                         <div style="border-top: 1px solid #334155; padding-top: 8px; margin-top: 4px;">
-                            <span style="font-size: 12px; text-transform: uppercase; color: #94a3b8; font-weight: bold; margin-right: 8px;">Featured Trophies:</span> {badges_html}
+                            <span style="font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: bold; margin-right: 8px;">Showcase:</span> {badges_html}
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
@@ -1510,15 +1536,15 @@ else:
                     st.success("Message posted!")
                     st.rerun()
                 except Exception as e:
-                    st.error("Make sure the 'trash_talk' table is created in Supabase.")
+                    st.error(f"Error posting message: {e}")
 
         recent_chats = supabase.table("trash_talk").select("message, created_at, user_id").order("created_at", desc=True).limit(10).execute().data
-        all_profiles = supabase.table("profiles").select("id, full_name, avatar_emoji, favorite_team").execute().data
-        profile_map = {p["id"]: p for p in all_profiles}
+        all_profiles_chat = supabase.table("profiles").select("id, full_name, avatar_emoji, favorite_team").execute().data
+        profile_map_chat = {p["id"]: p for p in all_profiles_chat}
 
         if recent_chats:
             for c in recent_chats:
-                p_info = profile_map.get(c["user_id"], {})
+                p_info = profile_map_chat.get(c["user_id"], {})
                 author_name = p_info.get("full_name", "Player")
                 author_av = p_info.get("avatar_emoji", "🏈")
                 author_team = p_info.get("favorite_team", "🏈 Free Agent / Neutral")
