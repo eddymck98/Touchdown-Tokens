@@ -131,48 +131,50 @@ st.markdown(f"""
 
     .stApp, div[data-testid="stAppViewContainer"] {{
         background: 
-            radial-gradient(circle at 50% 20%, rgba(15, 23, 42, 0.88), rgba(7, 13, 25, 0.98)),
-            url('{user_team_logo}') center center / 30% no-repeat fixed,
+            radial-gradient(circle at 50% 20%, rgba(15, 23, 42, 0.90), rgba(7, 13, 25, 0.99)),
+            url('{user_team_logo}') center center / 28% no-repeat fixed,
             url('https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&w=1920&q=80') center center / cover no-repeat fixed !important;
         color: #f8fafc !important;
         font-family: 'Inter', sans-serif !important;
     }}
     
     section[data-testid="stSidebar"] {{
-        background-color: #030712 !important;
+        background: linear-gradient(180deg, #030712 0%, #0b0f19 100%) !important;
         border-right: 3px solid {user_team_color} !important;
         font-family: 'Inter', sans-serif !important;
+        box-shadow: 6px 0 30px rgba(0,0,0,0.7);
     }}
     
-    .nfl-header {{ text-align: center; padding: 10px 0 5px 0; }}
+    .nfl-header {{ text-align: center; padding: 12px 0 8px 0; }}
     .nfl-title {{
         font-family: 'Bebas Neue', cursive, sans-serif !important;
-        font-size: 72px !important;
-        letter-spacing: 5px;
+        font-size: 76px !important;
+        letter-spacing: 6px;
         text-transform: uppercase;
         background: linear-gradient(180deg, #ffffff 15%, {user_team_color} 65%, #d97706 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        text-shadow: 0px 4px 25px {user_team_color}88;
+        text-shadow: 0px 6px 30px {user_team_color}99;
         margin: 0;
         line-height: 1.0;
     }}
     .nfl-subtitle {{
         font-family: 'Teko', sans-serif;
-        font-size: 24px;
-        letter-spacing: 4px;
+        font-size: 26px;
+        letter-spacing: 5px;
         color: #93c5fd;
         text-transform: uppercase;
         margin-top: -2px;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.8);
     }}
     .header-logo {{
-        width: 95px;
-        filter: drop-shadow(0px 8px 18px {user_team_color}cc);
+        width: 100px;
+        filter: drop-shadow(0px 10px 22px {user_team_color}cc);
     }}
     
     @keyframes teamPulse {{
         0% {{ box-shadow: 0 0 12px {user_team_color}33; }}
-        50% {{ box-shadow: 0 0 28px {user_team_color}aa; }}
+        50% {{ box-shadow: 0 0 32px {user_team_color}bb; }}
         100% {{ box-shadow: 0 0 12px {user_team_color}33; }}
     }}
 
@@ -181,246 +183,266 @@ st.markdown(f"""
         position: sticky;
         top: 0;
         z-index: 999;
-        background: rgba(15, 23, 42, 0.92);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-bottom: 2px solid {user_team_color};
-        padding: 10px 20px;
-        margin-bottom: 20px;
-        border-radius: 0 0 14px 14px;
-        backdrop-filter: blur(14px);
-        -webkit-backdrop-filter: blur(14px);
+        background: rgba(15, 23, 42, 0.94);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-bottom: 3px solid {user_team_color};
+        padding: 12px 22px;
+        margin-bottom: 24px;
+        border-radius: 0 0 16px 16px;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
         display: flex;
         justify-content: space-between;
         align-items: center;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.7);
     }}
 
     .big-token-card {{
-        background: linear-gradient(135deg, rgba(30, 58, 138, 0.85) 0%, rgba(6, 10, 18, 0.90) 100%);
-        padding: 30px;
-        border-radius: 18px;
+        background: linear-gradient(135deg, rgba(30, 58, 138, 0.88) 0%, rgba(6, 10, 18, 0.94) 100%);
+        padding: 32px;
+        border-radius: 20px;
         color: #ffffff !important;
         text-align: center;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-top: 2px solid {user_team_color};
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-top: 3px solid {user_team_color};
         margin-bottom: 25px;
-        backdrop-filter: blur(14px);
-        -webkit-backdrop-filter: blur(14px);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        box-shadow: 0 10px 35px rgba(0,0,0,0.5);
         animation: teamPulse 3.5s infinite ease-in-out;
     }}
     .big-token-number {{
         font-family: 'Bebas Neue', sans-serif;
-        font-size: 74px;
+        font-size: 78px;
         letter-spacing: 3px;
         margin: 0;
         color: {user_team_color} !important;
-        text-shadow: 0px 4px 18px {user_team_color}88;
+        text-shadow: 0px 6px 20px {user_team_color}99;
     }}
 
     .champion-card {{
-        background: linear-gradient(135deg, rgba(120, 53, 15, 0.9) 0%, rgba(180, 83, 9, 0.9) 50%, rgba(245, 158, 11, 0.9) 100%);
-        padding: 30px;
-        border-radius: 16px;
+        background: linear-gradient(135deg, rgba(120, 53, 15, 0.92) 0%, rgba(180, 83, 9, 0.92) 50%, rgba(245, 158, 11, 0.92) 100%);
+        padding: 32px;
+        border-radius: 18px;
         color: #ffffff !important;
         text-align: center;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-top: 3px solid #fbbf24;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-top: 4px solid #fbbf24;
         margin-bottom: 30px;
-        backdrop-filter: blur(12px);
-        box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+        backdrop-filter: blur(14px);
+        box-shadow: 0 10px 35px rgba(0,0,0,0.6);
         animation: teamPulse 2s infinite ease-in-out;
     }}
 
     .mvp-banner {{
-        background: linear-gradient(135deg, rgba(147, 51, 234, 0.88) 0%, rgba(30, 58, 138, 0.92) 100%);
-        border: 1px solid rgba(192, 132, 252, 0.3);
-        border-top: 2px solid #c084fc;
-        padding: 20px;
-        border-radius: 14px;
-        margin-bottom: 20px;
+        background: linear-gradient(135deg, rgba(147, 51, 234, 0.90) 0%, rgba(30, 58, 138, 0.94) 100%);
+        border: 1px solid rgba(192, 132, 252, 0.4);
+        border-top: 3px solid #c084fc;
+        padding: 22px;
+        border-radius: 16px;
+        margin-bottom: 22px;
         text-align: center;
-        backdrop-filter: blur(12px);
-        box-shadow: 0 8px 25px rgba(192, 132, 252, 0.3);
+        backdrop-filter: blur(14px);
+        box-shadow: 0 10px 30px rgba(192, 132, 252, 0.35);
     }}
 
     .trophy-card-unlocked {{
-        background: linear-gradient(135deg, rgba(30, 41, 59, 0.88) 0%, rgba(15, 23, 42, 0.92) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-left: 3px solid {user_team_color};
-        padding: 15px;
-        border-radius: 12px;
-        margin-bottom: 12px;
-        backdrop-filter: blur(10px);
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.90) 0%, rgba(15, 23, 42, 0.94) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-left: 4px solid {user_team_color};
+        padding: 16px;
+        border-radius: 14px;
+        margin-bottom: 14px;
+        backdrop-filter: blur(12px);
+        box-shadow: 0 6px 18px rgba(0,0,0,0.4);
     }}
 
     .trophy-card-locked {{
-        background: rgba(15, 23, 42, 0.5);
-        border: 1px dashed rgba(255, 255, 255, 0.15);
-        padding: 15px;
-        border-radius: 12px;
-        margin-bottom: 12px;
+        background: rgba(15, 23, 42, 0.55);
+        border: 1px dashed rgba(255, 255, 255, 0.18);
+        padding: 16px;
+        border-radius: 14px;
+        margin-bottom: 14px;
         opacity: 0.55;
     }}
 
     .leaderboard-row {{
-        background: rgba(15, 23, 42, 0.78);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 14px;
-        padding: 18px;
-        margin-bottom: 14px;
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+        background: rgba(15, 23, 42, 0.82);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 16px;
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        box-shadow: 0 10px 35px rgba(0,0,0,0.4);
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }}
     .leaderboard-row:hover {{
         transform: translateY(-3px);
-        border-color: rgba(255, 255, 255, 0.2);
-        box-shadow: 0 12px 36px {user_team_color}44;
+        border-color: rgba(255, 255, 255, 0.25);
+        box-shadow: 0 14px 40px {user_team_color}55;
     }}
 
     .podium-rank-1 {{
-        border: 1px solid rgba(251, 191, 36, 0.4) !important;
-        border-top: 3px solid #fbbf24 !important;
-        background: linear-gradient(135deg, rgba(251, 191, 36, 0.12) 0%, rgba(15, 23, 42, 0.88) 100%) !important;
-        box-shadow: 0 10px 30px rgba(251, 191, 36, 0.25) !important;
+        border: 1px solid rgba(251, 191, 36, 0.5) !important;
+        border-top: 4px solid #fbbf24 !important;
+        background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(15, 23, 42, 0.90) 100%) !important;
+        box-shadow: 0 12px 35px rgba(251, 191, 36, 0.3) !important;
     }}
     .podium-rank-2 {{
-        border: 1px solid rgba(148, 163, 184, 0.4) !important;
-        border-top: 3px solid #94a3b8 !important;
-        background: linear-gradient(135deg, rgba(148, 163, 184, 0.12) 0%, rgba(15, 23, 42, 0.88) 100%) !important;
-        box-shadow: 0 10px 25px rgba(148, 163, 184, 0.2) !important;
+        border: 1px solid rgba(148, 163, 184, 0.5) !important;
+        border-top: 4px solid #94a3b8 !important;
+        background: linear-gradient(135deg, rgba(148, 163, 184, 0.15) 0%, rgba(15, 23, 42, 0.90) 100%) !important;
+        box-shadow: 0 12px 30px rgba(148, 163, 184, 0.25) !important;
     }}
     .podium-rank-3 {{
-        border: 1px solid rgba(180, 83, 9, 0.4) !important;
-        border-top: 3px solid #b45309 !important;
-        background: linear-gradient(135deg, rgba(180, 83, 9, 0.12) 0%, rgba(15, 23, 42, 0.88) 100%) !important;
-        box-shadow: 0 10px 25px rgba(180, 83, 9, 0.2) !important;
+        border: 1px solid rgba(180, 83, 9, 0.5) !important;
+        border-top: 4px solid #b45309 !important;
+        background: linear-gradient(135deg, rgba(180, 83, 9, 0.15) 0%, rgba(15, 23, 42, 0.90) 100%) !important;
+        box-shadow: 0 12px 30px rgba(180, 83, 9, 0.25) !important;
     }}
 
     .stat-pill-container {{
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
-        margin-top: 8px;
+        gap: 8px;
+        margin-top: 10px;
     }}
     .stat-pill {{
-        background: rgba(30, 41, 59, 0.8);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(30, 41, 59, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 20px;
-        padding: 3px 10px;
+        padding: 4px 12px;
         font-size: 12px;
         font-weight: 600;
         color: #e2e8f0;
         display: inline-flex;
         align-items: center;
-        gap: 4px;
+        gap: 6px;
         letter-spacing: 0.3px;
     }}
     .stat-pill-accent {{
-        background: linear-gradient(135deg, {user_team_color}22 0%, rgba(30, 41, 59, 0.8) 100%);
-        border: 1px solid {user_team_color}55;
+        background: linear-gradient(135deg, {user_team_color}25 0%, rgba(30, 41, 59, 0.85) 100%);
+        border: 1px solid {user_team_color}66;
         color: {user_team_color};
     }}
 
     .vs-card {{
-        background: rgba(15, 23, 42, 0.88);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-top: 2px solid {user_team_color};
-        padding: 20px;
-        border-radius: 14px;
+        background: rgba(15, 23, 42, 0.90);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-top: 3px solid {user_team_color};
+        padding: 22px;
+        border-radius: 16px;
         text-align: center;
-        backdrop-filter: blur(14px);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        backdrop-filter: blur(16px);
+        box-shadow: 0 10px 35px rgba(0,0,0,0.5);
     }}
 
     .matchup-team-title {{
         font-family: 'Teko', sans-serif;
-        font-size: 22px;
+        font-size: 24px;
         letter-spacing: 1.5px;
         color: #fbbf24;
         text-transform: uppercase;
     }}
 
     .timer-card {{
-        background: rgba(15, 23, 42, 0.88);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-top: 2px solid {user_team_color};
-        padding: 16px;
-        border-radius: 14px;
+        background: rgba(15, 23, 42, 0.90);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-top: 3px solid {user_team_color};
+        padding: 18px;
+        border-radius: 16px;
         text-align: center;
-        margin-bottom: 20px;
-        backdrop-filter: blur(14px);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        margin-bottom: 22px;
+        backdrop-filter: blur(16px);
+        box-shadow: 0 10px 35px rgba(0,0,0,0.5);
     }}
 
     .badge-pill {{
         display: inline-block;
-        background-color: rgba(30, 41, 59, 0.8);
+        background-color: rgba(30, 41, 59, 0.85);
         color: {user_team_color};
-        border: 1px solid {user_team_color}66;
+        border: 1px solid {user_team_color}77;
         border-radius: 20px;
-        padding: 4px 12px;
+        padding: 5px 14px;
         font-size: 12px;
         font-weight: 700;
-        margin: 2px;
+        margin: 3px;
     }}
     
     .consensus-badge {{
-        background-color: rgba(30, 41, 59, 0.85);
+        background-color: rgba(30, 41, 59, 0.90);
         color: #38bdf8;
-        border: 1px solid rgba(2, 132, 199, 0.5);
-        border-radius: 8px;
-        padding: 4px 10px;
+        border: 1px solid rgba(2, 132, 199, 0.6);
+        border-radius: 10px;
+        padding: 6px 12px;
         font-size: 13px;
         font-weight: 600;
         display: inline-block;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
     }}
     
     .chat-bubble {{
-        background-color: rgba(15, 23, 42, 0.85);
-        backdrop-filter: blur(14px);
-        -webkit-backdrop-filter: blur(14px);
-        padding: 14px 18px;
-        border-radius: 12px;
-        margin-bottom: 12px;
-        border: 1px solid rgba(255,255,255,0.08);
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        background-color: rgba(15, 23, 42, 0.88);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        padding: 16px 20px;
+        border-radius: 14px;
+        margin-bottom: 14px;
+        border: 1px solid rgba(255,255,255,0.1);
+        box-shadow: 0 6px 24px rgba(0,0,0,0.35);
     }}
 
     .summary-box {{
-        background-color: rgba(15, 23, 42, 0.85) !important;
-        backdrop-filter: blur(14px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background-color: rgba(15, 23, 42, 0.88) !important;
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-left: 4px solid {user_team_color} !important;
-        padding: 18px;
-        border-radius: 12px;
+        padding: 20px;
+        border-radius: 14px;
         color: #f8fafc !important;
-        margin-top: 15px;
-        box-shadow: 0 6px 24px rgba(0,0,0,0.3);
+        margin-top: 16px;
+        box-shadow: 0 8px 28px rgba(0,0,0,0.35);
+    }}
+
+    /* --- SLEEK NEW CARDS FOR RULES & INFO --- */
+    .rule-card {{
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.82) 0%, rgba(15, 23, 42, 0.92) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-top: 3px solid {user_team_color};
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 20px;
+        backdrop-filter: blur(16px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    }}
+    .rule-step-num {{
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 28px;
+        color: {user_team_color};
+        letter-spacing: 2px;
+        margin-bottom: 4px;
     }}
 
     button[data-baseweb="tab"] {{
-        background-color: rgba(30, 41, 59, 0.75) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        border-radius: 10px !important;
-        padding: 10px 20px !important;
-        margin-right: 6px !important;
+        background-color: rgba(30, 41, 59, 0.8) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 12px !important;
+        padding: 10px 22px !important;
+        margin-right: 8px !important;
+        transition: all 0.3s ease !important;
     }}
     button[data-baseweb="tab"] * {{
         font-family: 'Teko', sans-serif !important;
-        font-size: 20px !important;
+        font-size: 21px !important;
         letter-spacing: 1.5px !important;
         color: #cbd5e1 !important;
     }}
     button[aria-selected="true"] {{
-        background: linear-gradient(135deg, rgba(30, 58, 138, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        border-top: 2px solid {user_team_color} !important;
-        box-shadow: 0 6px 24px {user_team_color}55 !important;
+        background: linear-gradient(135deg, rgba(30, 58, 138, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        border-top: 3px solid {user_team_color} !important;
+        box-shadow: 0 8px 28px {user_team_color}66 !important;
     }}
     button[aria-selected="true"] * {{
         color: {user_team_color} !important;
@@ -430,17 +452,17 @@ st.markdown(f"""
         background: linear-gradient(135deg, {user_team_color} 0%, #d97706 100%) !important;
         color: #000000 !important;
         font-family: 'Teko', sans-serif !important;
-        font-size: 24px !important;
+        font-size: 25px !important;
         letter-spacing: 2px !important;
         text-transform: uppercase !important;
-        border-radius: 10px !important;
+        border-radius: 12px !important;
         border: none !important;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.5);
     }}
     div.stButton > button[kind="primary"]:hover, div.stFormSubmitButton > button:hover {{
         transform: translateY(-2px);
-        box-shadow: 0 8px 25px {user_team_color}88 !important;
+        box-shadow: 0 10px 30px {user_team_color}99 !important;
     }}
 
     .stTextInput > label, .stNumberInput > label, .stRadio > label, .stSelectbox > label {{
@@ -450,10 +472,10 @@ st.markdown(f"""
         letter-spacing: 0.5px;
     }}
     .stTextInput input, .stNumberInput input {{
-        background-color: rgba(15, 23, 42, 0.9) !important;
+        background-color: rgba(15, 23, 42, 0.92) !important;
         color: #ffffff !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        border-radius: 10px !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 12px !important;
     }}
     </style>
 """, unsafe_allow_html=True)
@@ -748,13 +770,13 @@ else:
 
     # --- SIDEBAR ---
     st.sidebar.markdown(f"""
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-            <div style="border: 3px {user_border_style} {user_team_color}; border-radius: 10px; padding: 4px 8px; background: rgba(15,23,42,0.6);">
-                <span style="font-size: 32px;">{user_avatar}</span>
+        <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 12px; padding: 6px 0;">
+            <div style="border: 3px {user_border_style} {user_team_color}; border-radius: 12px; padding: 6px 10px; background: rgba(15,23,42,0.8); box-shadow: 0 4px 15px {user_team_color}44;">
+                <span style="font-size: 34px;">{user_avatar}</span>
             </div>
             <div>
-                <b style="font-size: 18px; color: #ffffff;">{profile['full_name']}</b>
-                <div style="font-size: 12px; color: #94a3b8;">{user_team}</div>
+                <b style="font-size: 19px; color: #ffffff; letter-spacing: 0.3px;">{profile['full_name']}</b>
+                <div style="font-size: 12px; color: #94a3b8; font-weight: 500;">{user_team}</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -793,19 +815,19 @@ else:
     # --- STICKY HEADER / COMPACT BALANCE BAR ---
     st.markdown(f"""
         <div class="sticky-balance-bar">
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <div style="border: 3px {user_border_style} {user_team_color}; border-radius: 8px; padding: 2px 6px; background: rgba(15,23,42,0.6);">
-                    <span style="font-size: 24px;">{user_avatar}</span>
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <div style="border: 3px {user_border_style} {user_team_color}; border-radius: 10px; padding: 3px 8px; background: rgba(15,23,42,0.7); box-shadow: 0 4px 12px {user_team_color}33;">
+                    <span style="font-size: 26px;">{user_avatar}</span>
                 </div>
                 <div>
                     <b style="font-size: 16px; color: #ffffff;">{profile['full_name']}</b>
-                    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">{user_team}</div>
+                    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">{user_team}</div>
                 </div>
             </div>
             <div style="display: flex; align-items: center; gap: 15px;">
                 <div style="text-align: right;">
-                    <span style="font-family: 'Bebas Neue'; font-size: 24px; color: {user_team_color};">{active_tokens_display} 🪙</span>
-                    <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Available Tokens</div>
+                    <span style="font-family: 'Bebas Neue'; font-size: 26px; color: {user_team_color};">{active_tokens_display} 🪙</span>
+                    <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Available Tokens</div>
                 </div>
             </div>
         </div>
@@ -1204,44 +1226,73 @@ else:
                     """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 2: RULES & INFO
+    # TAB 2: RULES & INFO (REBUILT CLEAN & SLEEK)
     # ------------------------------------------
     with tab_rules:
-        st.header("📖 Rules & Information")
-        
-        st.subheader("Welcome to TOUCHDOWN TOKENS!")
-        st.write("""
-        Each week I will release a new form with 10 scenarios. Each player will start with 10 tokens. 
-        If you win your bet, you will double however many tokens you placed on that scenario. 
-        If you lose the scenario, you will lose all your tokens that you placed on that scenario.
-        
-        Tokens are cumulative, so if you gain 8 tokens from right answers in Week 1, you will have 18 tokens for Week 2, and so on.
-        
-        At the bottom of the weekly picks is a place for you to write a free bet on a player you think will score a touchdown this week. 
-        If your player scores, you will gain extra bonus tokens to use in the next week!
-        
-        All games picked will be Sunday/Monday games. No Thursday games will be picked. 
-        Whilst you can pick the same scorer every week, mix it up and test your NFL knowledge!
-        """)
-        
-        st.divider()
-        st.subheader("📜 Official Game Rules")
-        
-        st.markdown("""
-        1. 🪙 **Wager Limits:** Don't go over your current total token balance.
-        2. 🎯 **One Choice Per Question:** You must only place a bet on 1 option (`Yes` or `No`) per question.
-        3. 📅 **Attendance & Active Play:** If you miss a week that is absolutely fine; however, if you continue to miss weeks, you will be docked points per week missed.
-        4. 🚑 **Late Scratches / Inactive Players:** If for any reason a player chosen in a scenario is ruled out just before a game, all points bet on that scenario will be refunded.
-        5. ⏰ **Submission Cutoff:** The cutoff for weekly submissions will be **15 minutes before the first kickoff** on Sunday.
-        6. 🏈 **Touchdown Scorer Eligibility:** The free bet scorer must either **rush or receive** a touchdown. Passing touchdowns do **NOT** count!
-        """)
+        st.markdown("## 📖 Rules & Information Hub")
+        st.caption("Everything you need to know about dominating Touchdown Tokens.")
+        st.write("")
 
-        st.markdown("""
-        <div class="summary-box">
-            <b>📱 Pro Tip: Add to Phone Home Screen!</b><br>
-            • <b>iPhone (Safari):</b> Tap the <i>Share Button</i> at the bottom → select <b>'Add to Home Screen'</b>.<br>
-            • <b>Android (Chrome):</b> Tap the <i>3 Dots Menu</i> at the top right → select <b>'Install App'</b> or <b>'Add to Home Screen'</b>.
-        </div>
+        st.markdown(f"""
+            <div class="rule-card">
+                <div class="rule-step-num">01 / THE CORE PREMISE</div>
+                <div style="font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">10 Scenarios. Cumulative Tokens. High Stakes.</div>
+                <p style="color: #cbd5e1; line-height: 1.6; margin: 0;">
+                    Each week brings 10 custom NFL scenarios. Every player starts with 10 tokens. When you win a bet, your wagered tokens double! Lose a bet, and those wagered tokens are lost. Your token bank is cumulative across the entire season—build a massive lead or claw your way back from zero.
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(f"""
+            <div class="rule-card">
+                <div class="rule-step-num">02 / TOUCHDOWN SCORER BONUS</div>
+                <div style="font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">The Free Weekly Scorer Pick (+5 Tokens)</div>
+                <p style="color: #cbd5e1; line-height: 1.6; margin: 0;">
+                    At the bottom of your weekly slate, you can name 1 player to score a touchdown. If your chosen player rushes or receives a touchdown, you instantly pocket <b style="color: {user_team_color};">+5 bonus tokens</b> for the next week! <i>Note: Passing touchdowns do not count.</i>
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(f"""
+            <div class="rule-card">
+                <div class="rule-step-num">03 / SCHEDULE & CUTOFFS</div>
+                <div style="font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">Sunday & Monday Slates Only</div>
+                <p style="color: #cbd5e1; line-height: 1.6; margin: 0;">
+                    All scenarios feature Sunday or Monday games (no Thursday night fixtures). Submissions automatically lock down precisely <b style="color: #38bdf8;">15 minutes before the first Sunday kickoff</b>. Make sure your lock-ins are saved before time expires!
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(f"""
+            <div class="rule-card">
+                <div class="rule-step-num">04 / IMPORTANT LEAGUE POLICIES</div>
+                <div style="font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">Fair Play & Inactive Scratches</div>
+                <ul style="color: #cbd5e1; padding-left: 20px; line-height: 1.6; margin: 0;">
+                    <li><b>Late Scratches:</b> If a specific player mentioned in a scenario is ruled out before kickoff, bets on that scenario are fully refunded.</li>
+                    <li><b>Missed Weeks:</b> Taking a week off is totally fine, though consistent consecutive absences may incur point deductions.</li>
+                    <li><b>One Choice Per Question:</b> Lock in either Yes or No per matchup.</li>
+                </ul>
+            </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(f"""
+            <div class="rule-card" style="border-top-color: #38bdf8;">
+                <div class="rule-step-num" style="color: #38bdf8;">📱 PRO TIP / MOBILE ACCESS</div>
+                <div style="font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">Add Touchdown Tokens to Your Phone Home Screen</div>
+                <p style="color: #cbd5e1; line-height: 1.6; margin-bottom: 12px;">
+                    Treat this app like a native mobile app for instant access on game days:
+                </p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div style="background: rgba(15,23,42,0.6); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);">
+                        <b style="color: #38bdf8;">🍎 iPhone (Safari):</b><br>
+                        Tap the <i>Share Button</i> at the bottom → Select <b>'Add to Home Screen'</b>.
+                    </div>
+                    <div style="background: rgba(15,23,42,0.6); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);">
+                        <b style="color: #38bdf8;">🤖 Android (Chrome):</b><br>
+                        Tap the <i>3 Dots Menu</i> at top right → Select <b>'Install App'</b> or <b>'Add to Home Screen'</b>.
+                    </div>
+                </div>
+            </div>
         """, unsafe_allow_html=True)
 
     # ------------------------------------------
@@ -1362,7 +1413,7 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        existing_bet_row = [b for b in all_week_bets if b.get['question_id'] == q['id']]
+                        existing_bet_row = [b for b in all_week_bets if b.get('question_id'] == q['id']]
                         default_pick_val = existing_bet_row[0]['pick'] if existing_bet_row else "Yes"
                         default_wager_val = existing_bet_row[0]['wager_amount'] if existing_bet_row else 0
 
