@@ -68,7 +68,6 @@ NFL_TEAM_DATA = {
 NFL_TEAMS = list(NFL_TEAM_DATA.keys())
 AVATAR_OPTIONS = ["🏈", "🐐", "⚡", "👑", "🎯", "💣", "💎", "🔥", "🛡️", "🚀"]
 
-# Custom choice of avatar borders styling mappings
 BORDER_STYLE_OPTIONS = {
     "Classic Solid": "solid",
     "Double Neon Pulse": "double",
@@ -265,7 +264,6 @@ st.markdown(f"""
         opacity: 0.55;
     }}
 
-    /* Frosted Glassmorphism Leaderboard Cards */
     .leaderboard-row {{
         background: rgba(15, 23, 42, 0.78);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -302,7 +300,6 @@ st.markdown(f"""
         box-shadow: 0 10px 25px rgba(180, 83, 9, 0.2) !important;
     }}
 
-    /* Stat Pills styling */
     .stat-pill-container {{
         display: flex;
         flex-wrap: wrap;
@@ -607,7 +604,6 @@ def get_user_badges(target_user_id, check_celebration=False):
     return badges
 
 def calculate_nemesis(target_user_id):
-    """Auto-calculates the user's nemesis based on who most frequently opposes their picks on shared questions and wins."""
     try:
         user_bets = supabase.table("user_bets").select("week_number, question_id, pick").eq("user_id", target_user_id).execute().data
         if not user_bets:
@@ -642,7 +638,6 @@ def calculate_nemesis(target_user_id):
         return "None Yet", 0
 
 def calculate_streak(target_user_id):
-    """Calculates the current active win streak of correct weekly/question picks."""
     try:
         u_bets = supabase.table("user_bets").select("week_number, pick, weekly_questions(winning_answer)").eq("user_id", target_user_id).order("week_number", desc=True).execute().data
         if not u_bets:
@@ -747,13 +742,23 @@ else:
     user_avatar = profile.get("avatar_emoji", "🏈")
     user_team = profile.get('favorite_team', '🏈 Free Agent / Neutral')
     team_data = NFL_TEAM_DATA.get(user_team, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
+    user_border_style = profile.get("avatar_border", "solid")
     
     get_user_badges(user_id, check_celebration=True)
 
     # --- SIDEBAR ---
-    st.sidebar.title(f"{user_avatar} {profile['full_name']}")
+    st.sidebar.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <div style="border: 3px {user_border_style} {user_team_color}; border-radius: 10px; padding: 4px 8px; background: rgba(15,23,42,0.6);">
+                <span style="font-size: 32px;">{user_avatar}</span>
+            </div>
+            <div>
+                <b style="font-size: 18px; color: #ffffff;">{profile['full_name']}</b>
+                <div style="font-size: 12px; color: #94a3b8;">{user_team}</div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
     st.sidebar.image(team_data["logo"], width=55)
-    st.sidebar.caption(f"Team: {user_team}")
     
     fav_player_sidebar = profile.get("favorite_player", "")
     if fav_player_sidebar:
@@ -788,8 +793,10 @@ else:
     # --- STICKY HEADER / COMPACT BALANCE BAR ---
     st.markdown(f"""
         <div class="sticky-balance-bar">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 22px;">{user_avatar}</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="border: 3px {user_border_style} {user_team_color}; border-radius: 8px; padding: 2px 6px; background: rgba(15,23,42,0.6);">
+                    <span style="font-size: 24px;">{user_avatar}</span>
+                </div>
                 <div>
                     <b style="font-size: 16px; color: #ffffff;">{profile['full_name']}</b>
                     <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">{user_team}</div>
@@ -1355,7 +1362,7 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        existing_bet_row = [b for b in all_week_bets if b.get('question_id') == q['id']]
+                        existing_bet_row = [b for b in all_week_bets if b.get('question_id'] == q['id']]
                         default_pick_val = existing_bet_row[0]['pick'] if existing_bet_row else "Yes"
                         default_wager_val = existing_bet_row[0]['wager_amount'] if existing_bet_row else 0
 
@@ -1382,7 +1389,6 @@ else:
 
                             st.markdown(f"**Question: {prompt_text}**")
                             
-                            # Modern Selectable Bet Cards Layout
                             col_card1, col_card2, col_wager = st.columns([1, 1, 1.5])
                             
                             with col_card1:
@@ -1480,11 +1486,9 @@ else:
     with tab_history:
         st.header("Your Past Bets & Results")
         
-        # Determine which weeks have been fully graded (i.e. no winning_answer is Pending/LOCKED/LOCKTIME)
         all_graded_weeks_res = supabase.table("weekly_questions").select("week_number, winning_answer").neq("week_number", 999).execute().data
         graded_weeks_set = set()
         if all_graded_weeks_res:
-            # Group by week and check if any question is still pending or locked
             week_ans_map = {}
             for q in all_graded_weeks_res:
                 w_num = q["week_number"]
@@ -1499,7 +1503,6 @@ else:
 
         graded_weeks_list = sorted(list(graded_weeks_set))
 
-        # Side-by-side comparison expander (only populates/available if there are graded weeks)
         if graded_weeks_list:
             with st.expander("⚔️ Side-by-Side History Comparison vs. Rival", expanded=False):
                 st.caption("Compare your graded week bets side by side against any league member!")
@@ -1516,7 +1519,6 @@ else:
                         
                     rival_id = rival_options[comp_rival_name]
                     
-                    # Fetch both users' bets for comp_week_sel
                     my_hist_bets = supabase.table("user_bets").select("question_id, pick, wager_amount, weekly_questions(question_number, question_text, winning_answer)").eq("user_id", user_id).eq("week_number", comp_week_sel).order("question_id").execute().data
                     rival_hist_bets = supabase.table("user_bets").select("question_id, pick, wager_amount").eq("user_id", rival_id).eq("week_number", comp_week_sel).execute().data
                     rival_bets_map = {b["question_id"]: (b["pick"], b["wager_amount"]) for b in rival_hist_bets}
@@ -1537,7 +1539,6 @@ else:
                             riv_pick = riv_data[0]
                             riv_wager = riv_data[1]
                             
-                            # Determine match outcomes
                             my_status = "✅ Won" if my_pick == w_ans else "❌ Lost"
                             riv_status = "✅ Won" if riv_pick == w_ans else ("❌ Lost" if riv_pick in ["Yes", "No"] else "N/A")
                             
@@ -1622,7 +1623,6 @@ else:
             
             player_stats = sorted(player_stats, key=lambda x: (-x["tokens"], -x["correct_tds"], x["full_name"]))
             
-            # Head-to-Head Rival Comparison
             with st.expander("⚔️ Head-to-Head Player Comparison", expanded=False):
                 all_other_names = [p["full_name"] for p in player_stats if p["id"] != user_id]
                 if all_other_names:
@@ -1753,7 +1753,6 @@ else:
                 </div>
                 """, unsafe_allow_html=True)
 
-        # --- Hall of Fame Section integrated at the bottom of Leaderboard ---
         st.write("")
         st.divider()
         with st.expander("🏛️ Touchdown Tokens Hall of Fame & Season Archives", expanded=False):
