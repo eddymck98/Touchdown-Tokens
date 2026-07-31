@@ -83,7 +83,6 @@ BORDER_STYLE_OPTIONS = {
     "Inset Shaded": "inset"
 }
 
-# Master list of all available titles mapped to their unlocking badge & requirement description
 AVAILABLE_TITLES = {
     "🏈 Gridiron Contender": {"badge": None, "req": "Default baseline title for all players."},
     "👑 League Champion": {"badge": "🏆 League Champion", "req": "Be crowned the official end-of-season League Champion."},
@@ -660,7 +659,6 @@ def get_earned_title(target_user_id):
         prof_res = supabase.table("profiles").select("selected_title").eq("id", target_user_id).single().execute().data
         if prof_res and prof_res.get("selected_title"):
             saved_title = prof_res.get("selected_title")
-            # Verify if player still meets requirements for saved title
             req_info = AVAILABLE_TITLES.get(saved_title)
             if req_info and req_info["badge"]:
                 user_badges = get_user_badges(target_user_id)
@@ -669,7 +667,6 @@ def get_earned_title(target_user_id):
     except Exception:
         pass
         
-    # Fallback to highest unlocked title or default
     user_badges = get_user_badges(target_user_id)
     for title, info in AVAILABLE_TITLES.items():
         if info["badge"] and info["badge"] in user_badges:
@@ -1173,7 +1170,6 @@ else:
         with col_info:
             st.markdown(f"### {new_team}")
 
-        # Determine unlocked titles
         user_badges_for_titles = get_user_badges(user_id)
         unlocked_title_options = []
         locked_title_info = []
@@ -1234,7 +1230,6 @@ else:
                     st.success("Profile updated successfully!")
                     st.rerun()
 
-        # Display locked titles guide
         if locked_title_info:
             st.write("")
             with st.expander("🔒 Locked Nametag Titles & How to Unlock Them"):
@@ -1325,7 +1320,7 @@ else:
                     """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 2: RULES & INFO (REBUILT CLEAN & SLEEK)
+    # TAB 2: RULES & INFO (WITH EXPANDED FAQ DROP-DOWN)
     # ------------------------------------------
     with tab_rules:
         st.markdown("## 📖 Rules & Information Hub")
@@ -1365,8 +1360,9 @@ else:
         st.markdown(f"""
             <div class="rule-card">
                 <div class="rule-step-num">04 / IMPORTANT LEAGUE POLICIES</div>
-                <div style="font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">Fair Play & Inactive Scratches</div>
+                <div style="font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">Fair Play, Overrides & Inactive Scratches</div>
                 <ul style="color: #cbd5e1; padding-left: 20px; line-height: 1.6; margin: 0;">
+                    <li><b>Submissions & Overrides:</b> You can update your picks and wagers as many times as you like before the kickoff deadline. <b>Your final submit will be your real one and it will completely override your previous picks!</b></li>
                     <li><b>Late Scratches:</b> If a specific player mentioned in a scenario is ruled out before kickoff, bets on that scenario are fully refunded.</li>
                     <li><b>Missed Weeks:</b> Taking a week off is totally fine, though consistent consecutive absences may incur point deductions.</li>
                     <li><b>One Choice Per Question:</b> Lock in either Yes or No per matchup.</li>
@@ -1393,6 +1389,30 @@ else:
                 </div>
             </div>
         """, unsafe_allow_html=True)
+
+        st.write("")
+        with st.expander("❓ Frequently Asked Questions (FAQ)"):
+            st.markdown("""
+                ### 📋 General & Gameplay FAQs
+
+                **Q: What happens if an NFL game is postponed or canceled?**  
+                *A:* Any scenario connected to a game that is postponed or canceled is automatically voided, and all tokens wagered on that scenario are fully refunded to your bank.
+
+                **Q: Can I change my picks after submitting them?**  
+                *A:* Yes, you can submit new picks and wagers as many times as you like before the kickoff lockout. **Your final submit will be your real one and it will completely override your previous picks.**
+
+                **Q: How does the Touchdown Scorer bonus work?**  
+                *A:* You can name any player to score a rushing or receiving touchdown. Passing touchdowns do not count. If your selected player scores, you pocket **+5 bonus tokens** for the following week!
+
+                **Q: What is a "Nemesis" on the leaderboard?**  
+                *A:* Your Nemesis is the player you disagreed with the most on weekly bets where they ended up winning points at your expense!
+
+                **Q: How do I unlock prestigious nametag titles?**  
+                *A:* Titles like *The Oracle*, *Token Tycoon*, and *Gridiron Prophet* unlock automatically as you achieve milestone records or unlock specific badges in your Virtual Trophy Cabinet. Once unlocked, you can select them from your **Profile** tab!
+
+                **Q: What happens if my token balance drops to 0?**  
+                *A:* Don't worry! Reaching 0 tokens unlocks the *Down Bad* badge and title, but you can always bounce back in future weeks through the Touchdown Scorer bonus or special league events.
+            """)
 
     # ------------------------------------------
     # TAB 3: PLACE BETS (Modern Selectable Bet Cards)
@@ -1584,6 +1604,8 @@ else:
                             text=f"**Tokens Allocated:** `{total_wagered}` / `{profile['tokens']}` Tokens ({pct_str}%)"
                         )
                     
+                    st.caption("💡 *Note: Your final submit will be your real one and it will completely override your previous picks for this week.*")
+
                     col_sub1, col_sub2 = st.columns([2, 1])
                     with col_sub1:
                         submit_bet = st.form_submit_button("Submit Weekly Bets 🚀", type="primary", use_container_width=True, disabled=is_locked)
