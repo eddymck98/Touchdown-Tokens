@@ -606,7 +606,7 @@ def get_user_badges(target_user_id, check_celebration=False):
         if user_prof and user_prof.get("full_name") == champ_name:
             badges.append("🏆 League Champion")
 
-    graded_q = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
+    graded_q = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
     if graded_q:
         latest_w = graded_q[0]["week_number"]
         all_latest_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("week_number", latest_w).execute().data
@@ -726,21 +726,24 @@ def calculate_streak(target_user_id):
     except Exception:
         return "0W"
 
-# Check if sign up / sign in is globally locked by admin
-app_lock_setting = supabase.table("weekly_questions").select("winning_answer").eq("week_number", 998).execute().data
-is_app_locked = app_lock_setting and app_lock_setting[0]["winning_answer"] == "LOCKED"
+# Check if sign in or sign up are globally locked by admin
+signin_lock_setting = supabase.table("weekly_questions").select("winning_answer").eq("week_number", 998).execute().data
+is_signin_locked = signin_lock_setting and signin_lock_setting[0]["winning_answer"] == "LOCKED"
+
+signup_lock_setting = supabase.table("weekly_questions").select("winning_answer").eq("week_number", 997).execute().data
+is_signup_locked = signup_lock_setting and signup_lock_setting[0]["winning_answer"] == "LOCKED"
 
 # ==========================================
 # 1. LOGIN & SIGNUP SCREEN
 # ==========================================
 if st.session_state.user is None:
-    if is_app_locked:
-        st.error("🔒 **APP ACCESS LOCKED:** The Admin has temporarily disabled sign-ins and sign-ups. Please check back soon!")
-    else:
-        tab_login, tab_signup = st.tabs(["🔒 Log In", "📝 Sign Up"])
-        
-        with tab_login:
-            st.subheader("Welcome Back!")
+    tab_login, tab_signup = st.tabs(["🔒 Log In", "📝 Sign Up"])
+    
+    with tab_login:
+        st.subheader("Welcome Back!")
+        if is_signin_locked:
+            st.error("🔒 **SIGN-IN LOCKED:** The Admin has temporarily disabled log-ins. Please check back soon!")
+        else:
             login_email = st.text_input("Email Address", key="login_email")
             login_password = st.text_input("Password", type="password", key="login_pass")
             
@@ -767,8 +770,11 @@ if st.session_state.user is None:
                     else:
                         st.warning("Please enter your email address.")
 
-        with tab_signup:
-            st.subheader("Create a New Account")
+    with tab_signup:
+        st.subheader("Create a New Account")
+        if is_signup_locked:
+            st.error("🔒 **SIGN-UP LOCKED:** The Admin has temporarily disabled new account registrations. Please check back soon!")
+        else:
             st.caption("New players start with 10 free tokens!")
             
             col_fn, col_sn = st.columns(2)
@@ -851,7 +857,7 @@ else:
     if fav_player_sidebar:
         st.sidebar.markdown(f"<div style='font-size:14px; color:#38bdf8; margin-top:-4px;'>⭐ Fav Player: <b>{fav_player_sidebar}</b></div>", unsafe_allow_html=True)
     
-    weeks_res = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).execute()
+    weeks_res = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).execute()
     available_weeks = sorted(list(set([r["week_number"] for r in weeks_res.data]))) if weeks_res.data else []
     
     active_tokens_display = profile['tokens']
@@ -979,7 +985,7 @@ else:
                 st.code(share_text_block, language="markdown")
                 st.success("Copy the text box above to share your picks directly into WhatsApp or group chat!")
 
-        graded_q_badge = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
+        graded_q_badge = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
         
         if graded_q_badge:
             latest_mvp_week = graded_q_badge[0]["week_number"]
@@ -1650,7 +1656,7 @@ else:
     with tab_history:
         st.header("Your Past Bets & Results")
         
-        all_graded_weeks_res = supabase.table("weekly_questions").select("week_number, winning_answer").neq("week_number", 999).neq("week_number", 998).execute().data
+        all_graded_weeks_res = supabase.table("weekly_questions").select("week_number, winning_answer").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).execute().data
         graded_weeks_set = set()
         if all_graded_weeks_res:
             week_ans_map = {}
@@ -2028,7 +2034,7 @@ else:
                 st.subheader("📋 Manage & Edit Weekly Questions & Matchups")
                 st.caption("Select a week below to view, publish, or edit questions and matchups dynamically. They will stay right here for ongoing edits!")
                 
-                all_db_weeks = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).execute().data
+                all_db_weeks = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).execute().data
                 db_week_nums = sorted(list(set([r["week_number"] for r in all_db_weeks]))) if all_db_weeks else []
                 next_suggested_week = (db_week_nums[-1] + 1) if db_week_nums else 1
                 
@@ -2377,7 +2383,7 @@ else:
                 
                 ann_week = st.number_input("Week Number", min_value=1, max_value=24, step=1, key="admin_ann_week")
                 
-                graded_q_badge_ann = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
+                graded_q_badge_ann = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
                 
                 top_winner_str = "TBD"
                 biggest_loser_str = "TBD"
@@ -2483,18 +2489,29 @@ Good luck this week! 🔥"""
 
             elif admin_sec == "App Access Control":
                 st.subheader("🔒 App Sign-In & Sign-Up Access Control")
-                st.caption("Lock down the entire app login and registration gateway to prevent users from logging in or creating new accounts.")
+                st.caption("Independently lock down sign-in and sign-up gateways to restrict access separately.")
                 
-                lock_app_toggle = st.toggle("Lock App Sign-In and Sign-Up", value=is_app_locked)
+                lock_signin_toggle = st.toggle("Lock Sign-In Gate", value=is_signin_locked)
+                lock_signup_toggle = st.toggle("Lock Sign-Up Gate", value=is_signup_locked)
                 
                 if st.button("Save Access Control Settings 🛡️", type="primary"):
-                    status_str = "LOCKED" if lock_app_toggle else "OPEN"
+                    signin_status = "LOCKED" if lock_signin_toggle else "OPEN"
                     supabase.table("weekly_questions").delete().eq("week_number", 998).execute()
                     supabase.table("weekly_questions").insert({
                         "week_number": 998,
                         "question_number": 1,
-                        "question_text": "APP ACCESS LOCK",
-                        "winning_answer": status_str
+                        "question_text": "SIGNIN ACCESS LOCK",
+                        "winning_answer": signin_status
                     }).execute()
-                    st.success(f"App access status updated to: {status_str}!")
+                    
+                    signup_status = "LOCKED" if lock_signup_toggle else "OPEN"
+                    supabase.table("weekly_questions").delete().eq("week_number", 997).execute()
+                    supabase.table("weekly_questions").insert({
+                        "week_number": 997,
+                        "question_number": 1,
+                        "question_text": "SIGNUP ACCESS LOCK",
+                        "winning_answer": signup_status
+                    }).execute()
+                    
+                    st.success(f"Access settings updated! Sign-In: {signin_status}, Sign-Up: {signup_status}")
                     st.rerun()
