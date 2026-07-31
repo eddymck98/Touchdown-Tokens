@@ -40,7 +40,7 @@ def get_cached_weekly_questions(w_num):
 
 @st.cache_data(ttl=30)
 def get_cached_all_weekly_questions_meta():
-    res = supabase.table("weekly_questions").select("week_number, winning_answer").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).execute()
+    res = supabase.table("weekly_questions").select("week_number, winning_answer").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).execute()
     return res.data if res.data else []
 
 # Comprehensive NFL Team Logos & Primary Accent Hex Colors (Safe to cache globally as it's static reference data)
@@ -622,7 +622,7 @@ def get_user_badges(target_user_id, check_celebration=False):
         if user_prof and user_prof.get("full_name") == champ_name:
             badges.append("🏆 League Champion")
 
-    graded_q = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
+    graded_q = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
     if graded_q:
         latest_w = graded_q[0]["week_number"]
         all_latest_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("week_number", latest_w).execute().data
@@ -873,7 +873,7 @@ else:
     if fav_player_sidebar:
         st.sidebar.markdown(f"<div style='font-size:14px; color:#38bdf8; margin-top:-4px;'>⭐ Fav Player: <b>{fav_player_sidebar}</b></div>", unsafe_allow_html=True)
     
-    weeks_res = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).execute()
+    weeks_res = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).execute()
     available_weeks = sorted(list(set([r["week_number"] for r in weeks_res.data]))) if weeks_res.data else []
     
     active_tokens_display = profile['tokens']
@@ -1001,7 +1001,7 @@ else:
                 st.code(share_text_block, language="markdown")
                 st.success("Copy the text box above to share your picks directly into WhatsApp or group chat!")
 
-        graded_q_badge = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
+        graded_q_badge = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
         
         if graded_q_badge:
             latest_mvp_week = graded_q_badge[0]["week_number"]
@@ -2084,7 +2084,7 @@ else:
                 st.subheader("📋 Manage & Edit Weekly Questions & Matchups")
                 st.caption("Select a week below to view, publish, or edit questions and matchups dynamically. They will stay right here for ongoing edits!")
                 
-                all_db_weeks = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).execute().data
+                all_db_weeks = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).execute().data
                 db_week_nums = sorted(list(set([r["week_number"] for r in all_db_weeks]))) if all_db_weeks else []
                 next_suggested_week = (db_week_nums[-1] + 1) if db_week_nums else 1
                 
@@ -2221,6 +2221,19 @@ else:
                 st.subheader("Grade Weekly Results & Live Score Feeder")
                 grade_week = st.number_input("Select Week to Grade", min_value=1, max_value=24, step=1, key="grade_week_num")
                 
+                status_row = supabase.table("weekly_questions").select("winning_answer").eq("week_number", grade_week).eq("question_number", 96).execute().data
+                is_week_closed = status_row and status_row[0]["winning_answer"] == "CLOSED"
+                
+                if is_week_closed:
+                    st.warning(f"🔒 **Week {grade_week} is currently CLOSED and has already been graded.**")
+                    col_reopen1, col_reopen2 = st.columns([2, 2])
+                    with col_reopen1:
+                        if st.button(f"🔓 Reopen Week {grade_week} for Regrading", type="secondary"):
+                            supabase.table("weekly_questions").delete().eq("week_number", grade_week).eq("question_number", 96).execute()
+                            st.success(f"Week {grade_week} has been reopened successfully!")
+                            st.rerun()
+                    st.divider()
+                
                 with st.expander("⚡ Fetch Live ESPN Scores for Reference", expanded=False):
                     st.caption("Pull live game scores from ESPN to verify outcomes before grading below.")
                     if st.button("🔄 Fetch Live Scores Now"):
@@ -2318,38 +2331,52 @@ else:
                                 else:
                                     supabase.table("touchdown_picks").update({"is_correct": False}).eq("id", td["id"]).execute()
 
-                        if st.form_submit_button("Calculate & Process Payouts 🏆", type="primary"):
-                            for q_id, ans in answers.items():
-                                supabase.table("weekly_questions").update({"winning_answer": ans}).eq("id", q_id).execute()
-                            
-                            week_bets = supabase.table("user_bets").select("*").eq("week_number", grade_week).execute().data
-                            
-                            user_token_changes = {}
-                            for bet in week_bets:
-                                u_id = bet["user_id"]
-                                q_id = bet["question_id"]
-                                correct_ans = answers.get(q_id)
-                                wager = bet["wager_amount"]
+                        submit_grade_btn = st.form_submit_button("Calculate & Process Payouts 🏆", type="primary", disabled=is_week_closed)
+
+                        if submit_grade_btn:
+                            if is_week_closed:
+                                st.error("This week is closed and cannot be graded again unless reopened.")
+                            else:
+                                for q_id, ans in answers.items():
+                                    supabase.table("weekly_questions").update({"winning_answer": ans}).eq("id", q_id).execute()
                                 
-                                if u_id not in user_token_changes:
-                                    user_token_changes[u_id] = 0
+                                week_bets = supabase.table("user_bets").select("*").eq("week_number", grade_week).execute().data
+                                
+                                user_token_changes = {}
+                                for bet in week_bets:
+                                    u_id = bet["user_id"]
+                                    q_id = bet["question_id"]
+                                    correct_ans = answers.get(q_id)
+                                    wager = bet["wager_amount"]
                                     
-                                if correct_ans in ["Yes", "No"]:
-                                    if bet["pick"] == correct_ans:
-                                        user_token_changes[u_id] += wager
-                                    else:
-                                        user_token_changes[u_id] -= wager
-                            
-                            for winner_id in td_winners:
-                                user_token_changes[winner_id] = user_token_changes.get(winner_id, 0) + 5
-                            
-                            for u_id, change in user_token_changes.items():
-                                p_data = supabase.table("profiles").select("tokens").eq("id", u_id).single().execute().data
-                                new_balance = max(0, p_data["tokens"] + change)
-                                supabase.table("profiles").update({"tokens": new_balance}).eq("id", u_id).execute()
+                                    if u_id not in user_token_changes:
+                                        user_token_changes[u_id] = 0
+                                        
+                                    if correct_ans in ["Yes", "No"]:
+                                        if bet["pick"] == correct_ans:
+                                            user_token_changes[u_id] += wager
+                                        else:
+                                            user_token_changes[u_id] -= wager
                                 
-                            st.balloons()
-                            st.success("Scores graded and user token balances updated!")
+                                for winner_id in td_winners:
+                                    user_token_changes[winner_id] = user_token_changes.get(winner_id, 0) + 5
+                                
+                                for u_id, change in user_token_changes.items():
+                                    p_data = supabase.table("profiles").select("tokens").eq("id", u_id).single().execute().data
+                                    new_balance = max(0, p_data["tokens"] + change)
+                                    supabase.table("profiles").update({"tokens": new_balance}).eq("id", u_id).execute()
+                                
+                                supabase.table("weekly_questions").delete().eq("week_number", grade_week).eq("question_number", 96).execute()
+                                supabase.table("weekly_questions").insert({
+                                    "week_number": grade_week,
+                                    "question_number": 96,
+                                    "question_text": "WEEK CLOSED MARKER",
+                                    "winning_answer": "CLOSED"
+                                }).execute()
+                                    
+                                st.balloons()
+                                st.success("Scores graded, payouts processed, and week successfully closed!")
+                                st.rerun()
 
             elif admin_sec == "Bulk Token Adjuster":
                 st.subheader("👥 Bulk Player Token Adjuster & Reset Wizard")
@@ -2433,7 +2460,7 @@ else:
                 
                 ann_week = st.number_input("Week Number", min_value=1, max_value=24, step=1, key="admin_ann_week")
                 
-                graded_q_badge_ann = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
+                graded_q_badge_ann = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
                 
                 top_winner_str = "TBD"
                 biggest_loser_str = "TBD"
