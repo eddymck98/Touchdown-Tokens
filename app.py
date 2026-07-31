@@ -69,8 +69,8 @@ NFL_TEAMS = list(NFL_TEAM_DATA.keys())
 AVATAR_OPTIONS = [
     "🏈", "🐐", "⚡", "👑", "🎯", "💣", "💎", "🔥", "🛡️", "🚀",
     "🦁", "🐯", "🐻", "🦅", "🐺", "🦈", "🐉", "💀", "👽", "🤖",
-    "⭐", "🏆", "🥇", "💪", "🎲", "🎩", "🍻", "🍕", "🍔", "🦅",
-    "💥", "⚡", "🔮", "🃏", "🥷", "🧙‍♂️", "🧛‍♂️", "🧟‍♂️", "🦸‍♂️", "🦹‍♂️"
+    "⭐", "🏆", "🥇", "💪", "🎲", "🎩", "🍻", "🍕", "🍔", "💥",
+    "🔮", "🃏", "🥷", "🧙‍♂️", "🧛‍♂️", "🧟‍♂️", "🦸‍♂️", "🦹‍♂️"
 ]
 
 BORDER_STYLE_OPTIONS = {
@@ -120,22 +120,18 @@ DEFAULT_QUESTION_TEMPLATES = [
 user_team_color = "#fbbf24"
 user_team_logo = "https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg"
 user_stadium_bg = "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&w=1920&q=80"
-user_custom_bg = ""
 
 if st.session_state.user:
     try:
-        res = supabase.table("profiles").select("favorite_team, custom_bg").eq("id", st.session_state.user.id).single().execute()
+        res = supabase.table("profiles").select("favorite_team").eq("id", st.session_state.user.id).single().execute()
         if res.data:
             t_name = res.data.get("favorite_team", "🏈 Free Agent / Neutral")
             t_info = NFL_TEAM_DATA.get(t_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
             user_team_color = t_info["color"]
             user_team_logo = t_info["logo"]
             user_stadium_bg = t_info["stadium"]
-            user_custom_bg = res.data.get("custom_bg", "")
     except Exception:
         pass
-
-active_bg_image = user_custom_bg if user_custom_bg else user_stadium_bg
 
 st.markdown(f"""
     <style>
@@ -145,7 +141,7 @@ st.markdown(f"""
         background: 
             radial-gradient(circle at 50% 20%, rgba(15, 23, 42, 0.90), rgba(7, 13, 25, 0.99)),
             url('{user_team_logo}') center center / 28% no-repeat fixed,
-            url('{active_bg_image}') center center / cover no-repeat fixed !important;
+            url('{user_stadium_bg}') center center / cover no-repeat fixed !important;
         color: #f8fafc !important;
         font-family: 'Inter', sans-serif !important;
     }}
@@ -789,8 +785,7 @@ if st.session_state.user is None:
                             "featured_badges": [],
                             "avatar_border": "solid",
                             "favorite_player": "",
-                            "avatar_color": "#1e3a8a",
-                            "custom_bg": ""
+                            "avatar_color": "#1e3a8a"
                         }).execute()
                         st.success("Account created successfully! You can now log in using the Log In tab above.")
                 except Exception as e:
@@ -1149,7 +1144,7 @@ else:
     # ------------------------------------------
     with tab_profile:
         st.header("👤 Profile & Customization Hub")
-        st.caption("Personalize your display avatar, border style, background color/image URL, favorite player, favorite team, and featured badges!")
+        st.caption("Personalize your display avatar, border style, avatar color, favorite player, favorite team, and featured badges!")
         
         curr_team = profile.get("favorite_team", "🏈 Free Agent / Neutral")
         team_index = NFL_TEAMS.index(curr_team) if curr_team in NFL_TEAMS else 0
@@ -1182,7 +1177,6 @@ else:
                 curr_av_color = profile.get("avatar_color", "#1e3a8a")
                 new_av_color = st.color_picker("Avatar Box Color", value=curr_av_color)
 
-            new_custom_bg = st.text_input("Custom Stadium / Background Image URL (Optional)", value=profile.get("custom_bg", ""), help="Paste any image URL (e.g., Unsplash) to replace your background wallpaper!")
             new_fav_player = st.text_input("Favorite NFL Player", value=profile.get("favorite_player", ""))
             new_bio = st.text_input("Profile Catchphrase / Bio (max 100 chars)", value=profile.get("bio", "Ready for Kickoff!"), max_chars=100)
             
@@ -1198,7 +1192,6 @@ else:
                         "avatar_emoji": new_avatar,
                         "avatar_border": new_border,
                         "avatar_color": new_av_color,
-                        "custom_bg": new_custom_bg.strip(),
                         "favorite_player": new_fav_player.strip(),
                         "bio": new_bio.strip()
                     }).eq("id", user_id).execute()
