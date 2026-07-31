@@ -1258,7 +1258,7 @@ else:
                 <div class="rule-step-num">03 / SCHEDULE & CUTOFFS</div>
                 <div style="font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">Sunday & Monday Slates Only</div>
                 <p style="color: #cbd5e1; line-height: 1.6; margin: 0;">
-                    All scenarios feature Sunday or Monday games (no Thursday night fixtures). Submissions automatically lock down precisely <b style="color: #38bdf8;">15 minutes before the first Sunday kickoff</b>. Make sure your lock-ins are saved before time expires!
+                    All scenarios feature Sunday or Monday games (no Thursday night fixtures). Submissions automatically lock down precisely. Occasionally International games will be input however prior notice will be given in the group chat and the lockdown time will be brought forward. <b style="color: #38bdf8;">15 minutes before the first Sunday kickoff</b>. Make sure your lock-ins are saved before time expires!
                 </p>
             </div>
         """, unsafe_allow_html=True)
