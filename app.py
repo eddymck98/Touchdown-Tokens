@@ -30,46 +30,47 @@ if "user" not in st.session_state:
 
 # Comprehensive NFL Team Logos & Primary Accent Hex Colors
 NFL_TEAM_DATA = {
-    "🏈 Free Agent / Neutral": {"logo": "https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg", "color": "#fbbf24"},
-    "🔴 Arizona Cardinals": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/ari.png", "color": "#97233F"},
-    "🔴 Atlanta Falcons": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/atl.png", "color": "#A71930"},
-    "🟣 Baltimore Ravens": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/bal.png", "color": "#241773"},
-    "🔴 Buffalo Bills": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/buf.png", "color": "#00338D"},
-    "🔵 Carolina Panthers": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/car.png", "color": "#0085CA"},
-    "🟠 Chicago Bears": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/chi.png", "color": "#C83803"},
-    "🟠 Cincinnati Bengals": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/cin.png", "color": "#FB4F14"},
-    "🟤 Cleveland Browns": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/cle.png", "color": "#FF3C00"},
-    "🔵 Dallas Cowboys": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/dal.png", "color": "#003594"},
-    "🟠 Denver Broncos": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/den.png", "color": "#FB4F14"},
-    "🔵 Detroit Lions": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/det.png", "color": "#0076B6"},
-    "🟢 Green Bay Packers": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/gb.png", "color": "#203731"},
-    "🔴 Houston Texans": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/hou.png", "color": "#03202F"},
-    "🔵 Indianapolis Colts": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/ind.png", "color": "#002C5F"},
-    "🐆 Jacksonville Jaguars": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/jax.png", "color": "#006778"},
-    "🔴 Kansas City Chiefs": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/kc.png", "color": "#E31837"},
-    "🪙 Las Vegas Raiders": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/lv.png", "color": "#A5ACAF"},
-    "⚡ Los Angeles Chargers": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/lac.png", "color": "#0080C6"},
-    "🟡 Los Angeles Rams": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/lar.png", "color": "#003594"},
-    "🐬 Miami Dolphins": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/mia.png", "color": "#008E97"},
-    "🟣 Minnesota Vikings": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/min.png", "color": "#4F2683"},
-    "🔵 New England Patriots": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/ne.png", "color": "#002244"},
-    "⚜️ New Orleans Saints": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/no.png", "color": "#D3BC8D"},
-    "🔵 New York Giants": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/nyg.png", "color": "#0B2265"},
-    "🟢 New York Jets": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/nyj.png", "color": "#125740"},
-    "🦅 Philadelphia Eagles": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/phi.png", "color": "#004C54"},
-    "🟡 Pittsburgh Steelers": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/pit.png", "color": "#FFB612"},
-    "🔴 San Francisco 49ers": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/sf.png", "color": "#AA0000"},
-    "🟢 Seattle Seahawks": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/sea.png", "color": "#69BE28"},
-    "🔴 Tampa Bay Buccaneers": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/tb.png", "color": "#D50A0A"},
-    "🔵 Tennessee Titans": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/ten.png", "color": "#4B92DB"},
-    "🔴 Washington Commanders": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/was.png", "color": "#5A1414"}
+    "🏈 Free Agent / Neutral": {"logo": "https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg", "color": "#fbbf24", "stadium": "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&w=1920&q=80"},
+    "🔴 Arizona Cardinals": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/ari.png", "color": "#97233F", "stadium": "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1920&q=80"},
+    "🔴 Atlanta Falcons": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/atl.png", "color": "#A71930", "stadium": "https://images.unsplash.com/photo-1519766304817-4f37bda74a29?auto=format&fit=crop&w=1920&q=80"},
+    "🟣 Baltimore Ravens": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/bal.png", "color": "#241773", "stadium": "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1920&q=80"},
+    "🔴 Buffalo Bills": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/buf.png", "color": "#00338D", "stadium": "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1920&q=80"},
+    "🔵 Carolina Panthers": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/car.png", "color": "#0085CA", "stadium": "https://images.unsplash.com/photo-1519766304817-4f37bda74a29?auto=format&fit=crop&w=1920&q=80"},
+    "🟠 Chicago Bears": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/chi.png", "color": "#C83803", "stadium": "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1920&q=80"},
+    "🟠 Cincinnati Bengals": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/cin.png", "color": "#FB4F14", "stadium": "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1920&q=80"},
+    "🟤 Cleveland Browns": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/cle.png", "color": "#FF3C00", "stadium": "https://images.unsplash.com/photo-1519766304817-4f37bda74a29?auto=format&fit=crop&w=1920&q=80"},
+    "🔵 Dallas Cowboys": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/dal.png", "color": "#003594", "stadium": "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1920&q=80"},
+    "🟠 Denver Broncos": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/den.png", "color": "#FB4F14", "stadium": "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1920&q=80"},
+    "🔵 Detroit Lions": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/det.png", "color": "#0076B6", "stadium": "https://images.unsplash.com/photo-1519766304817-4f37bda74a29?auto=format&fit=crop&w=1920&q=80"},
+    "🟢 Green Bay Packers": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/gb.png", "color": "#203731", "stadium": "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1920&q=80"},
+    "🔴 Houston Texans": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/hou.png", "color": "#03202F", "stadium": "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1920&q=80"},
+    "🔵 Indianapolis Colts": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/ind.png", "color": "#002C5F", "stadium": "https://images.unsplash.com/photo-1519766304817-4f37bda74a29?auto=format&fit=crop&w=1920&q=80"},
+    "🐆 Jacksonville Jaguars": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/jax.png", "color": "#006778", "stadium": "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1920&q=80"},
+    "🔴 Kansas City Chiefs": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/kc.png", "color": "#E31837", "stadium": "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1920&q=80"},
+    "🪙 Las Vegas Raiders": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/lv.png", "color": "#A5ACAF", "stadium": "https://images.unsplash.com/photo-1519766304817-4f37bda74a29?auto=format&fit=crop&w=1920&q=80"},
+    "⚡ Los Angeles Chargers": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/lac.png", "color": "#0080C6", "stadium": "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1920&q=80"},
+    "🟡 Los Angeles Rams": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/lar.png", "color": "#003594", "stadium": "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1920&q=80"},
+    "🐬 Miami Dolphins": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/mia.png", "color": "#008E97", "stadium": "https://images.unsplash.com/photo-1519766304817-4f37bda74a29?auto=format&fit=crop&w=1920&q=80"},
+    "🟣 Minnesota Vikings": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/min.png", "color": "#4F2683", "stadium": "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1920&q=80"},
+    "🔵 New England Patriots": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/ne.png", "color": "#002244", "stadium": "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1920&q=80"},
+    "⚜️ New Orleans Saints": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/no.png", "color": "#D3BC8D", "stadium": "https://images.unsplash.com/photo-1519766304817-4f37bda74a29?auto=format&fit=crop&w=1920&q=80"},
+    "🔵 New York Giants": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/nyg.png", "color": "#0B2265", "stadium": "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1920&q=80"},
+    "🟢 New York Jets": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/nyj.png", "color": "#125740", "stadium": "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1920&q=80"},
+    "🦅 Philadelphia Eagles": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/phi.png", "color": "#004C54", "stadium": "https://images.unsplash.com/photo-1519766304817-4f37bda74a29?auto=format&fit=crop&w=1920&q=80"},
+    "🟡 Pittsburgh Steelers": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/pit.png", "color": "#FFB612", "stadium": "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1920&q=80"},
+    "🔴 San Francisco 49ers": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/sf.png", "color": "#AA0000", "stadium": "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1920&q=80"},
+    "🟢 Seattle Seahawks": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/sea.png", "color": "#69BE28", "stadium": "https://images.unsplash.com/photo-1519766304817-4f37bda74a29?auto=format&fit=crop&w=1920&q=80"},
+    "🔴 Tampa Bay Buccaneers": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/tb.png", "color": "#D50A0A", "stadium": "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1920&q=80"},
+    "🔵 Tennessee Titans": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/ten.png", "color": "#4B92DB", "stadium": "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1920&q=80"},
+    "🔴 Washington Commanders": {"logo": "https://a.espncdn.com/i/teamlogos/nfl/500/was.png", "color": "#5A1414", "stadium": "https://images.unsplash.com/photo-1519766304817-4f37bda74a29?auto=format&fit=crop&w=1920&q=80"}
 }
 
 NFL_TEAMS = list(NFL_TEAM_DATA.keys())
 AVATAR_OPTIONS = [
     "🏈", "🐐", "⚡", "👑", "🎯", "💣", "💎", "🔥", "🛡️", "🚀",
     "🦁", "🐯", "🐻", "🦅", "🐺", "🦈", "🐉", "💀", "👽", "🤖",
-    "⭐", "🏆", "🥇", "💪", "⚡", "🎲", "🎩", "🍻", "🍕", "🍔"
+    "⭐", "🏆", "🥇", "💪", "🎲", "🎩", "🍻", "🍕", "🍔", "🦅",
+    "💥", "⚡", "🔮", "🃏", "🥷", "🧙‍♂️", "🧛‍♂️", "🧟‍♂️", "🦸‍♂️", "🦹‍♂️"
 ]
 
 BORDER_STYLE_OPTIONS = {
@@ -118,16 +119,23 @@ DEFAULT_QUESTION_TEMPLATES = [
 
 user_team_color = "#fbbf24"
 user_team_logo = "https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg"
+user_stadium_bg = "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&w=1920&q=80"
+user_custom_bg = ""
+
 if st.session_state.user:
     try:
-        res = supabase.table("profiles").select("favorite_team").eq("id", st.session_state.user.id).single().execute()
+        res = supabase.table("profiles").select("favorite_team, custom_bg").eq("id", st.session_state.user.id).single().execute()
         if res.data:
             t_name = res.data.get("favorite_team", "🏈 Free Agent / Neutral")
             t_info = NFL_TEAM_DATA.get(t_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
             user_team_color = t_info["color"]
             user_team_logo = t_info["logo"]
+            user_stadium_bg = t_info["stadium"]
+            user_custom_bg = res.data.get("custom_bg", "")
     except Exception:
         pass
+
+active_bg_image = user_custom_bg if user_custom_bg else user_stadium_bg
 
 st.markdown(f"""
     <style>
@@ -137,7 +145,7 @@ st.markdown(f"""
         background: 
             radial-gradient(circle at 50% 20%, rgba(15, 23, 42, 0.90), rgba(7, 13, 25, 0.99)),
             url('{user_team_logo}') center center / 28% no-repeat fixed,
-            url('https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&w=1920&q=80') center center / cover no-repeat fixed !important;
+            url('{active_bg_image}') center center / cover no-repeat fixed !important;
         color: #f8fafc !important;
         font-family: 'Inter', sans-serif !important;
     }}
@@ -180,6 +188,29 @@ st.markdown(f"""
         0% {{ box-shadow: 0 0 12px {user_team_color}33; }}
         50% {{ box-shadow: 0 0 32px {user_team_color}bb; }}
         100% {{ box-shadow: 0 0 12px {user_team_color}33; }}
+    }}
+
+    /* Animated Prestigious Trophy Borders */
+    @keyframes goldGlow {{
+        0% {{ box-shadow: 0 0 10px #fbbf24, inset 0 0 10px #fbbf24; border-color: #fbbf24; }}
+        50% {{ box-shadow: 0 0 25px #f59e0b, inset 0 0 20px #f59e0b; border-color: #f59e0b; }}
+        100% {{ box-shadow: 0 0 10px #fbbf24, inset 0 0 10px #fbbf24; border-color: #fbbf24; }}
+    }}
+    @keyframes neonPulseAnim {{
+        0% {{ box-shadow: 0 0 12px #38bdf8, inset 0 0 8px #38bdf8; border-color: #38bdf8; }}
+        50% {{ box-shadow: 0 0 28px #0284c7, inset 0 0 18px #0284c7; border-color: #0284c7; }}
+        100% {{ box-shadow: 0 0 12px #38bdf8, inset 0 0 8px #38bdf8; border-color: #38bdf8; }}
+    }}
+
+    .avatar-champion-frame {{
+        animation: goldGlow 2.5s infinite ease-in-out !important;
+        border-width: 3px !important;
+        border-style: solid !important;
+    }}
+    .avatar-tycoon-frame {{
+        animation: neonPulseAnim 2.5s infinite ease-in-out !important;
+        border-width: 3px !important;
+        border-style: solid !important;
     }}
 
     /* Sticky Header / Compact Balance Bar */
@@ -397,7 +428,6 @@ st.markdown(f"""
         box-shadow: 0 8px 28px rgba(0,0,0,0.35);
     }}
 
-    /* --- SLEEK NEW CARDS FOR RULES & INFO --- */
     .rule-card {{
         background: linear-gradient(135deg, rgba(30, 41, 59, 0.82) 0%, rgba(15, 23, 42, 0.92) 100%);
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -617,6 +647,25 @@ def get_user_badges(target_user_id, check_celebration=False):
             
     return badges
 
+def get_earned_title(target_user_id):
+    badges = get_user_badges(target_user_id)
+    if "🏆 League Champion" in badges:
+        return "👑 League Champion"
+    elif "🔮 Oracle of Delphi" in badges:
+        return "🔮 The Oracle"
+    elif "🚀 Token Tycoon" in badges:
+        return "💰 Token Tycoon"
+    elif "⚡ Gridiron Prophet" in badges:
+        return "⚡ Gridiron Prophet"
+    elif "🎯 Sniper" in badges:
+        return "🎯 Sharp Shooter"
+    elif "🏈 TD Guru" in badges:
+        return "🏈 TD Specialist"
+    elif "📉 Down Bad" in badges:
+        return "📉 Bankrupt Gambler"
+    else:
+        return "🏈 Gridiron Contender"
+
 def calculate_nemesis(target_user_id):
     try:
         user_bets = supabase.table("user_bets").select("week_number, question_id, pick").eq("user_id", target_user_id).execute().data
@@ -739,7 +788,9 @@ if st.session_state.user is None:
                             "avatar_emoji": "🏈",
                             "featured_badges": [],
                             "avatar_border": "solid",
-                            "favorite_player": ""
+                            "favorite_player": "",
+                            "avatar_color": "#1e3a8a",
+                            "custom_bg": ""
                         }).execute()
                         st.success("Account created successfully! You can now log in using the Log In tab above.")
                 except Exception as e:
@@ -757,17 +808,25 @@ else:
     user_team = profile.get('favorite_team', '🏈 Free Agent / Neutral')
     team_data = NFL_TEAM_DATA.get(user_team, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
     user_border_style = profile.get("avatar_border", "solid")
+    user_avatar_color = profile.get("avatar_color", "#1e3a8a")
+    user_badges_list = get_user_badges(user_id, check_celebration=True)
     
-    get_user_badges(user_id, check_celebration=True)
+    # Check Prestigious Unlocks for Animated Flair
+    frame_class = ""
+    if "🏆 League Champion" in user_badges_list:
+        frame_class = "avatar-champion-frame"
+    elif "🚀 Token Tycoon" in user_badges_list:
+        frame_class = "avatar-tycoon-frame"
 
     # --- SIDEBAR ---
     st.sidebar.markdown(f"""
         <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 12px; padding: 6px 0;">
-            <div style="border: 3px {user_border_style} {user_team_color}; border-radius: 12px; padding: 6px 10px; background: rgba(15,23,42,0.8); box-shadow: 0 4px 15px {user_team_color}44;">
+            <div class="{frame_class}" style="border: 3px {user_border_style} {user_team_color}; border-radius: 12px; padding: 6px 10px; background: {user_avatar_color}; box-shadow: 0 4px 15px {user_team_color}44;">
                 <span style="font-size: 34px;">{user_avatar}</span>
             </div>
             <div>
                 <b style="font-size: 19px; color: #ffffff; letter-spacing: 0.3px;">{profile['full_name']}</b>
+                <div style="font-size: 11px; color: #38bdf8; font-weight: 600;">{get_earned_title(user_id)}</div>
                 <div style="font-size: 12px; color: #94a3b8; font-weight: 500;">{user_team}</div>
             </div>
         </div>
@@ -808,11 +867,11 @@ else:
     st.markdown(f"""
         <div class="sticky-balance-bar">
             <div style="display: flex; align-items: center; gap: 14px;">
-                <div style="border: 3px {user_border_style} {user_team_color}; border-radius: 10px; padding: 3px 8px; background: rgba(15,23,42,0.7); box-shadow: 0 4px 12px {user_team_color}33;">
+                <div class="{frame_class}" style="border: 3px {user_border_style} {user_team_color}; border-radius: 10px; padding: 3px 8px; background: {user_avatar_color}; box-shadow: 0 4px 12px {user_team_color}33;">
                     <span style="font-size: 26px;">{user_avatar}</span>
                 </div>
                 <div>
-                    <b style="font-size: 16px; color: #ffffff;">{profile['full_name']}</b>
+                    <b style="font-size: 16px; color: #ffffff;">{profile['full_name']}</b> <span style="font-size:11px; color:#38bdf8; margin-left:6px;">({get_earned_title(user_id)})</span>
                     <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">{user_team}</div>
                 </div>
             </div>
@@ -942,7 +1001,6 @@ else:
                         </div>
                     """, unsafe_allow_html=True)
 
-        # --- UPCOMING / CURRENT WEEK LIVE CONSENSUS HIGHLIGHTS ---
         if available_weeks:
             current_active_week = available_weeks[-1]
             st.divider()
@@ -1090,8 +1148,8 @@ else:
     # TAB 1: PROFILE & TROPHY CABINET
     # ------------------------------------------
     with tab_profile:
-        st.header("👤 Profile & Customization")
-        st.caption("Personalize your display avatar, border style, favorite player, favorite team, and featured badges!")
+        st.header("👤 Profile & Customization Hub")
+        st.caption("Personalize your display avatar, border style, background color/image URL, favorite player, favorite team, and featured badges!")
         
         curr_team = profile.get("favorite_team", "🏈 Free Agent / Neutral")
         team_index = NFL_TEAMS.index(curr_team) if curr_team in NFL_TEAMS else 0
@@ -1108,20 +1166,24 @@ else:
         with st.form("profile_customization_form"):
             new_display_name = st.text_input("Display Name", value=profile.get("full_name", ""))
             
-            col_av1, col_av2 = st.columns(2)
+            col_av1, col_av2, col_av3 = st.columns(3)
             with col_av1:
                 curr_avatar = profile.get("avatar_emoji", "🏈")
                 avatar_index = AVATAR_OPTIONS.index(curr_avatar) if curr_avatar in AVATAR_OPTIONS else 0
-                new_avatar = st.selectbox("Choose Profile Avatar Emoji", AVATAR_OPTIONS, index=avatar_index)
+                new_avatar = st.selectbox("Avatar Emoji", AVATAR_OPTIONS, index=avatar_index)
             with col_av2:
                 curr_border = profile.get("avatar_border", "solid")
                 border_keys = list(BORDER_STYLE_OPTIONS.keys())
                 border_vals = list(BORDER_STYLE_OPTIONS.values())
                 border_index = border_vals.index(curr_border) if curr_border in border_vals else 0
-                selected_border_label = st.selectbox("Choose Avatar Border Style", border_keys, index=border_index)
+                selected_border_label = st.selectbox("Avatar Border", border_keys, index=border_index)
                 new_border = BORDER_STYLE_OPTIONS[selected_border_label]
+            with col_av3:
+                curr_av_color = profile.get("avatar_color", "#1e3a8a")
+                new_av_color = st.color_picker("Avatar Box Color", value=curr_av_color)
 
-            new_fav_player = st.text_input("Favorite NFL Player (Displayed on Profile & Card)", value=profile.get("favorite_player", ""))
+            new_custom_bg = st.text_input("Custom Stadium / Background Image URL (Optional)", value=profile.get("custom_bg", ""), help="Paste any image URL (e.g., Unsplash) to replace your background wallpaper!")
+            new_fav_player = st.text_input("Favorite NFL Player", value=profile.get("favorite_player", ""))
             new_bio = st.text_input("Profile Catchphrase / Bio (max 100 chars)", value=profile.get("bio", "Ready for Kickoff!"), max_chars=100)
             
             save_profile = st.form_submit_button("Save Profile Settings 💾", type="primary")
@@ -1135,6 +1197,8 @@ else:
                         "favorite_team": new_team,
                         "avatar_emoji": new_avatar,
                         "avatar_border": new_border,
+                        "avatar_color": new_av_color,
+                        "custom_bg": new_custom_bg.strip(),
                         "favorite_player": new_fav_player.strip(),
                         "bio": new_bio.strip()
                     }).eq("id", user_id).execute()
@@ -1411,7 +1475,7 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        existing_bet_row = [b for b in all_week_bets if b.get['question_id'] == q['id']]
+                        existing_bet_row = [b for b in all_week_bets if b.get('question_id'] == q['id']]
                         default_pick_val = existing_bet_row[0]['pick'] if existing_bet_row else "Yes"
                         default_wager_val = existing_bet_row[0]['wager_amount'] if existing_bet_row else 0
 
@@ -1679,6 +1743,7 @@ else:
                         <div class="vs-card">
                             <h3>{my_stat.get('avatar_emoji', '🏈')} You ({my_stat['full_name']})</h3>
                             <h2 style="color: {user_team_color};">{my_stat['tokens']} 🪙</h2>
+                            <p><b>Title:</b> {get_earned_title(user_id)}</p>
                             <p><b>Win Rate:</b> {my_stat['win_rate']}%</p>
                             <p><b>Correct TDs:</b> {my_stat['correct_tds']}</p>
                             <p><b>Nemesis:</b> <span style="color:#f87171;">{my_stat['nemesis_name']}</span> ({my_stat['nemesis_score']})</p>
@@ -1687,10 +1752,12 @@ else:
                     with c2: st.markdown("<h1 style='text-align:center; margin-top:50px;'>VS</h1>", unsafe_allow_html=True)
                     with c3:
                         r_color = NFL_TEAM_DATA.get(rival_stat.get("favorite_team"), NFL_TEAM_DATA["🏈 Free Agent / Neutral"])["color"]
+                        r_title = get_earned_title(rival_stat["id"])
                         st.markdown(f"""
                         <div class="vs-card">
                             <h3>{rival_stat.get('avatar_emoji','🏈')} {rival_stat['full_name']}</h3>
                             <h2 style="color: {r_color};">{rival_stat['tokens']} 🪙</h2>
+                            <p><b>Title:</b> {r_title}</p>
                             <p><b>Win Rate:</b> {rival_stat['win_rate']}%</p>
                             <p><b>Correct TDs:</b> {rival_stat['correct_tds']}</p>
                             <p><b>Nemesis:</b> <span style="color:#f87171;">{rival_stat['nemesis_name']}</span> ({rival_stat['nemesis_score']})</p>
@@ -1709,6 +1776,7 @@ else:
                 
                 av = p.get("avatar_emoji") or "🏈"
                 p_border = p.get("avatar_border", "solid")
+                p_bg_col = p.get("avatar_color", "#1e3a8a")
                 t_info = NFL_TEAM_DATA.get(p.get("favorite_team"), NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                 team_name = p.get("favorite_team") or "🏈 Free Agent / Neutral"
                 fav_pl = p.get("favorite_player", "")
@@ -1716,10 +1784,18 @@ else:
                 nem_score_card = p.get("nemesis_score", 0)
                 win_rate_val = p['win_rate']
                 streak_val = p['streak']
+                p_title = get_earned_title(p["id"])
+                
+                p_badges_list = get_user_badges(p["id"])
+                p_frame_class = ""
+                if "🏆 League Champion" in p_badges_list:
+                    p_frame_class = "avatar-champion-frame"
+                elif "🚀 Token Tycoon" in p_badges_list:
+                    p_frame_class = "avatar-tycoon-frame"
                 
                 showcased = p.get("featured_badges") or []
                 if not showcased or not isinstance(showcased, list):
-                    showcased = get_user_badges(p["id"])[:3]
+                    showcased = p_badges_list[:3]
                 
                 badges_html = "".join([f'<span class="badge-pill">{b}</span>' for b in showcased]) if showcased else '<span style="color:#64748b; font-size:12px;">No Badges Displayed</span>'
                 
@@ -1734,12 +1810,12 @@ else:
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                             <div style="display: flex; align-items: center; gap: 12px;">
                                 <span style="font-family: 'Bebas Neue'; font-size: 26px; color: #fbbf24; width: 45px;">{rank_display}</span>
-                                <div style="border: 3px {p_border} {t_info['color']}; border-radius: 8px; padding: 2px 6px; background: rgba(15,23,42,0.6);">
+                                <div class="{p_frame_class}" style="border: 3px {p_border} {t_info['color']}; border-radius: 8px; padding: 2px 6px; background: {p_bg_col};">
                                     <span style="font-size: 24px;">{av}</span>
                                 </div>
                                 <img src="{t_info['logo']}" style="width: 32px; height: 32px;" />
                                 <div>
-                                    <b style="font-size: 19px; color: #ffffff;">{p['full_name']}</b> {f'<span style="font-size:13px; color:#38bdf8; margin-left:6px;">⭐ {fav_pl}</span>' if fav_pl else ''}
+                                    <b style="font-size: 19px; color: #ffffff;">{p['full_name']}</b> <span style="font-size:12px; color:#38bdf8; font-weight:600; margin-left:6px;">[{p_title}]</span> {f'<span style="font-size:13px; color:#38bdf8; margin-left:6px;">⭐ {fav_pl}</span>' if fav_pl else ''}
                                     <div style="font-size: 13px; color: #94a3b8;">{team_name} • ⚔️ Nemesis: <span style="color:#f87171;">{nem_name_card}</span> ({nem_score_card})</div>
                                 </div>
                             </div>
@@ -2283,7 +2359,7 @@ Good luck this week! 🔥"""
                         for p in all_profiles:
                             supabase.table("profiles").update({"tokens": 10}).eq("id", p["id"]).execute()
                             
-                        st.success("All player balances have0 been reset to 10 tokens! Season archived.")
+                        st.success("All player balances have been reset to 10 tokens! Season archived.")
                         st.download_button(
                             label="📥 Download Archived Season Summary (CSV)",
                             data=df_archive.to_csv(index=False),
