@@ -172,6 +172,23 @@ st.markdown(f"""
         100% {{ box-shadow: 0 0 12px {user_team_color}33; }}
     }}
 
+    /* Sticky Header / Compact Balance Bar */
+    .sticky-balance-bar {{
+        position: sticky;
+        top: 0;
+        z-index: 999;
+        background: rgba(15, 23, 42, 0.95);
+        border-bottom: 2px solid {user_team_color};
+        padding: 10px 20px;
+        margin-bottom: 20px;
+        border-radius: 0 0 12px 12px;
+        backdrop-filter: blur(12px);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    }}
+
     .big-token-card {{
         background: linear-gradient(135deg, rgba(30, 58, 138, 0.85) 0%, rgba(6, 10, 18, 0.90) 100%);
         padding: 30px;
@@ -275,28 +292,6 @@ st.markdown(f"""
         border-radius: 12px;
         text-align: center;
         backdrop-filter: blur(10px);
-    }}
-
-    div[data-testid="stRadio"] div[role="radiogroup"] > label {{
-        background-color: rgba(30, 41, 59, 0.8) !important;
-        border: 1px solid #475569 !important;
-        border-radius: 8px !important;
-        padding: 8px 16px !important;
-        margin-right: 8px !important;
-        transition: all 0.2s ease-in-out !important;
-    }}
-    div[data-testid="stRadio"] div[role="radiogroup"] > label:hover {{
-        border-color: {user_team_color} !important;
-        box-shadow: 0 0 12px {user_team_color}66 !important;
-    }}
-    div[data-testid="stRadio"] div[role="radiogroup"] label[aria-checked="true"] {{
-        background: linear-gradient(135deg, {user_team_color}44 0%, rgba(15,23,42,0.95) 100%) !important;
-        border: 2px solid {user_team_color} !important;
-        box-shadow: 0 0 15px {user_team_color}bb !important;
-    }}
-    div[data-testid="stRadio"] div[role="radiogroup"] label[aria-checked="true"] * {{
-        color: #ffffff !important;
-        font-weight: 800 !important;
     }}
 
     .matchup-team-title {{
@@ -720,13 +715,32 @@ else:
             del st.session_state["supabase_client"]
         st.rerun()
 
+    # --- STICKY HEADER / COMPACT BALANCE BAR ---
+    st.markdown(f"""
+        <div class="sticky-balance-bar">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 22px;">{user_avatar}</span>
+                <div>
+                    <b style="font-size: 16px; color: #ffffff;">{profile['full_name']}</b>
+                    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">{user_team}</div>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div style="text-align: right;">
+                    <span style="font-family: 'Bebas Neue'; font-size: 24px; color: {user_team_color};">{active_tokens_display} 🪙</span>
+                    <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Available Tokens</div>
+                </div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
     if profile.get("is_admin"):
-        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_hof, tab_admin = st.tabs(
-            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🏛️ Hall of Fame", "⚙️ Admin Control"]
+        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_admin = st.tabs(
+            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "⚙️ Admin Control"]
         )
     else:
-        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_hof = st.tabs(
-            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🏛️ Hall of Fame"]
+        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders = st.tabs(
+            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard"]
         )
 
     # ------------------------------------------
@@ -1154,7 +1168,7 @@ else:
         """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 3: PLACE BETS
+    # TAB 3: PLACE BETS (Modern Selectable Bet Cards)
     # ------------------------------------------
     with tab_bet:
         st.header("Weekly Predictions & Wagers")
@@ -1248,7 +1262,7 @@ else:
                     picks = {}
                     
                     st.markdown("### 10 Weekly Questions")
-                    st.caption("Expand any question below to make your pick and wager tokens.")
+                    st.caption("Click your choice card for Yes/No, then set your wager tokens.")
                     
                     for q in questions:
                         if q.get("winning_answer", "").startswith("LOCKTIME:"):
@@ -1271,7 +1285,7 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        existing_bet_row = [b for b in all_week_bets if b.get['question_id'] == q['id']]
+                        existing_bet_row = [b for b in all_week_bets if b.get('question_id') == q['id']]
                         default_pick_val = existing_bet_row[0]['pick'] if existing_bet_row else "Yes"
                         default_wager_val = existing_bet_row[0]['wager_amount'] if existing_bet_row else 0
 
@@ -1297,24 +1311,36 @@ else:
                                 st.markdown(f'<span class="consensus-badge">📊 League Pick: {pct_yes}% YES ({len(q_bets)} votes)</span>', unsafe_allow_html=True)
 
                             st.markdown(f"**Question: {prompt_text}**")
-                            col1, col2 = st.columns([1, 1])
-                            with col1:
-                                picks[q['id']] = st.radio(
-                                    f"Pick Q{q['question_number']}", 
-                                    ["Yes", "No"], 
-                                    index=0 if default_pick_val == "Yes" else 1,
-                                    key=f"pick_{q['id']}", 
-                                    horizontal=True,
-                                    disabled=is_locked
-                                )
-                            with col2:
+                            
+                            # Modern Selectable Bet Cards Layout
+                            col_card1, col_card2, col_wager = st.columns([1, 1, 1.5])
+                            
+                            with col_card1:
+                                is_yes_selected = (default_pick_val == "Yes")
+                                btn_label = "✅ YES (Selected)" if is_yes_selected else "YES"
+                                if st.form_submit_button(f"🟢 {btn_label} (Q{q['question_number']})", use_container_width=True):
+                                    default_pick_val = "Yes"
+                            with col_card2:
+                                is_no_selected = (default_pick_val == "No")
+                                btn_label_no = "❌ NO (Selected)" if is_no_selected else "NO"
+                                if st.form_submit_button(f"🔴 {btn_label_no} (Q{q['question_number']})", use_container_width=True):
+                                    default_pick_val = "No"
+                                    
+                            picks[q['id']] = st.selectbox(
+                                f"Selection Q{q['question_number']}", 
+                                ["Yes", "No"], 
+                                index=0 if default_pick_val == "Yes" else 1,
+                                key=f"pick_{q['id']}",
+                                label_visibility="collapsed"
+                            )
+                            
+                            with col_wager:
                                 wagers[q['id']] = st.number_input(
                                     f"Wager Q{q['question_number']}", 
                                     min_value=0, 
                                     max_value=profile['tokens'], 
                                     value=default_wager_val, 
-                                    key=f"wager_{q['id']}",
-                                    disabled=is_locked
+                                    key=f"wager_{q['id']}"
                                 )
 
                     st.markdown("### 🏈 Bonus Touchdown Scorer Pick")
@@ -1413,7 +1439,7 @@ else:
             st.dataframe(formatted_data, use_container_width=True)
 
     # ------------------------------------------
-    # TAB 5: LEADERBOARD & HEAD-TO-HEAD
+    # TAB 5: LEADERBOARD & HALL OF FAME
     # ------------------------------------------
     with tab_leaders:
         st.header("🏆 League Standings & Head-to-Head")
@@ -1433,7 +1459,6 @@ else:
                         if b["pick"] == w_ans: wins += 1
                 win_rate = int((wins / total_graded) * 100) if total_graded > 0 else 0
                 
-                # Auto-calculate nemesis for each player
                 nem_name, nem_score = calculate_nemesis(p["id"])
                 
                 player_stats.append({
@@ -1571,74 +1596,66 @@ else:
                 </div>
                 """, unsafe_allow_html=True)
 
-    # ------------------------------------------
-    # TAB 6: HALL OF FAME & SEASON ARCHIVES
-    # ------------------------------------------
-    with tab_hof:
-        st.header("🏛️ Touchdown Tokens Hall of Fame")
-        st.caption("Archive of past champions and legendary historical seasons.")
-        
-        st.markdown("**Select Season Archive:**")
-        archive_year_sel = st.selectbox("Select Season Archive", ["2024 Season", "2023 Season"], label_visibility="collapsed")
-        
-        if archive_year_sel == "2024 Season":
-            st.markdown(f"""
-                <div class="champion-card">
-                    <div style="font-size: 20px; letter-spacing: 2px;">👑 2024 SEASON CHAMPION</div>
-                    <div style="font-size: 48px; font-weight: 900; margin: 8px 0;">Louis Lynn (74 🪙)</div>
-                    <div style="font-size: 16px;">Crowned the ultimate Touchdown Tokens victor of the 2024 campaign!</div>
-                </div>
-            """, unsafe_allow_html=True)
+        # --- Hall of Fame Section integrated at the bottom of Leaderboard ---
+        st.write("")
+        st.divider()
+        with st.expander("🏛️ Touchdown Tokens Hall of Fame & Season Archives", expanded=False):
+            st.caption("Archive of past champions and legendary historical seasons.")
             
-            st.subheader("📜 2024 Official Season Final Standings")
-            st.caption("Complete historical results from the 2024 Touchdown Tokens leaderboard.")
+            archive_year_sel = st.selectbox("Select Season Archive", ["2024 Season", "2023 Season"], key="hof_archive_select")
             
-            data_2024 = [
-                {"Rank": "🥇", "Player": "Louis Lynn", "Final Tokens": 74},
-                {"Rank": "🥈", "Player": "John Willis", "Final Tokens": 66},
-                {"Rank": "🥉", "Player": "Will Granger", "Final Tokens": 29},
-                {"Rank": "3nd (Tied)", "Player": "Adam Volpin", "Final Tokens": 29},
-                {"Rank": "5th", "Player": "Gary Shaw", "Final Tokens": 23},
-                {"Rank": "6th", "Player": "Suzie McKenna", "Final Tokens": 21},
-                {"Rank": "7th", "Player": "Dan Hammerton", "Final Tokens": 14},
-                {"Rank": "7th (Tied)", "Player": "Tom Wood", "Final Tokens": 14},
-                {"Rank": "9th", "Player": "Patrick Smith", "Final Tokens": 13},
-                {"Rank": "10th", "Player": "Joe Kewley-Joy", "Final Tokens": 10},
-                {"Rank": "11th", "Player": "Paul Hindle", "Final Tokens": 6},
-                {"Rank": "12th", "Player": "Liam Murphy", "Final Tokens": 0},
-            ]
-            df_2024 = pd.DataFrame(data_2024)
-            st.dataframe(df_2024, use_container_width=True, hide_index=True)
-            
-        else:
-            st.markdown(f"""
-                <div class="champion-card">
-                    <div style="font-size: 20px; letter-spacing: 2px;">👑 2023 SEASON CHAMPION</div>
-                    <div style="font-size: 48px; font-weight: 900; margin: 8px 0;">Ed McKenna (117 🪙)</div>
-                    <div style="font-size: 16px;">Crowned the ultimate Touchdown Tokens victor of the 2023 campaign!</div>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            st.subheader("📜 2023 Official Season Final Standings")
-            st.caption("Complete historical results from the 2023 Touchdown Tokens leaderboard.")
-            
-            data_2023 = [
-                {"Rank": "🥇", "Player": "Ed McKenna", "Final Tokens": 117},
-                {"Rank": "🥈", "Player": "Suzie McKenna", "Final Tokens": 87},
-                {"Rank": "🥉", "Player": "Gary Shaw", "Final Tokens": 76},
-                {"Rank": "4th", "Player": "Adam Volpin", "Final Tokens": 67},
-                {"Rank": "5th", "Player": "Tom Wood", "Final Tokens": 49},
-                {"Rank": "6th", "Player": "Jay Kewley-Joy", "Final Tokens": 48},
-                {"Rank": "7th", "Player": "Will Granger", "Final Tokens": 47},
-                {"Rank": "8th", "Player": "John Willis", "Final Tokens": 28},
-                {"Rank": "9th", "Player": "Patrick Smith", "Final Tokens": 4},
-                {"Rank": "10th", "Player": "Ethan Lewis", "Final Tokens": 3},
-            ]
-            df_2023 = pd.DataFrame(data_2023)
-            st.dataframe(df_2023, use_container_width=True, hide_index=True)
+            if archive_year_sel == "2024 Season":
+                st.markdown(f"""
+                    <div class="champion-card">
+                        <div style="font-size: 20px; letter-spacing: 2px;">👑 2024 SEASON CHAMPION</div>
+                        <div style="font-size: 48px; font-weight: 900; margin: 8px 0;">Louis Lynn (74 🪙)</div>
+                        <div style="font-size: 16px;">Crowned the ultimate Touchdown Tokens victor of the 2024 campaign!</div>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                st.subheader("📜 2024 Official Season Final Standings")
+                data_2024 = [
+                    {"Rank": "🥇", "Player": "Louis Lynn", "Final Tokens": 74},
+                    {"Rank": "🥈", "Player": "John Willis", "Final Tokens": 66},
+                    {"Rank": "🥉", "Player": "Will Granger", "Final Tokens": 29},
+                    {"Rank": "3nd (Tied)", "Player": "Adam Volpin", "Final Tokens": 29},
+                    {"Rank": "5th", "Player": "Gary Shaw", "Final Tokens": 23},
+                    {"Rank": "6th", "Player": "Suzie McKenna", "Final Tokens": 21},
+                    {"Rank": "7th", "Player": "Dan Hammerton", "Final Tokens": 14},
+                    {"Rank": "7th (Tied)", "Player": "Tom Wood", "Final Tokens": 14},
+                    {"Rank": "9th", "Player": "Patrick Smith", "Final Tokens": 13},
+                    {"Rank": "10th", "Player": "Joe Kewley-Joy", "Final Tokens": 10},
+                    {"Rank": "11th", "Player": "Paul Hindle", "Final Tokens": 6},
+                    {"Rank": "12th", "Player": "Liam Murphy", "Final Tokens": 0},
+                ]
+                st.dataframe(pd.DataFrame(data_2024), use_container_width=True, hide_index=True)
+                
+            else:
+                st.markdown(f"""
+                    <div class="champion-card">
+                        <div style="font-size: 20px; letter-spacing: 2px;">👑 2023 SEASON CHAMPION</div>
+                        <div style="font-size: 48px; font-weight: 900; margin: 8px 0;">Ed McKenna (117 🪙)</div>
+                        <div style="font-size: 16px;">Crowned the ultimate Touchdown Tokens victor of the 2023 campaign!</div>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                st.subheader("📜 2023 Official Season Final Standings")
+                data_2023 = [
+                    {"Rank": "🥇", "Player": "Ed McKenna", "Final Tokens": 117},
+                    {"Rank": "🥈", "Player": "Suzie McKenna", "Final Tokens": 87},
+                    {"Rank": "🥉", "Player": "Gary Shaw", "Final Tokens": 76},
+                    {"Rank": "4th", "Player": "Adam Volpin", "Final Tokens": 67},
+                    {"Rank": "5th", "Player": "Tom Wood", "Final Tokens": 49},
+                    {"Rank": "6th", "Player": "Jay Kewley-Joy", "Final Tokens": 48},
+                    {"Rank": "7th", "Player": "Will Granger", "Final Tokens": 47},
+                    {"Rank": "8th", "Player": "John Willis", "Final Tokens": 28},
+                    {"Rank": "9th", "Player": "Patrick Smith", "Final Tokens": 4},
+                    {"Rank": "10th", "Player": "Ethan Lewis", "Final Tokens": 3},
+                ]
+                st.dataframe(pd.DataFrame(data_2023), use_container_width=True, hide_index=True)
 
     # ------------------------------------------
-    # TAB 7: ADMIN CONTROL
+    # TAB 6: ADMIN CONTROL
     # ------------------------------------------
     if profile.get("is_admin"):
         with tab_admin:
