@@ -10,6 +10,7 @@ from supabase import create_client, Client
 def init_supabase():
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
+    # Reverted to default persistent storage; login state will require explicit entry or clear on logout
     return create_client(url, key)
 
 supabase = init_supabase()
