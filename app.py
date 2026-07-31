@@ -67,12 +67,16 @@ NFL_TEAM_DATA = {
 
 NFL_TEAMS = list(NFL_TEAM_DATA.keys())
 AVATAR_OPTIONS = ["🏈", "🐐", "⚡", "👑", "🎯", "💣", "💎", "🔥", "🛡️", "🚀"]
+
+# Custom choice of avatar borders styling mappings
 BORDER_STYLE_OPTIONS = {
-    "Classic Team Solid": "solid",
-    "Neon Glow Pulse": "double",
-    "Gridiron Dashed": "dashed",
+    "Classic Solid": "solid",
+    "Double Neon Pulse": "double",
+    "Dashed Gridiron": "dashed",
     "Stealth Dotted": "dotted",
-    "Championship Ridge": "ridge"
+    "Championship Ridge": "ridge",
+    "Groove Outlined": "groove",
+    "Inset Shaded": "inset"
 }
 
 MASTER_BADGES = {
@@ -1471,10 +1475,88 @@ else:
                             st.success("Your bets and touchdown pick have been successfully locked in!")
 
     # ------------------------------------------
-    # TAB 4: MY HISTORY
+    # TAB 4: MY HISTORY & SIDE-BY-SIDE COMPARISON
     # ------------------------------------------
     with tab_history:
         st.header("Your Past Bets & Results")
+        
+        # Determine which weeks have been fully graded (i.e. no winning_answer is Pending/LOCKED/LOCKTIME)
+        all_graded_weeks_res = supabase.table("weekly_questions").select("week_number, winning_answer").neq("week_number", 999).execute().data
+        graded_weeks_set = set()
+        if all_graded_weeks_res:
+            # Group by week and check if any question is still pending or locked
+            week_ans_map = {}
+            for q in all_graded_weeks_res:
+                w_num = q["week_number"]
+                ans = q["winning_answer"]
+                if w_num not in week_ans_map:
+                    week_ans_map[w_num] = []
+                week_ans_map[w_num].append(ans)
+            
+            for w_num, ans_list in week_ans_map.items():
+                if ans_list and all(a in ["Yes", "No"] for a in ans_list):
+                    graded_weeks_set.add(w_num)
+
+        graded_weeks_list = sorted(list(graded_weeks_set))
+
+        # Side-by-side comparison expander (only populates/available if there are graded weeks)
+        if graded_weeks_list:
+            with st.expander("⚔️ Side-by-Side History Comparison vs. Rival", expanded=False):
+                st.caption("Compare your graded week bets side by side against any league member!")
+                
+                all_profiles_hist = supabase.table("profiles").select("id, full_name, avatar_emoji").execute().data
+                rival_options = {p["full_name"]: p["id"] for p in all_profiles_hist if p["id"] != user_id}
+                
+                if rival_options:
+                    col_comp_w, col_comp_r = st.columns(2)
+                    with col_comp_w:
+                        comp_week_sel = st.selectbox("Select Graded Week", graded_weeks_list, key="hist_comp_week")
+                    with col_comp_r:
+                        comp_rival_name = st.selectbox("Select Rival", list(rival_options.keys()), key="hist_comp_rival")
+                        
+                    rival_id = rival_options[comp_rival_name]
+                    
+                    # Fetch both users' bets for comp_week_sel
+                    my_hist_bets = supabase.table("user_bets").select("question_id, pick, wager_amount, weekly_questions(question_number, question_text, winning_answer)").eq("user_id", user_id).eq("week_number", comp_week_sel).order("question_id").execute().data
+                    rival_hist_bets = supabase.table("user_bets").select("question_id, pick, wager_amount").eq("user_id", rival_id).eq("week_number", comp_week_sel).execute().data
+                    rival_bets_map = {b["question_id"]: (b["pick"], b["wager_amount"]) for b in rival_hist_bets}
+                    
+                    if my_hist_bets:
+                        comparison_rows = []
+                        for b in my_hist_bets:
+                            q_info = b.get("weekly_questions", {})
+                            q_num = q_info.get("question_number", "?")
+                            raw_q = q_info.get("question_text", "N/A")
+                            clean_q = raw_q.split(" | MATCHUP: ")[0] if " | MATCHUP: " in raw_q else raw_q
+                            w_ans = q_info.get("winning_answer", "")
+                            
+                            my_pick = b["pick"]
+                            my_wager = b["wager_amount"]
+                            
+                            riv_data = rival_bets_map.get(b["question_id"], ("Did Not Bet", 0))
+                            riv_pick = riv_data[0]
+                            riv_wager = riv_data[1]
+                            
+                            # Determine match outcomes
+                            my_status = "✅ Won" if my_pick == w_ans else "❌ Lost"
+                            riv_status = "✅ Won" if riv_pick == w_ans else ("❌ Lost" if riv_pick in ["Yes", "No"] else "N/A")
+                            
+                            comparison_rows.append({
+                                f"Q{q_num}": clean_q,
+                                f"You ({my_pick} / {my_wager}🪙)": my_status,
+                                f"{comp_rival_name} ({riv_pick} / {riv_wager}🪙)": riv_status,
+                                "Result": w_ans
+                            })
+                            
+                        st.dataframe(pd.DataFrame(comparison_rows), use_container_width=True, hide_index=True)
+                    else:
+                        st.info("You did not place any bets for this selected week.")
+                else:
+                    st.info("No other rival players available for comparison.")
+        else:
+            st.info("💡 Side-by-side historical comparison will unlock here automatically once at least one week has been fully graded by the Admin!")
+
+        st.divider()
         history_bets = supabase.table("user_bets").select("*, weekly_questions(question_number, question_text, winning_answer)").eq("user_id", user_id).execute().data
         
         if not history_bets:
