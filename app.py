@@ -370,18 +370,6 @@ st.markdown(f"""
         margin: 3px;
     }}
     
-    .consensus-badge {{
-        background-color: rgba(30, 41, 59, 0.90);
-        color: #38bdf8;
-        border: 1px solid rgba(2, 132, 199, 0.6);
-        border-radius: 10px;
-        padding: 6px 12px;
-        font-size: 13px;
-        font-weight: 600;
-        display: inline-block;
-        margin-bottom: 10px;
-    }}
-    
     .chat-bubble {{
         background-color: rgba(15, 23, 42, 0.88);
         backdrop-filter: blur(16px);
@@ -950,15 +938,17 @@ else:
                         </div>
                     """, unsafe_allow_html=True)
 
-        if graded_q_badge:
-            last_w_num = graded_q_badge[0]["week_number"]
+        # --- UPCOMING / CURRENT WEEK LIVE CONSENSUS HIGHLIGHTS ---
+        if available_weeks:
+            current_active_week = available_weeks[-1]
             st.divider()
-            st.subheader(f"📈 Week {last_w_num} Community Trends & Most Picked Lines")
+            st.subheader(f"📊 Week {current_active_week} Community Trends & Action")
+            st.caption("A snapshot of how the league is leaning on this week's active matchups.")
             
-            lw_all_bets = supabase.table("user_bets").select("question_id, pick, wager_amount, weekly_questions(question_text)").eq("week_number", last_w_num).execute().data
-            if lw_all_bets:
+            live_all_bets = supabase.table("user_bets").select("question_id, pick, wager_amount, weekly_questions(question_text)").eq("week_number", current_active_week).execute().data
+            if live_all_bets:
                 q_stats = {}
-                for b in lw_all_bets:
+                for b in live_all_bets:
                     q_text = b.get("weekly_questions", {}).get("question_text", "Question")
                     clean_q = q_text.split(" | MATCHUP: ")[0] if " | MATCHUP: " in q_text else q_text
                     if clean_q not in q_stats:
@@ -994,6 +984,10 @@ else:
                                 • <b>Total Tokens Wagered on Matchup:</b> {row['total_wagered']} 🪙
                             </div>
                         """, unsafe_allow_html=True)
+                else:
+                    st.info("No bets placed for the current week yet. Be the first to lock in your picks!")
+            else:
+                st.info("No bets placed for the current week yet. Be the first to lock in your picks!")
 
         st.divider()
         st.subheader("📊 Last Week's Performance Summary")
@@ -1258,8 +1252,7 @@ else:
                 <div class="rule-step-num">03 / SCHEDULE & CUTOFFS</div>
                 <div style="font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">Sunday & Monday Slates Only</div>
                 <p style="color: #cbd5e1; line-height: 1.6; margin: 0;">
-                    All scenarios feature Sunday or Monday games (no Thursday night fixtures). Submissions automatically lock down precisely. <b style="color: #38bdf8;">15 minutes before the first Sunday kickoff</b>. Make sure your lock-ins are saved before time expires!
-                   <i>Note:  Occasionally International games will be input however prior notice will be given in the group chat and the lockdown time will be brought forward.</i>
+                    All scenarios feature Sunday or Monday games (no Thursday night fixtures). Submissions automatically lock down precisely <b style="color: #38bdf8;">15 minutes before the first Sunday kickoff</b>. Make sure your lock-ins are saved before time expires!
                 </p>
             </div>
         """, unsafe_allow_html=True)
@@ -1414,7 +1407,7 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        existing_bet_row = [b for b in all_week_bets if b.get['question_id'] == q['id']]
+                        existing_bet_row = [b for b in all_week_bets if b.get('question_id'] == q['id']]
                         default_pick_val = existing_bet_row[0]['pick'] if existing_bet_row else "Yes"
                         default_wager_val = existing_bet_row[0]['wager_amount'] if existing_bet_row else 0
 
@@ -1432,12 +1425,6 @@ else:
                                 """, unsafe_allow_html=True)
                             with col_home_logo:
                                 st.image(home_info["logo"], width=40)
-
-                            q_bets = [b for b in all_week_bets if b['question_id'] == q['id']]
-                            if q_bets:
-                                yes_cnt = sum(1 for b in q_bets if b['pick'] == "Yes")
-                                pct_yes = int((yes_cnt / len(q_bets)) * 100)
-                                st.markdown(f'<span class="consensus-badge">📊 League Pick: {pct_yes}% YES ({len(q_bets)} votes)</span>', unsafe_allow_html=True)
 
                             st.markdown(f"**Question: {prompt_text}**")
                             
