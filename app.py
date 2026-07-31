@@ -67,6 +67,13 @@ NFL_TEAM_DATA = {
 
 NFL_TEAMS = list(NFL_TEAM_DATA.keys())
 AVATAR_OPTIONS = ["🏈", "🐐", "⚡", "👑", "🎯", "💣", "💎", "🔥", "🛡️", "🚀"]
+BORDER_STYLE_OPTIONS = {
+    "Classic Team Solid": "solid",
+    "Neon Glow Pulse": "double",
+    "Gridiron Dashed": "dashed",
+    "Stealth Dotted": "dotted",
+    "Championship Ridge": "ridge"
+}
 
 MASTER_BADGES = {
     "🚀 Token Tycoon": "Reach a balance of 30+ tokens",
@@ -544,6 +551,45 @@ def get_user_badges(target_user_id, check_celebration=False):
             
     return badges
 
+def calculate_nemesis(target_user_id):
+    """Auto-calculates the user's nemesis based on who most frequently opposes their picks on shared questions and wins."""
+    try:
+        user_bets = supabase.table("user_bets").select("week_number, question_id, pick").eq("user_id", target_user_id).execute().data
+        if not user_bets:
+            return "None Yet", 0
+            
+        # Map user's picks by week and question
+        user_picks_map = {(b['week_number'], b['question_id']): b['pick'] for b in user_bets}
+        
+        # Fetch all other bets for those same weeks/questions
+        rival_disagreements = {} # {rival_id: count}
+        
+        for (w_num, q_id), u_pick in user_picks_map.items():
+            other_bets = supabase.table("user_bets").select("user_id, pick, weekly_questions(winning_answer)").eq("week_number", w_num).eq("question_id", q_id).neq("user_id", target_user_id).execute().data
+            if other_bets:
+                for ob in other_bets:
+                    rival_id = ob['user_id']
+                    rival_pick = ob['pick']
+                    winning_ans = ob.get("weekly_questions", {}).get("winning_answer")
+                    
+                    # Disagreement condition: Rival picked opposite of user AND rival was correct (or user was wrong)
+                    if rival_pick != u_pick and winning_ans in ["Yes", "No"]:
+                        if rival_pick == winning_ans:
+                            rival_disagreements[rival_id] = rival_disagreements.get(rival_id, 0) + 1
+                            
+        if not rival_disagreements:
+            return "None Yet", 0
+            
+        nemesis_id = max(rival_disagreements, key=rival_disagreements.get)
+        nemesis_score = rival_disagreements[nemesis_id]
+        
+        nemesis_prof = supabase.table("profiles").select("full_name").eq("id", nemesis_id).single().execute().data
+        nemesis_name = nemesis_prof.get("full_name", "Unknown Rival") if nemesis_prof else "Unknown Rival"
+        
+        return nemesis_name, nemesis_score
+    except Exception:
+        return "None Yet", 0
+
 # ==========================================
 # 1. LOGIN & SIGNUP SCREEN
 # ==========================================
@@ -601,7 +647,9 @@ if st.session_state.user is None:
                             "favorite_team": "🏈 Free Agent / Neutral",
                             "bio": "Ready for Kickoff!",
                             "avatar_emoji": "🏈",
-                            "featured_badges": []
+                            "featured_badges": [],
+                            "avatar_border": "solid",
+                            "favorite_player": ""
                         }).execute()
                         st.success("Account created successfully! You can now log in using the Log In tab above.")
                 except Exception as e:
@@ -625,6 +673,10 @@ else:
     st.sidebar.title(f"{user_avatar} {profile['full_name']}")
     st.sidebar.image(team_data["logo"], width=55)
     st.sidebar.caption(f"Team: {user_team}")
+    
+    fav_player_sidebar = profile.get("favorite_player", "")
+    if fav_player_sidebar:
+        st.sidebar.markdown(f"<div style='font-size:14px; color:#38bdf8; margin-top:-4px;'>⭐ Fav Player: <b>{fav_player_sidebar}</b></div>", unsafe_allow_html=True)
     
     weeks_res = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).execute()
     available_weeks = sorted(list(set([r["week_number"] for r in weeks_res.data]))) if weeks_res.data else []
@@ -680,13 +732,26 @@ else:
 
         st.markdown(f"## Welcome back, {profile['full_name']}! 👋")
         
-        st.markdown(f"""
-            <div class="big-token-card">
-                <div style="font-size: 18px; letter-spacing: 2px; text-transform: uppercase; color: #93c5fd;">Available Balance</div>
-                <div class="big-token-number">{active_tokens_display} 🪙</div>
-                <div style="font-size: 16px; color: #cbd5e1;">Total Bank: {profile['tokens']} 🪙 (Active Wagers Deducted)</div>
-            </div>
-        """, unsafe_allow_html=True)
+        # Nemesis widget calculation on home
+        nem_name, nem_score = calculate_nemesis(user_id)
+        
+        col_hb1, col_hb2 = st.columns(2)
+        with col_hb1:
+            st.markdown(f"""
+                <div class="big-token-card" style="padding: 20px;">
+                    <div style="font-size: 16px; letter-spacing: 2px; text-transform: uppercase; color: #93c5fd;">Available Balance</div>
+                    <div class="big-token-number" style="font-size: 60px;">{active_tokens_display} 🪙</div>
+                    <div style="font-size: 14px; color: #cbd5e1;">Total Bank: {profile['tokens']} 🪙</div>
+                </div>
+            """, unsafe_allow_html=True)
+        with col_hb2:
+            st.markdown(f"""
+                <div class="big-token-card" style="padding: 20px; border-color: #ef4444; background: linear-gradient(135deg, rgba(127, 29, 29, 0.75) 0%, rgba(6, 10, 18, 0.90) 100%);">
+                    <div style="font-size: 16px; letter-spacing: 2px; text-transform: uppercase; color: #fca5a5;">⚔️ League Nemesis</div>
+                    <div style="font-family: 'Bebas Neue', sans-serif; font-size: 48px; letter-spacing: 2px; margin: 5px 0; color: #f87171;">{nem_name}</div>
+                    <div style="font-size: 14px; color: #cbd5e1;">Beaten you on {nem_score} head-to-head picks!</div>
+                </div>
+            """, unsafe_allow_html=True)
 
         st.subheader("👁️ Your Current Weekly Picks & Share Hub")
         st.caption("Review your active entries for the upcoming week and grab a quick share text for your group chat.")
@@ -908,11 +973,11 @@ else:
             st.line_chart(chart_df)
 
     # ------------------------------------------
-    # TAB 1: PROFILE & TROPHY CABINET (WITH FEATURED BADGES)
+    # TAB 1: PROFILE & TROPHY CABINET
     # ------------------------------------------
     with tab_profile:
-        st.header("👤 Profile & Trophy Cabinet")
-        st.caption("Personalize your profile settings, select your featured badges, and inspect player trophy showcases!")
+        st.header("👤 Profile & Customization")
+        st.caption("Personalize your display avatar, border style, favorite player, favorite team, and featured badges!")
         
         curr_team = profile.get("favorite_team", "🏈 Free Agent / Neutral")
         team_index = NFL_TEAMS.index(curr_team) if curr_team in NFL_TEAMS else 0
@@ -928,9 +993,21 @@ else:
 
         with st.form("profile_customization_form"):
             new_display_name = st.text_input("Display Name", value=profile.get("full_name", ""))
-            curr_avatar = profile.get("avatar_emoji", "🏈")
-            avatar_index = AVATAR_OPTIONS.index(curr_avatar) if curr_avatar in AVATAR_OPTIONS else 0
-            new_avatar = st.selectbox("Choose Profile Avatar Emoji", AVATAR_OPTIONS, index=avatar_index)
+            
+            col_av1, col_av2 = st.columns(2)
+            with col_av1:
+                curr_avatar = profile.get("avatar_emoji", "🏈")
+                avatar_index = AVATAR_OPTIONS.index(curr_avatar) if curr_avatar in AVATAR_OPTIONS else 0
+                new_avatar = st.selectbox("Choose Profile Avatar Emoji", AVATAR_OPTIONS, index=avatar_index)
+            with col_av2:
+                curr_border = profile.get("avatar_border", "solid")
+                border_keys = list(BORDER_STYLE_OPTIONS.keys())
+                border_vals = list(BORDER_STYLE_OPTIONS.values())
+                border_index = border_vals.index(curr_border) if curr_border in border_vals else 0
+                selected_border_label = st.selectbox("Choose Avatar Border Style", border_keys, index=border_index)
+                new_border = BORDER_STYLE_OPTIONS[selected_border_label]
+
+            new_fav_player = st.text_input("Favorite NFL Player (Displayed on Profile & Card)", value=profile.get("favorite_player", ""))
             new_bio = st.text_input("Profile Catchphrase / Bio (max 100 chars)", value=profile.get("bio", "Ready for Kickoff!"), max_chars=100)
             
             save_profile = st.form_submit_button("Save Profile Settings 💾", type="primary")
@@ -943,6 +1020,8 @@ else:
                         "full_name": new_display_name.strip(),
                         "favorite_team": new_team,
                         "avatar_emoji": new_avatar,
+                        "avatar_border": new_border,
+                        "favorite_player": new_fav_player.strip(),
                         "bio": new_bio.strip()
                     }).eq("id", user_id).execute()
                     st.success("Profile updated successfully!")
@@ -1189,7 +1268,7 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        existing_bet_row = [b for b in all_week_bets if b.get('question_id') == q['id']]
+                        existing_bet_row = [b for b in all_week_bets if b.get('question_id'] == q['id']]
                         default_pick_val = existing_bet_row[0]['pick'] if existing_bet_row else "Yes"
                         default_wager_val = existing_bet_row[0]['wager_amount'] if existing_bet_row else 0
 
@@ -1331,13 +1410,13 @@ else:
             st.dataframe(formatted_data, use_container_width=True)
 
     # ------------------------------------------
-    # TAB 5: LEADERBOARD (SHOWCASING FEATURED BADGES)
+    # TAB 5: LEADERBOARD
     # ------------------------------------------
     with tab_leaders:
         st.header("🏆 Player Standings")
         st.caption("Ranked by Correct Touchdown Scorers (Tiebreaker), then Token Balance.")
         
-        leader_res = supabase.table("profiles").select("id, full_name, tokens, favorite_team, bio, avatar_emoji, featured_badges").execute().data
+        leader_res = supabase.table("profiles").select("id, full_name, tokens, favorite_team, bio, avatar_emoji, featured_badges, avatar_border, favorite_player").execute().data
         
         if leader_res:
             player_stats = []
@@ -1371,6 +1450,8 @@ else:
                 av = p.get("avatar_emoji") or "🏈"
                 team_name = p.get("favorite_team") or "🏈 Free Agent / Neutral"
                 t_info = NFL_TEAM_DATA.get(team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
+                border_style = p.get("avatar_border", "solid")
+                fav_pl = p.get("favorite_player", "")
                 
                 # Fetch featured badges (fallback to first 3 unlocked if none selected)
                 feat_badges = p.get("featured_badges", [])
@@ -1399,9 +1480,12 @@ else:
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <span style="font-family: 'Bebas Neue'; font-size: 26px; color: #fbbf24; width: 45px;">{rank_display}</span>
+                                <div style="border: 3px {border_style} {t_info['color']}; border-radius: 8px; padding: 2px 6px; background: rgba(15,23,42,0.6);">
+                                    <span style="font-size: 24px;">{av}</span>
+                                </div>
                                 <img src="{t_info['logo']}" style="width: 32px; height: 32px;" />
                                 <div>
-                                    <b style="font-size: 19px; color: #ffffff;">{av} {p['full_name']}</b>
+                                    <b style="font-size: 19px; color: #ffffff;">{p['full_name']}</b> {f'<span style="font-size:13px; color:#38bdf8; margin-left:6px;">⭐ {fav_pl}</span>' if fav_pl else ''}
                                     <div style="font-size: 13px; color: #94a3b8;">{team_name} {f'• "{bio_text}"' if bio_text else ''} • 🏈 Correct TDs (Tiebreaker): <b>{tds}</b></div>
                                 </div>
                             </div>
