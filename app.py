@@ -1491,7 +1491,6 @@ else:
                                 for q_item in real_q_items:
                                     random_pick = random.choice(["Yes", "No"])
                                     w_amt = token_allocations[q_item['id']]
-                                    # Save directly to session state so form widgets populate immediately upon rerun
                                     st.session_state[f"pick_{q_item['id']}"] = random_pick
                                     st.session_state[f"wager_{q_item['id']}"] = w_amt
                                     
@@ -1719,10 +1718,39 @@ else:
             st.info("💡 Side-by-side historical comparison will unlock here automatically once at least one week has been fully graded by the Admin!")
 
         st.divider()
+        st.subheader("🏈 Touchdown Scorer Pick History")
+        st.caption("Review your bonus touchdown scorer pick outcomes week by week.")
+        
+        all_td_picks = supabase.table("touchdown_picks").select("*").eq("user_id", user_id).order("week_number").execute().data
+        if all_td_picks:
+            td_history_rows = []
+            for td in all_td_picks:
+                w_num = td["week_number"]
+                p_name = td["player_name"]
+                is_c = td.get("is_correct")
+                
+                if is_c is None:
+                    status_str = "⏳ Pending (Awaiting Admin Grading)"
+                elif is_c:
+                    status_str = "✅ Correct (+5 Bonus Tokens)"
+                else:
+                    status_str = "❌ Incorrect (Missed)"
+                    
+                td_history_rows.append({
+                    "Week": w_num,
+                    "Touchdown Scorer Pick": p_name,
+                    "Result": status_str
+                })
+            st.dataframe(pd.DataFrame(td_history_rows), use_container_width=True, hide_index=True)
+        else:
+            st.info("No touchdown scorer picks submitted yet.")
+
+        st.divider()
+        st.subheader("📋 Detailed Question Bet History")
         history_bets = supabase.table("user_bets").select("*, weekly_questions(question_number, question_text, winning_answer)").eq("user_id", user_id).execute().data
         
         if not history_bets:
-            st.info("You haven't placed any bets yet.")
+            st.info("You haven't placed any question bets yet.")
         else:
             formatted_data = []
             for b in history_bets:
@@ -1746,7 +1774,7 @@ else:
                     "Winner": w_ans if not w_ans.startswith("LOCKTIME:") and w_ans not in ["Pending", "LOCKED"] else "Pending",
                     "Result": outcome
                 })
-            st.dataframe(formatted_data, use_container_width=True)
+            st.dataframe(pd.DataFrame(formatted_data), use_container_width=True)
 
     # ------------------------------------------
     # TAB 5: LEADERBOARD & HALL OF FAME
