@@ -1320,7 +1320,7 @@ else:
                     """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 2: RULES & INFO (WITH EXPANDED FAQ DROP-DOWN)
+    # TAB 2: RULES & INFO (WITH EXPANDED FAQ & 0-TOKEN BETTING RULE)
     # ------------------------------------------
     with tab_rules:
         st.markdown("## 📖 Rules & Information Hub")
@@ -1363,6 +1363,7 @@ else:
                 <div style="font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">Fair Play, Overrides & Inactive Scratches</div>
                 <ul style="color: #cbd5e1; padding-left: 20px; line-height: 1.6; margin: 0;">
                     <li><b>Submissions & Overrides:</b> You can update your picks and wagers as many times as you like before the kickoff deadline. <b>Your final submit will be your real one and it will completely override your previous picks!</b></li>
+                    <li><b>Submitting with 0 Wagers:</b> Even if you don't want to risk any tokens on a specific question, you can still submit your Yes/No answer with a <b>0 token wager</b> to test your predictions and see how you would have performed!</li>
                     <li><b>Late Scratches:</b> If a specific player mentioned in a scenario is ruled out before kickoff, bets on that scenario are fully refunded.</li>
                     <li><b>Missed Weeks:</b> Taking a week off is totally fine, though consistent consecutive absences may incur point deductions.</li>
                     <li><b>One Choice Per Question:</b> Lock in either Yes or No per matchup.</li>
@@ -1397,6 +1398,9 @@ else:
 
                 **Q: What happens if an NFL game is postponed or canceled?**  
                 *A:* Any scenario connected to a game that is postponed or canceled is automatically voided, and all tokens wagered on that scenario are fully refunded to your bank.
+
+                **Q: Can I submit my picks without wagering any tokens?**  
+                *A:* Yes! Even if you don't want to risk any tokens on a question, you can lock in your Yes/No pick with a **0 token wager**. This lets you participate, test your predictions, and track how well you would have done without risking your bank balance.
 
                 **Q: Can I change my picks after submitting them?**  
                 *A:* Yes, you can submit new picks and wagers as many times as you like before the kickoff lockout. **Your final submit will be your real one and it will completely override your previous picks.**
@@ -1509,7 +1513,7 @@ else:
                     picks = {}
                     
                     st.markdown("### 10 Weekly Questions")
-                    st.caption("Click your choice card for Yes/No, then set your wager tokens.")
+                    st.caption("Click your choice card for Yes/No, then set your wager tokens (or set to 0 to test picks without risking tokens!).")
                     
                     for q in questions:
                         if q.get("winning_answer", "").startswith("LOCKTIME:"):
