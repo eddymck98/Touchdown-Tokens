@@ -2331,7 +2331,7 @@ else:
                                 else:
                                     supabase.table("touchdown_picks").update({"is_correct": False}).eq("id", td["id"]).execute()
 
-                        submit_grade_btn = st.form_submit_button("Calculate & Process Payouts 🏆", type="primary", disabled=is_week_closed)
+                        submit_grade_btn = st.form_submit_button("Calculate & Process Payouts 🏆", type="primary")
 
                         if submit_grade_btn:
                             if is_week_closed:
