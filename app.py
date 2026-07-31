@@ -5,16 +5,18 @@ import requests
 from datetime import datetime, timezone
 from supabase import create_client, Client
 
-# --- SUPABASE CONFIGURATION ---
-@st.cache_resource
-def init_supabase():
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    return create_client(url, key)
-
-supabase = init_supabase()
-
 st.set_page_config(page_title="Touchdown Tokens", page_icon="🏈", layout="centered")
+
+# --- SUPABASE CONFIGURATION (SESSION ISOLATED) ---
+# Create an isolated client per user session to prevent cross-device/multi-user data leakage
+def get_supabase_client() -> Client:
+    if "supabase_client" not in st.session_state:
+        url = st.secrets["SUPABASE_URL"]
+        key = st.secrets["SUPABASE_KEY"]
+        st.session_state.supabase_client = create_client(url, key)
+    return st.session_state.supabase_client
+
+supabase = get_supabase_client()
 
 # --- AUTHENTICATION STATE & PERSISTENCE ---
 if "user" not in st.session_state:
@@ -640,8 +642,13 @@ else:
         
     st.sidebar.divider()
     if st.sidebar.button("Log Out", use_container_width=True):
-        supabase.auth.sign_out()
+        try:
+            supabase.auth.sign_out()
+        except Exception:
+            pass
         st.session_state.user = None
+        if "supabase_client" in st.session_state:
+            del st.session_state["supabase_client"]
         st.rerun()
 
     if profile.get("is_admin"):
