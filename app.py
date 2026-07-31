@@ -558,11 +558,8 @@ def calculate_nemesis(target_user_id):
         if not user_bets:
             return "None Yet", 0
             
-        # Map user's picks by week and question
         user_picks_map = {(b['week_number'], b['question_id']): b['pick'] for b in user_bets}
-        
-        # Fetch all other bets for those same weeks/questions
-        rival_disagreements = {} # {rival_id: count}
+        rival_disagreements = {}
         
         for (w_num, q_id), u_pick in user_picks_map.items():
             other_bets = supabase.table("user_bets").select("user_id, pick, weekly_questions(winning_answer)").eq("week_number", w_num).eq("question_id", q_id).neq("user_id", target_user_id).execute().data
@@ -572,7 +569,6 @@ def calculate_nemesis(target_user_id):
                     rival_pick = ob['pick']
                     winning_ans = ob.get("weekly_questions", {}).get("winning_answer")
                     
-                    # Disagreement condition: Rival picked opposite of user AND rival was correct (or user was wrong)
                     if rival_pick != u_pick and winning_ans in ["Yes", "No"]:
                         if rival_pick == winning_ans:
                             rival_disagreements[rival_id] = rival_disagreements.get(rival_id, 0) + 1
@@ -732,7 +728,6 @@ else:
 
         st.markdown(f"## Welcome back, {profile['full_name']}! 👋")
         
-        # Nemesis widget calculation on home
         nem_name, nem_score = calculate_nemesis(user_id)
         
         col_hb1, col_hb2 = st.columns(2)
@@ -1268,7 +1263,7 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        existing_bet_row = [b for b in all_week_bets if b.get('question_id'] == q['id']]
+                        existing_bet_row = [b for b in all_week_bets if b.get('question_id') == q['id']]
                         default_pick_val = existing_bet_row[0]['pick'] if existing_bet_row else "Yes"
                         default_wager_val = existing_bet_row[0]['wager_amount'] if existing_bet_row else 0
 
