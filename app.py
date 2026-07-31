@@ -8,7 +8,6 @@ from supabase import create_client, Client
 st.set_page_config(page_title="Touchdown Tokens", page_icon="🏈", layout="centered")
 
 # --- SUPABASE CONFIGURATION (SESSION ISOLATED) ---
-# Create an isolated client per user session to prevent cross-device/multi-user data leakage
 def get_supabase_client() -> Client:
     if "supabase_client" not in st.session_state:
         url = st.secrets["SUPABASE_URL"]
@@ -197,7 +196,6 @@ st.markdown(f"""
         100% {{ box-shadow: 0 0 12px {user_team_color}33; }}
     }}
 
-    /* Animated Prestigious Trophy Borders */
     @keyframes goldGlow {{
         0% {{ box-shadow: 0 0 10px #fbbf24, inset 0 0 10px #fbbf24; border-color: #fbbf24; }}
         50% {{ box-shadow: 0 0 25px #f59e0b, inset 0 0 20px #f59e0b; border-color: #f59e0b; }}
@@ -220,7 +218,6 @@ st.markdown(f"""
         border-style: solid !important;
     }}
 
-    /* Sticky Header / Compact Balance Bar */
     .sticky-balance-bar {{
         position: sticky;
         top: 0;
@@ -725,83 +722,90 @@ def calculate_streak(target_user_id):
     except Exception:
         return "0W"
 
+# Check if sign up / sign in is globally locked by admin
+app_lock_setting = supabase.table("weekly_questions").select("winning_answer").eq("week_number", 998).execute().data
+is_app_locked = app_lock_setting and app_lock_setting[0]["winning_answer"] == "LOCKED"
+
 # ==========================================
 # 1. LOGIN & SIGNUP SCREEN
 # ==========================================
 if st.session_state.user is None:
-    tab_login, tab_signup = st.tabs(["🔒 Log In", "📝 Sign Up"])
-    
-    with tab_login:
-        st.subheader("Welcome Back!")
-        login_email = st.text_input("Email Address", key="login_email")
-        login_password = st.text_input("Password", type="password", key="login_pass")
+    if is_app_locked:
+        st.error("🔒 **APP ACCESS LOCKED:** The Admin has temporarily disabled sign-ins and sign-ups. Please check back soon!")
+    else:
+        tab_login, tab_signup = st.tabs(["🔒 Log In", "📝 Sign Up"])
         
-        if st.button("Log In", type="primary", use_container_width=True):
-            try:
-                res = supabase.auth.sign_in_with_password({"email": login_email, "password": login_password})
-                st.session_state.user = res.user
-                st.success("Log in successful!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Login failed: {e}")
-
-        st.write("")
-        with st.expander("🔑 Forgot Password?"):
-            st.caption("Enter your email address to receive a password reset link.")
-            reset_email = st.text_input("Your Account Email", key="reset_email_input")
-            if st.button("Send Reset Link"):
-                if reset_email:
-                    try:
-                        supabase.auth.reset_password_for_email(reset_email)
-                        st.success("Password reset email sent! Check your inbox.")
-                    except Exception as e:
-                        st.error(f"Error sending email: {e}")
-                else:
-                    st.warning("Please enter your email address.")
-
-    with tab_signup:
-        st.subheader("Create a New Account")
-        st.caption("New players start with 10 free tokens!")
-        
-        col_fn, col_sn = st.columns(2)
-        with col_fn:
-            reg_first_name = st.text_input("First Name", key="reg_first_name")
-        with col_sn:
-            reg_surname = st.text_input("Surname", key="reg_surname")
+        with tab_login:
+            st.subheader("Welcome Back!")
+            login_email = st.text_input("Email Address", key="login_email")
+            login_password = st.text_input("Password", type="password", key="login_pass")
             
-        reg_email = st.text_input("Email Address", key="reg_email")
-        reg_password = st.text_input("Password (min 6 chars)", type="password", key="reg_pass")
-        
-        if st.button("Sign Up", type="primary", use_container_width=True):
-            if not reg_first_name.strip():
-                st.warning("Please enter your first name.")
-            elif not reg_surname.strip():
-                st.warning("Please enter your surname.")
-            elif not reg_email.strip():
-                st.warning("Please enter your email address.")
-            else:
-                combined_full_name = f"{reg_first_name.strip()} {reg_surname.strip()}"
+            if st.button("Log In", type="primary", use_container_width=True):
                 try:
-                    res = supabase.auth.sign_up({"email": reg_email.strip(), "password": reg_password})
-                    if res.user:
-                        supabase.table("profiles").insert({
-                            "id": res.user.id,
-                            "email": reg_email.strip(),
-                            "full_name": combined_full_name,
-                            "tokens": 10,
-                            "is_admin": False,
-                            "favorite_team": "🏈 Free Agent / Neutral",
-                            "bio": "Ready for Kickoff!",
-                            "avatar_emoji": "🏈",
-                            "featured_badges": [],
-                            "avatar_border": "solid",
-                            "favorite_player": "",
-                            "avatar_color": "#1e3a8a",
-                            "selected_title": "🏈 Gridiron Contender"
-                        }).execute()
-                        st.success("Account created successfully! You can now log in using the Log In tab above.")
+                    res = supabase.auth.sign_in_with_password({"email": login_email, "password": login_password})
+                    st.session_state.user = res.user
+                    st.success("Log in successful!")
+                    st.rerun()
                 except Exception as e:
-                    st.error(f"Sign up failed: {e}")
+                    st.error(f"Login failed: {e}")
+
+            st.write("")
+            with st.expander("🔑 Forgot Password?"):
+                st.caption("Enter your email address to receive a password reset link.")
+                reset_email = st.text_input("Your Account Email", key="reset_email_input")
+                if st.button("Send Reset Link"):
+                    if reset_email:
+                        try:
+                            supabase.auth.reset_password_for_email(reset_email)
+                            st.success("Password reset email sent! Check your inbox.")
+                        except Exception as e:
+                            st.error(f"Error sending email: {e}")
+                    else:
+                        st.warning("Please enter your email address.")
+
+        with tab_signup:
+            st.subheader("Create a New Account")
+            st.caption("New players start with 10 free tokens!")
+            
+            col_fn, col_sn = st.columns(2)
+            with col_fn:
+                reg_first_name = st.text_input("First Name", key="reg_first_name")
+            with col_sn:
+                reg_surname = st.text_input("Surname", key="reg_surname")
+                
+            reg_email = st.text_input("Email Address", key="reg_email")
+            reg_password = st.text_input("Password (min 6 chars)", type="password", key="reg_pass")
+            
+            if st.button("Sign Up", type="primary", use_container_width=True):
+                if not reg_first_name.strip():
+                    st.warning("Please enter your first name.")
+                elif not reg_surname.strip():
+                    st.warning("Please enter your surname.")
+                elif not reg_email.strip():
+                    st.warning("Please enter your email address.")
+                else:
+                    combined_full_name = f"{reg_first_name.strip()} {reg_surname.strip()}"
+                    try:
+                        res = supabase.auth.sign_up({"email": reg_email.strip(), "password": reg_password})
+                        if res.user:
+                            supabase.table("profiles").insert({
+                                "id": res.user.id,
+                                "email": reg_email.strip(),
+                                "full_name": combined_full_name,
+                                "tokens": 10,
+                                "is_admin": False,
+                                "favorite_team": "🏈 Free Agent / Neutral",
+                                "bio": "Ready for Kickoff!",
+                                "avatar_emoji": "🏈",
+                                "featured_badges": [],
+                                "avatar_border": "solid",
+                                "favorite_player": "",
+                                "avatar_color": "#1e3a8a",
+                                "selected_title": "🏈 Gridiron Contender"
+                            }).execute()
+                            st.success("Account created successfully! You can now log in using the Log In tab above.")
+                    except Exception as e:
+                        st.error(f"Sign up failed: {e}")
 
 # ==========================================
 # 2. MAIN LOGGED-IN GAME PORTAL
@@ -818,7 +822,6 @@ else:
     user_avatar_color = profile.get("avatar_color", "#1e3a8a")
     user_badges_list = get_user_badges(user_id, check_celebration=True)
     
-    # Check Prestigious Unlocks for Animated Flair
     frame_class = ""
     if "🏆 League Champion" in user_badges_list:
         frame_class = "avatar-champion-frame"
@@ -844,7 +847,7 @@ else:
     if fav_player_sidebar:
         st.sidebar.markdown(f"<div style='font-size:14px; color:#38bdf8; margin-top:-4px;'>⭐ Fav Player: <b>{fav_player_sidebar}</b></div>", unsafe_allow_html=True)
     
-    weeks_res = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).execute()
+    weeks_res = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).execute()
     available_weeks = sorted(list(set([r["week_number"] for r in weeks_res.data]))) if weeks_res.data else []
     
     active_tokens_display = profile['tokens']
@@ -972,7 +975,7 @@ else:
                 st.code(share_text_block, language="markdown")
                 st.success("Copy the text box above to share your picks directly into WhatsApp or group chat!")
 
-        graded_q_badge = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
+        graded_q_badge = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
         
         if graded_q_badge:
             latest_mvp_week = graded_q_badge[0]["week_number"]
@@ -1474,7 +1477,7 @@ else:
                 if not is_locked and profile['tokens'] > 0:
                     col_rand_sp1, col_rand_btn = st.columns([3, 1])
                     with col_rand_btn:
-                        if st.button("🎲 Feeling Lucky (Randomize)", help="Randomly distributes your available tokens across the questions!"):
+                        if st.button("🎲 Feeling Lucky (Randomize)", help="Randomly distributes your available tokens across the questions and stages them!"):
                             real_q_items = [q for q in questions if not q.get("winning_answer", "").startswith("LOCKTIME:")]
                             if real_q_items:
                                 remaining_tokens = profile['tokens']
@@ -1496,7 +1499,7 @@ else:
                                         "pick": random_pick,
                                         "wager_amount": w_amt
                                     }).execute()
-                                st.success("🎲 Random bets generated and allocated successfully!")
+                                st.success("🎲 Random bets generated and locked in successfully!")
                                 st.rerun()
 
                 all_week_bets = supabase.table("user_bets").select("question_id, pick, wager_amount").eq("user_id", user_id).eq("week_number", selected_week).execute().data
@@ -1640,7 +1643,7 @@ else:
     with tab_history:
         st.header("Your Past Bets & Results")
         
-        all_graded_weeks_res = supabase.table("weekly_questions").select("week_number, winning_answer").neq("week_number", 999).execute().data
+        all_graded_weeks_res = supabase.table("weekly_questions").select("week_number, winning_answer").neq("week_number", 999).neq("week_number", 998).execute().data
         graded_weeks_set = set()
         if all_graded_weeks_res:
             week_ans_map = {}
@@ -1983,13 +1986,13 @@ else:
         with tab_admin:
             st.header("⚙️ Admin Management Portal")
             
-            admin_sec = st.radio("Select Action", ["Manage Questions", "Auto-Lockout Scheduler", "Grade Week & Calculate Points", "Bulk Token Adjuster", "Export League Data (CSV)", "League Chat Announcement", "Archive & Reset Season", "Season Champion Banner"], horizontal=True)
+            admin_sec = st.radio("Select Action", ["Manage Questions", "Auto-Lockout Scheduler", "Grade Week & Calculate Points", "Bulk Token Adjuster", "Export League Data (CSV)", "League Chat Announcement", "Archive & Reset Season", "Season Champion Banner", "App Access Control"], horizontal=True)
             
             if admin_sec == "Manage Questions":
                 st.subheader("📋 Manage & Edit Weekly Questions & Matchups")
                 st.caption("Select a week below to view, publish, or edit questions and matchups dynamically. They will stay right here for ongoing edits!")
                 
-                all_db_weeks = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).execute().data
+                all_db_weeks = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).execute().data
                 db_week_nums = sorted(list(set([r["week_number"] for r in all_db_weeks]))) if all_db_weeks else []
                 next_suggested_week = (db_week_nums[-1] + 1) if db_week_nums else 1
                 
@@ -2338,7 +2341,7 @@ else:
                 
                 ann_week = st.number_input("Week Number", min_value=1, max_value=24, step=1, key="admin_ann_week")
                 
-                graded_q_badge_ann = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
+                graded_q_badge_ann = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
                 
                 top_winner_str = "TBD"
                 biggest_loser_str = "TBD"
@@ -2440,4 +2443,22 @@ Good luck this week! 🔥"""
                         "winning_answer": state_str
                     }).execute()
                     st.success("Updated Season Champion Banner settings!")
+                    st.rerun()
+
+            elif admin_sec == "App Access Control":
+                st.subheader("🔒 App Sign-In & Sign-Up Access Control")
+                st.caption("Lock down the entire app login and registration gateway to prevent users from logging in or creating new accounts.")
+                
+                lock_app_toggle = st.toggle("Lock App Sign-In and Sign-Up", value=is_app_locked)
+                
+                if st.button("Save Access Control Settings 🛡️", type="primary"):
+                    status_str = "LOCKED" if lock_app_toggle else "OPEN"
+                    supabase.table("weekly_questions").delete().eq("week_number", 998).execute()
+                    supabase.table("weekly_questions").insert({
+                        "week_number": 998,
+                        "question_number": 1,
+                        "question_text": "APP ACCESS LOCK",
+                        "winning_answer": status_str
+                    }).execute()
+                    st.success(f"App access status updated to: {status_str}!")
                     st.rerun()
