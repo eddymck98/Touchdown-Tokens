@@ -124,20 +124,21 @@ if st.session_state.user:
 
 st.markdown(f"""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Teko:wght@500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Teko:wght@500;700&display=swap');
 
     .stApp, div[data-testid="stAppViewContainer"] {{
         background: 
             radial-gradient(circle at 50% 20%, rgba(15, 23, 42, 0.88), rgba(7, 13, 25, 0.98)),
             url('{user_team_logo}') center center / 30% no-repeat fixed,
             url('https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&w=1920&q=80') center center / cover no-repeat fixed !important;
-        color: #ffffff !important;
-        font-family: 'Teko', sans-serif !important;
+        color: #f8fafc !important;
+        font-family: 'Inter', sans-serif !important;
     }}
     
     section[data-testid="stSidebar"] {{
         background-color: #030712 !important;
         border-right: 3px solid {user_team_color} !important;
+        font-family: 'Inter', sans-serif !important;
     }}
     
     .nfl-header {{ text-align: center; padding: 10px 0 5px 0; }}
@@ -177,16 +178,18 @@ st.markdown(f"""
         position: sticky;
         top: 0;
         z-index: 999;
-        background: rgba(15, 23, 42, 0.95);
+        background: rgba(15, 23, 42, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-bottom: 2px solid {user_team_color};
         padding: 10px 20px;
         margin-bottom: 20px;
-        border-radius: 0 0 12px 12px;
-        backdrop-filter: blur(12px);
+        border-radius: 0 0 14px 14px;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
         display: flex;
         justify-content: space-between;
         align-items: center;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.6);
     }}
 
     .big-token-card {{
@@ -195,10 +198,12 @@ st.markdown(f"""
         border-radius: 18px;
         color: #ffffff !important;
         text-align: center;
-        border: 2px solid {user_team_color};
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-top: 2px solid {user_team_color};
         margin-bottom: 25px;
         backdrop-filter: blur(14px);
         -webkit-backdrop-filter: blur(14px);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
         animation: teamPulse 3.5s infinite ease-in-out;
     }}
     .big-token-number {{
@@ -216,82 +221,118 @@ st.markdown(f"""
         border-radius: 16px;
         color: #ffffff !important;
         text-align: center;
-        border: 3px solid #fbbf24;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-top: 3px solid #fbbf24;
         margin-bottom: 30px;
         backdrop-filter: blur(12px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.5);
         animation: teamPulse 2s infinite ease-in-out;
     }}
 
     .mvp-banner {{
         background: linear-gradient(135deg, rgba(147, 51, 234, 0.88) 0%, rgba(30, 58, 138, 0.92) 100%);
-        border: 2px solid #c084fc;
+        border: 1px solid rgba(192, 132, 252, 0.3);
+        border-top: 2px solid #c084fc;
         padding: 20px;
         border-radius: 14px;
         margin-bottom: 20px;
         text-align: center;
         backdrop-filter: blur(12px);
-        box-shadow: 0 0 18px rgba(192, 132, 252, 0.5);
+        box-shadow: 0 8px 25px rgba(192, 132, 252, 0.3);
     }}
 
     .trophy-card-unlocked {{
         background: linear-gradient(135deg, rgba(30, 41, 59, 0.88) 0%, rgba(15, 23, 42, 0.92) 100%);
-        border: 2px solid {user_team_color};
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-left: 3px solid {user_team_color};
         padding: 15px;
         border-radius: 12px;
         margin-bottom: 12px;
         backdrop-filter: blur(10px);
-        box-shadow: 0 0 12px {user_team_color}44;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     }}
 
     .trophy-card-locked {{
         background: rgba(15, 23, 42, 0.5);
-        border: 1px dashed #475569;
+        border: 1px dashed rgba(255, 255, 255, 0.15);
         padding: 15px;
         border-radius: 12px;
         margin-bottom: 12px;
         opacity: 0.55;
     }}
 
+    /* Frosted Glassmorphism Leaderboard Cards */
     .leaderboard-row {{
-        background: rgba(15, 23, 42, 0.88);
-        border: 1px solid #334155;
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 12px;
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-        transition: all 0.25s ease-in-out;
+        background: rgba(15, 23, 42, 0.78);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 18px;
+        margin-bottom: 14px;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }}
     .leaderboard-row:hover {{
-        transform: translateY(-4px);
-        border-color: {user_team_color};
-        box-shadow: 0 8px 24px {user_team_color}66;
+        transform: translateY(-3px);
+        border-color: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 12px 36px {user_team_color}44;
     }}
 
     .podium-rank-1 {{
-        border: 2px solid #fbbf24 !important;
-        background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%) !important;
-        box-shadow: 0 0 20px rgba(251, 191, 36, 0.4) !important;
+        border: 1px solid rgba(251, 191, 36, 0.4) !important;
+        border-top: 3px solid #fbbf24 !important;
+        background: linear-gradient(135deg, rgba(251, 191, 36, 0.12) 0%, rgba(15, 23, 42, 0.88) 100%) !important;
+        box-shadow: 0 10px 30px rgba(251, 191, 36, 0.25) !important;
     }}
     .podium-rank-2 {{
-        border: 2px solid #94a3b8 !important;
-        background: linear-gradient(135deg, rgba(148, 163, 184, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%) !important;
-        box-shadow: 0 0 15px rgba(148, 163, 184, 0.3) !important;
+        border: 1px solid rgba(148, 163, 184, 0.4) !important;
+        border-top: 3px solid #94a3b8 !important;
+        background: linear-gradient(135deg, rgba(148, 163, 184, 0.12) 0%, rgba(15, 23, 42, 0.88) 100%) !important;
+        box-shadow: 0 10px 25px rgba(148, 163, 184, 0.2) !important;
     }}
     .podium-rank-3 {{
-        border: 2px solid #b45309 !important;
-        background: linear-gradient(135deg, rgba(180, 83, 9, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%) !important;
-        box-shadow: 0 0 15px rgba(180, 83, 9, 0.3) !important;
+        border: 1px solid rgba(180, 83, 9, 0.4) !important;
+        border-top: 3px solid #b45309 !important;
+        background: linear-gradient(135deg, rgba(180, 83, 9, 0.12) 0%, rgba(15, 23, 42, 0.88) 100%) !important;
+        box-shadow: 0 10px 25px rgba(180, 83, 9, 0.2) !important;
+    }}
+
+    /* Stat Pills styling */
+    .stat-pill-container {{
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+    }}
+    .stat-pill {{
+        background: rgba(30, 41, 59, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 3px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #e2e8f0;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        letter-spacing: 0.3px;
+    }}
+    .stat-pill-accent {{
+        background: linear-gradient(135deg, {user_team_color}22 0%, rgba(30, 41, 59, 0.8) 100%);
+        border: 1px solid {user_team_color}55;
+        color: {user_team_color};
     }}
 
     .vs-card {{
-        background: rgba(15, 23, 42, 0.92);
-        border: 2px solid {user_team_color};
+        background: rgba(15, 23, 42, 0.88);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-top: 2px solid {user_team_color};
         padding: 20px;
-        border-radius: 12px;
+        border-radius: 14px;
         text-align: center;
-        backdrop-filter: blur(10px);
+        backdrop-filter: blur(14px);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
     }}
 
     .matchup-team-title {{
@@ -303,20 +344,22 @@ st.markdown(f"""
     }}
 
     .timer-card {{
-        background: rgba(15, 23, 42, 0.92);
-        border: 2px solid {user_team_color};
+        background: rgba(15, 23, 42, 0.88);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-top: 2px solid {user_team_color};
         padding: 16px;
-        border-radius: 12px;
+        border-radius: 14px;
         text-align: center;
         margin-bottom: 20px;
-        backdrop-filter: blur(10px);
+        backdrop-filter: blur(14px);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
     }}
 
     .badge-pill {{
         display: inline-block;
-        background-color: #1e293b;
+        background-color: rgba(30, 41, 59, 0.8);
         color: {user_team_color};
-        border: 1px solid {user_team_color};
+        border: 1px solid {user_team_color}66;
         border-radius: 20px;
         padding: 4px 12px;
         font-size: 12px;
@@ -325,42 +368,44 @@ st.markdown(f"""
     }}
     
     .consensus-badge {{
-        background-color: #1e293b;
+        background-color: rgba(30, 41, 59, 0.85);
         color: #38bdf8;
-        border: 1px solid #0284c7;
-        border-radius: 6px;
+        border: 1px solid rgba(2, 132, 199, 0.5);
+        border-radius: 8px;
         padding: 4px 10px;
         font-size: 13px;
-        font-weight: 700;
+        font-weight: 600;
         display: inline-block;
         margin-bottom: 8px;
     }}
     
     .chat-bubble {{
-        background-color: rgba(15, 23, 42, 0.90);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
+        background-color: rgba(15, 23, 42, 0.85);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
         padding: 14px 18px;
-        border-radius: 8px;
+        border-radius: 12px;
         margin-bottom: 12px;
         border: 1px solid rgba(255,255,255,0.08);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     }}
 
     .summary-box {{
-        background-color: rgba(15, 23, 42, 0.90) !important;
-        backdrop-filter: blur(10px);
-        border-left: 5px solid {user_team_color} !important;
+        background-color: rgba(15, 23, 42, 0.85) !important;
+        backdrop-filter: blur(14px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-left: 4px solid {user_team_color} !important;
         padding: 18px;
-        border-radius: 8px;
+        border-radius: 12px;
         color: #f8fafc !important;
         margin-top: 15px;
-        border: 1px solid #1e293b;
+        box-shadow: 0 6px 24px rgba(0,0,0,0.3);
     }}
 
     button[data-baseweb="tab"] {{
-        background-color: rgba(30, 41, 59, 0.9) !important;
-        border: 1px solid #334155 !important;
-        border-radius: 8px !important;
+        background-color: rgba(30, 41, 59, 0.75) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 10px !important;
         padding: 10px 20px !important;
         margin-right: 6px !important;
     }}
@@ -371,9 +416,10 @@ st.markdown(f"""
         color: #cbd5e1 !important;
     }}
     button[aria-selected="true"] {{
-        background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%) !important;
-        border: 2px solid {user_team_color} !important;
-        box-shadow: 0 4px 18px {user_team_color}77 !important;
+        background: linear-gradient(135deg, rgba(30, 58, 138, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border-top: 2px solid {user_team_color} !important;
+        box-shadow: 0 6px 24px {user_team_color}55 !important;
     }}
     button[aria-selected="true"] * {{
         color: {user_team_color} !important;
@@ -388,24 +434,25 @@ st.markdown(f"""
         text-transform: uppercase !important;
         border-radius: 10px !important;
         border: none !important;
-        transition: all 0.3s ease-in-out !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.4);
     }}
     div.stButton > button[kind="primary"]:hover, div.stFormSubmitButton > button:hover {{
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px {user_team_color}99 !important;
+        box-shadow: 0 8px 25px {user_team_color}88 !important;
     }}
 
     .stTextInput > label, .stNumberInput > label, .stRadio > label, .stSelectbox > label {{
         color: #f8fafc !important;
-        font-weight: 700 !important;
-        font-size: 18px !important;
-        letter-spacing: 1px;
+        font-weight: 600 !important;
+        font-size: 16px !important;
+        letter-spacing: 0.5px;
     }}
     .stTextInput input, .stNumberInput input {{
-        background-color: rgba(15, 23, 42, 0.92) !important;
+        background-color: rgba(15, 23, 42, 0.9) !important;
         color: #ffffff !important;
-        border: 1px solid #334155 !important;
-        border-radius: 8px !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 10px !important;
     }}
     </style>
 """, unsafe_allow_html=True)
@@ -589,6 +636,25 @@ def calculate_nemesis(target_user_id):
         return nemesis_name, nemesis_score
     except Exception:
         return "None Yet", 0
+
+def calculate_streak(target_user_id):
+    """Calculates the current active win streak of correct weekly/question picks."""
+    try:
+        u_bets = supabase.table("user_bets").select("week_number, pick, weekly_questions(winning_answer)").eq("user_id", target_user_id).order("week_number", desc=True).execute().data
+        if not u_bets:
+            return "0W"
+        
+        streak = 0
+        for b in u_bets:
+            w_ans = b.get("weekly_questions", {}).get("winning_answer")
+            if w_ans in ["Yes", "No"]:
+                if b["pick"] == w_ans:
+                    streak += 1
+                else:
+                    break
+        return f"{streak}W" if streak > 0 else "0W"
+    except Exception:
+        return "0W"
 
 # ==========================================
 # 1. LOGIN & SIGNUP SCREEN
@@ -1460,6 +1526,7 @@ else:
                 win_rate = int((wins / total_graded) * 100) if total_graded > 0 else 0
                 
                 nem_name, nem_score = calculate_nemesis(p["id"])
+                player_streak = calculate_streak(p["id"])
                 
                 player_stats.append({
                     **p, 
@@ -1467,7 +1534,8 @@ else:
                     "win_rate": win_rate, 
                     "total_bets": total_graded,
                     "nemesis_name": nem_name,
-                    "nemesis_score": nem_score
+                    "nemesis_score": nem_score,
+                    "streak": player_streak
                 })
             
             player_stats = sorted(player_stats, key=lambda x: (-x["tokens"], -x["correct_tds"], x["full_name"]))
@@ -1521,6 +1589,8 @@ else:
                 fav_pl = p.get("favorite_player", "")
                 nem_name_card = p.get("nemesis_name", "None")
                 nem_score_card = p.get("nemesis_score", 0)
+                win_rate_val = p['win_rate']
+                streak_val = p['streak']
                 
                 showcased = p.get("featured_badges") or []
                 if not showcased or not isinstance(showcased, list):
@@ -1545,12 +1615,17 @@ else:
                                 <img src="{t_info['logo']}" style="width: 32px; height: 32px;" />
                                 <div>
                                     <b style="font-size: 19px; color: #ffffff;">{p['full_name']}</b> {f'<span style="font-size:13px; color:#38bdf8; margin-left:6px;">⭐ {fav_pl}</span>' if fav_pl else ''}
-                                    <div style="font-size: 13px; color: #94a3b8;">{team_name} • Correct TDs: <b>{tds}</b> • Win Rate: <b>{p['win_rate']}%</b> • ⚔️ Nemesis: <span style="color:#f87171;">{nem_name_card}</span> ({nem_score_card})</div>
+                                    <div style="font-size: 13px; color: #94a3b8;">{team_name} • ⚔️ Nemesis: <span style="color:#f87171;">{nem_name_card}</span> ({nem_score_card})</div>
                                 </div>
                             </div>
                             <div style="text-align: right;"><span style="font-family: 'Bebas Neue'; font-size: 30px; color: #38bdf8;">{p['tokens']} 🪙</span></div>
                         </div>
-                        <div style="border-top: 1px solid #334155; padding-top: 8px; margin-top: 4px;">
+                        <div class="stat-pill-container">
+                            <span class="stat-pill stat-pill-accent">🎯 {win_rate_val}% Win Rate</span>
+                            <span class="stat-pill">🏈 {tds} TD Hits</span>
+                            <span class="stat-pill">🔥 Streak: {streak_val}</span>
+                        </div>
+                        <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px; margin-top: 8px;">
                             <span style="font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: bold; margin-right: 8px;">Showcase:</span> {badges_html}
                         </div>
                     </div>
