@@ -632,21 +632,32 @@ if st.session_state.user is None:
     with tab_signup:
         st.subheader("Create a New Account")
         st.caption("New players start with 10 free tokens!")
+        
+        col_fn, col_sn = st.columns(2)
+        with col_fn:
+            reg_first_name = st.text_input("First Name", key="reg_first_name")
+        with col_sn:
+            reg_surname = st.text_input("Surname", key="reg_surname")
+            
         reg_email = st.text_input("Email Address", key="reg_email")
         reg_password = st.text_input("Password (min 6 chars)", type="password", key="reg_pass")
-        reg_name = st.text_input("Full Name / Display Name", key="reg_name")
         
         if st.button("Sign Up", type="primary", use_container_width=True):
-            if not reg_name:
-                st.warning("Please enter your name.")
+            if not reg_first_name.strip():
+                st.warning("Please enter your first name.")
+            elif not reg_surname.strip():
+                st.warning("Please enter your surname.")
+            elif not reg_email.strip():
+                st.warning("Please enter your email address.")
             else:
+                combined_full_name = f"{reg_first_name.strip()} {reg_surname.strip()}"
                 try:
-                    res = supabase.auth.sign_up({"email": reg_email, "password": reg_password})
+                    res = supabase.auth.sign_up({"email": reg_email.strip(), "password": reg_password})
                     if res.user:
                         supabase.table("profiles").insert({
                             "id": res.user.id,
-                            "email": reg_email,
-                            "full_name": reg_name,
+                            "email": reg_email.strip(),
+                            "full_name": combined_full_name,
                             "tokens": 10,
                             "is_admin": False,
                             "favorite_team": "🏈 Free Agent / Neutral",
@@ -1260,7 +1271,7 @@ else:
                         away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                         home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
 
-                        existing_bet_row = [b for b in all_week_bets if b.get('question_id') == q['id']]
+                        existing_bet_row = [b for b in all_week_bets if b.get('question_id'] == q['id']]
                         default_pick_val = existing_bet_row[0]['pick'] if existing_bet_row else "Yes"
                         default_wager_val = existing_bet_row[0]['wager_amount'] if existing_bet_row else 0
 
