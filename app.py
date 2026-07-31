@@ -8,6 +8,7 @@ from supabase import create_client, Client
 st.set_page_config(page_title="Touchdown Tokens", page_icon="🏈", layout="centered")
 
 # --- SUPABASE CONFIGURATION (SESSION ISOLATED) ---
+# Create an isolated client per user session to prevent cross-device/multi-user data leakage
 def get_supabase_client() -> Client:
     if "supabase_client" not in st.session_state:
         url = st.secrets["SUPABASE_URL"]
@@ -66,15 +67,6 @@ NFL_TEAM_DATA = {
 
 NFL_TEAMS = list(NFL_TEAM_DATA.keys())
 AVATAR_OPTIONS = ["🏈", "🐐", "⚡", "👑", "🎯", "💣", "💎", "🔥", "🛡️", "🚀"]
-
-BORDER_OPTIONS = {
-    "None": "border: none;",
-    "Gold Champion": "border: 3px solid #f59e0b; box-shadow: 0 0 10px #f59e0b;",
-    "Neon Pulse": "border: 3px solid #06b6d4; box-shadow: 0 0 10px #06b6d4;",
-    "Fire Red": "border: 3px solid #ef4444; box-shadow: 0 0 10px #ef4444;",
-    "Toxic Green": "border: 3px solid #22c55e; box-shadow: 0 0 10px #22c55e;",
-    "Deep Purple": "border: 3px solid #9333ea; box-shadow: 0 0 10px #9333ea;"
-}
 
 MASTER_BADGES = {
     "🚀 Token Tycoon": "Reach a balance of 30+ tokens",
@@ -261,10 +253,12 @@ st.markdown(f"""
     .podium-rank-2 {{
         border: 2px solid #94a3b8 !important;
         background: linear-gradient(135deg, rgba(148, 163, 184, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%) !important;
+        box-shadow: 0 0 15px rgba(148, 163, 184, 0.3) !important;
     }}
     .podium-rank-3 {{
         border: 2px solid #b45309 !important;
         background: linear-gradient(135deg, rgba(180, 83, 9, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%) !important;
+        box-shadow: 0 0 15px rgba(180, 83, 9, 0.3) !important;
     }}
 
     div[data-testid="stRadio"] div[role="radiogroup"] > label {{
@@ -351,15 +345,6 @@ st.markdown(f"""
         margin-top: 15px;
         border: 1px solid #1e293b;
     }}
-    
-    .vs-card {{
-        background: rgba(30, 41, 59, 0.7);
-        border: 1px solid #475569;
-        border-radius: 12px;
-        padding: 20px;
-        text-align: center;
-        height: 100%;
-    }}
 
     button[data-baseweb="tab"] {{
         background-color: rgba(30, 41, 59, 0.9) !important;
@@ -431,33 +416,44 @@ def get_user_badges(target_user_id, check_celebration=False):
     u_td = supabase.table("touchdown_picks").select("*").eq("user_id", target_user_id).eq("is_correct", True).execute().data
     
     badges = []
-    if toks >= 30: badges.append("🚀 Token Tycoon")
-    if any(b['wager_amount'] >= 10 for b in u_bets): badges.append("🎯 High Roller")
-    if len(u_td) >= 2: badges.append("🏈 TD Guru")
-    if len(u_td) >= 3: badges.append("🎯 Sniper")
-    if len(u_td) >= 5: badges.append("⚡ Gridiron Prophet")
-    if toks == 0: badges.append("📉 Down Bad")
+    if toks >= 30:
+        badges.append("🚀 Token Tycoon")
+    if any(b['wager_amount'] >= 10 for b in u_bets):
+        badges.append("🎯 High Roller")
+    if len(u_td) >= 2:
+        badges.append("🏈 TD Guru")
+    if len(u_td) >= 3:
+        badges.append("🎯 Sniper")
+    if len(u_td) >= 5:
+        badges.append("⚡ Gridiron Prophet")
+    if toks == 0:
+        badges.append("📉 Down Bad")
         
     weeks_played = set()
     total_lifetime_won = 0
-    weekly_nets = {}
     
+    weekly_nets = {}
     for b in u_bets:
         w_num = b['week_number']
         weeks_played.add(w_num)
         w_ans = b.get("weekly_questions", {}).get("winning_answer")
-        if w_num not in weekly_nets: weekly_nets[w_num] = {"gains": 0, "losses": 0, "large_wager_hits": 0}
+        
+        if w_num not in weekly_nets:
+            weekly_nets[w_num] = {"gains": 0, "losses": 0, "large_wager_hits": 0}
+            
         if w_ans in ["Yes", "No"]:
             if b['pick'] == w_ans:
                 total_lifetime_won += b['wager_amount']
                 weekly_nets[w_num]["gains"] += b['wager_amount']
-                if b['wager_amount'] >= 5: weekly_nets[w_num]["large_wager_hits"] += 1
+                if b['wager_amount'] >= 5:
+                    weekly_nets[w_num]["large_wager_hits"] += 1
             else:
                 weekly_nets[w_num]["losses"] += b['wager_amount']
                 
     for td in u_td:
         w_num = td['week_number']
-        if w_num in weekly_nets: weekly_nets[w_num]["gains"] += 5
+        if w_num in weekly_nets:
+            weekly_nets[w_num]["gains"] += 5
 
     sorted_weeks = sorted(list(weekly_nets.keys()))
     consecutive_oracle_weeks = 0
@@ -466,41 +462,56 @@ def get_user_badges(target_user_id, check_celebration=False):
         has_large_win = any(b['wager_amount'] >= 5 and b['pick'] == b.get("weekly_questions", {}).get("winning_answer") for b in w_slate_bets)
         if has_large_win:
             consecutive_oracle_weeks += 1
-            if consecutive_oracle_weeks >= 4: badges.append("🔮 Oracle of Delphi")
+            if consecutive_oracle_weeks >= 4:
+                badges.append("🔮 Oracle of Delphi")
         else:
             consecutive_oracle_weeks = 0
 
     for w, w_data in weekly_nets.items():
-        if (w_data["gains"] - w_data["losses"]) >= 20: badges.append("🔥 Untouchable Run")
+        net_w_tokens = w_data["gains"] - w_data["losses"]
+        if net_w_tokens >= 20:
+            badges.append("🔥 Untouchable Run")
 
     if toks >= 30:
         sim_tokens = 10
         ever_low = False
         for w in sorted_weeks:
-            if sim_tokens < 3: ever_low = True
+            if sim_tokens < 3:
+                ever_low = True
             w_data = weekly_nets[w]
             sim_tokens += (w_data["gains"] - w_data["losses"])
-        if ever_low: badges.append("💎 Diamond Hands")
+        if ever_low:
+            badges.append("💎 Diamond Hands")
 
-    if len(weeks_played) >= 5: badges.append("🛡️ Iron Defender")
-    if total_lifetime_won >= 100: badges.append("💰 Century Club")
+    if len(weeks_played) >= 5:
+        badges.append("🛡️ Iron Defender")
+    if total_lifetime_won >= 100:
+        badges.append("💰 Century Club")
 
     champ_setting = supabase.table("weekly_questions").select("question_text, winning_answer").eq("week_number", 999).execute().data
     if champ_setting and champ_setting[0]["winning_answer"] == "ON":
         champ_name = champ_setting[0]["question_text"]
         user_prof = supabase.table("profiles").select("full_name").eq("id", target_user_id).single().execute().data
-        if user_prof and user_prof.get("full_name") == champ_name: badges.append("🏆 League Champion")
+        if user_prof and user_prof.get("full_name") == champ_name:
+            badges.append("🏆 League Champion")
 
     graded_q = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
     if graded_q:
         latest_w = graded_q[0]["week_number"]
         all_latest_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("week_number", latest_w).execute().data
-        user_gains, user_loss, user_correct = {}, {}, {}
+        
+        user_gains = {}
+        user_loss = {}
+        user_correct = {}
+        
         for b in all_latest_bets:
             u = b['user_id']
             w_ans = b.get("weekly_questions", {}).get("winning_answer")
             if u not in user_gains:
-                user_gains[u], user_loss[u], user_correct[u] = 0, 0, 0
+                user_gains[u] = 0
+                user_loss[u] = 0
+                user_correct[u] = 0
+            
             if w_ans in ["Yes", "No"]:
                 if b['pick'] == w_ans:
                     user_gains[u] += b['wager_amount']
@@ -508,10 +519,14 @@ def get_user_badges(target_user_id, check_celebration=False):
                 else:
                     user_loss[u] += b['wager_amount']
         
-        if user_gains and max(user_gains.values(), default=-1) > 0 and max(user_gains, key=user_gains.get) == target_user_id:
-            badges.append("👑 Weekly High Scorer")
-        if user_loss and max(user_loss.values(), default=-1) > 0 and max(user_loss, key=user_loss.get) == target_user_id:
-            badges.append("📉 Wall Street Bets")
+        if user_gains and max(user_gains.values(), default=-1) > 0:
+            if max(user_gains, key=user_gains.get) == target_user_id:
+                badges.append("👑 Weekly High Scorer")
+                
+        if user_loss and max(user_loss.values(), default=-1) > 0:
+            if max(user_loss, key=user_loss.get) == target_user_id:
+                badges.append("📉 Wall Street Bets")
+                
         if user_correct.get(target_user_id, 0) == 10:
             badges.append("🎯 Perfect 10/10")
 
@@ -523,8 +538,10 @@ def get_user_badges(target_user_id, check_celebration=False):
             new_badges = [b for b in badges if b not in st.session_state[cache_key]]
             if new_badges:
                 st.balloons()
-                for nb in new_badges: st.toast(f"🏆 NEW TROPHY UNLOCKED: {nb}!", icon="🎉")
+                for nb in new_badges:
+                    st.toast(f"🏆 NEW TROPHY UNLOCKED: {nb}!", icon="🎉")
                 st.session_state[cache_key] = badges
+            
     return badges
 
 # ==========================================
@@ -537,13 +554,15 @@ if st.session_state.user is None:
         st.subheader("Welcome Back!")
         login_email = st.text_input("Email Address", key="login_email")
         login_password = st.text_input("Password", type="password", key="login_pass")
+        
         if st.button("Log In", type="primary", use_container_width=True):
             try:
                 res = supabase.auth.sign_in_with_password({"email": login_email, "password": login_password})
                 st.session_state.user = res.user
                 st.success("Log in successful!")
                 st.rerun()
-            except Exception as e: st.error(f"Login failed: {e}")
+            except Exception as e:
+                st.error(f"Login failed: {e}")
 
         st.write("")
         with st.expander("🔑 Forgot Password?"):
@@ -554,8 +573,10 @@ if st.session_state.user is None:
                     try:
                         supabase.auth.reset_password_for_email(reset_email)
                         st.success("Password reset email sent! Check your inbox.")
-                    except Exception as e: st.error(f"Error sending email: {e}")
-                else: st.warning("Please enter your email address.")
+                    except Exception as e:
+                        st.error(f"Error sending email: {e}")
+                else:
+                    st.warning("Please enter your email address.")
 
     with tab_signup:
         st.subheader("Create a New Account")
@@ -563,20 +584,27 @@ if st.session_state.user is None:
         reg_email = st.text_input("Email Address", key="reg_email")
         reg_password = st.text_input("Password (min 6 chars)", type="password", key="reg_pass")
         reg_name = st.text_input("Full Name / Display Name", key="reg_name")
+        
         if st.button("Sign Up", type="primary", use_container_width=True):
-            if not reg_name: st.warning("Please enter your name.")
+            if not reg_name:
+                st.warning("Please enter your name.")
             else:
                 try:
                     res = supabase.auth.sign_up({"email": reg_email, "password": reg_password})
                     if res.user:
                         supabase.table("profiles").insert({
-                            "id": res.user.id, "email": reg_email, "full_name": reg_name, "tokens": 10,
-                            "is_admin": False, "favorite_team": "🏈 Free Agent / Neutral",
-                            "bio": "Ready for Kickoff!", "avatar_emoji": "🏈",
-                            "avatar_border": "None", "showcase_badges": []
+                            "id": res.user.id,
+                            "email": reg_email,
+                            "full_name": reg_name,
+                            "tokens": 10,
+                            "is_admin": False,
+                            "favorite_team": "🏈 Free Agent / Neutral",
+                            "bio": "Ready for Kickoff!",
+                            "avatar_emoji": "🏈"
                         }).execute()
-                        st.success("Account created successfully! You can now log in.")
-                except Exception as e: st.error(f"Sign up failed: {e}")
+                        st.success("Account created successfully! You can now log in using the Log In tab above.")
+                except Exception as e:
+                    st.error(f"Sign up failed: {e}")
 
 # ==========================================
 # 2. MAIN LOGGED-IN GAME PORTAL
@@ -587,23 +615,13 @@ else:
     profile = profile_res.data
     
     user_avatar = profile.get("avatar_emoji", "🏈")
-    user_border = profile.get("avatar_border", "None")
     user_team = profile.get('favorite_team', '🏈 Free Agent / Neutral')
     team_data = NFL_TEAM_DATA.get(user_team, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
     
     get_user_badges(user_id, check_celebration=True)
 
-    # --- SIDEBAR (Custom Avatar Border + Info & Logout) ---
-    border_css = BORDER_OPTIONS.get(user_border, "border: none;")
-    st.sidebar.markdown(f"""
-        <div style="display:flex; align-items:center; gap:15px; margin-bottom:15px;">
-            <div style="font-size:36px; width:65px; height:65px; display:flex; align-items:center; justify-content:center; border-radius:50%; {border_css} background:rgba(255,255,255,0.05);">
-                {user_avatar}
-            </div>
-            <h2 style="margin:0; font-family:'Bebas Neue', sans-serif;">{profile['full_name']}</h2>
-        </div>
-    """, unsafe_allow_html=True)
-    
+    # --- SIDEBAR (Cleaned up: Profile Info & Logout Only) ---
+    st.sidebar.title(f"{user_avatar} {profile['full_name']}")
     st.sidebar.image(team_data["logo"], width=55)
     st.sidebar.caption(f"Team: {user_team}")
     
@@ -618,27 +636,36 @@ else:
         active_tokens_display = max(0, profile['tokens'] - total_wagered_active)
 
     st.sidebar.metric(label="Available Tokens", value=f"{active_tokens_display} 🪙", help="Total Tokens minus active wagers placed for the upcoming week.")
-    if profile.get("is_admin"): st.sidebar.success("👑 Admin Mode Active")
+    
+    if profile.get("is_admin"):
+        st.sidebar.success("👑 Admin Mode Active")
+        
     st.sidebar.divider()
     if st.sidebar.button("Log Out", use_container_width=True):
-        try: supabase.auth.sign_out()
-        except Exception: pass
+        try:
+            supabase.auth.sign_out()
+        except Exception:
+            pass
         st.session_state.user = None
-        if "supabase_client" in st.session_state: del st.session_state["supabase_client"]
+        if "supabase_client" in st.session_state:
+            del st.session_state["supabase_client"]
         st.rerun()
 
     if profile.get("is_admin"):
-        tabs = st.tabs(["🏠 Home", "👤 Profile", "📖 Rules", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🏛️ Hall of Fame", "⚙️ Admin Control"])
-        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_hof, tab_admin = tabs
+        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_hof, tab_admin = st.tabs(
+            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🏛️ Hall of Fame", "⚙️ Admin Control"]
+        )
     else:
-        tabs = st.tabs(["🏠 Home", "👤 Profile", "📖 Rules", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🏛️ Hall of Fame"])
-        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_hof = tabs
+        tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_hof = st.tabs(
+            ["🏠 Home", "👤 Profile", "📖 Rules & Info", "🎯 Place Bets", "📜 My History", "🏆 Leaderboard", "🏛️ Hall of Fame"]
+        )
 
     # ------------------------------------------
     # TAB 0: HOME
     # ------------------------------------------
     with tab_home:
         champ_setting = supabase.table("weekly_questions").select("question_text, winning_answer").eq("week_number", 999).execute().data
+        
         if champ_setting and champ_setting[0]["winning_answer"] == "ON":
             st.balloons()
             champ_name = champ_setting[0]["question_text"]
@@ -651,6 +678,7 @@ else:
             """, unsafe_allow_html=True)
 
         st.markdown(f"## Welcome back, {profile['full_name']}! 👋")
+        
         st.markdown(f"""
             <div class="big-token-card">
                 <div style="font-size: 18px; letter-spacing: 2px; text-transform: uppercase; color: #93c5fd;">Available Balance</div>
@@ -666,6 +694,7 @@ else:
             st.info("No active weeks available.")
         else:
             view_week = st.selectbox("Select Week to View", available_weeks, index=len(available_weeks)-1, key="home_view_current_week_sel")
+            
             curr_user_bets = supabase.table("user_bets").select("*, weekly_questions(question_number, question_text)").eq("user_id", user_id).eq("week_number", view_week).order("question_id").execute().data
             curr_user_td = supabase.table("touchdown_picks").select("player_name").eq("user_id", user_id).eq("week_number", view_week).execute().data
             
@@ -673,11 +702,13 @@ else:
                 st.warning(f"You haven't submitted any picks for Week {view_week} yet! Head over to the 'Place Bets' tab.")
             else:
                 share_lines = [f"🏈 *{profile['full_name']} - Week {view_week} Lock-Ins* 🏈"]
+                
                 for b in curr_user_bets:
                     q_num = b.get("weekly_questions", {}).get("question_number", "?")
                     q_txt = b.get("weekly_questions", {}).get("question_text", "").split(" | MATCHUP: ")[0]
                     pick_val = b["pick"]
                     wager_amt = b["wager_amount"]
+                    
                     st.markdown(f"""
                         <div class="summary-box">
                             <b>Q{q_num}: {q_txt}</b><br>
@@ -697,22 +728,28 @@ else:
                 
                 st.write("")
                 st.subheader("📋 Group Chat Share Text")
-                st.code("\n".join(share_lines), language="markdown")
+                share_text_block = "\n".join(share_lines)
+                st.code(share_text_block, language="markdown")
                 st.success("Copy the text box above to share your picks directly into WhatsApp or group chat!")
 
         graded_q_badge = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
+        
         if graded_q_badge:
             latest_mvp_week = graded_q_badge[0]["week_number"]
             mvp_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("week_number", latest_mvp_week).execute().data
             mvp_tds = supabase.table("touchdown_picks").select("*").eq("week_number", latest_mvp_week).eq("is_correct", True).execute().data
+            
             user_weekly_net = {}
             for b in mvp_bets:
                 u = b['user_id']
                 w_ans = b.get("weekly_questions", {}).get("winning_answer")
-                if u not in user_weekly_net: user_weekly_net[u] = 0
+                if u not in user_weekly_net:
+                    user_weekly_net[u] = 0
                 if w_ans in ["Yes", "No"]:
-                    if b['pick'] == w_ans: user_weekly_net[u] += b['wager_amount']
-                    else: user_weekly_net[u] -= b['wager_amount']
+                    if b['pick'] == w_ans:
+                        user_weekly_net[u] += b['wager_amount']
+                    else:
+                        user_weekly_net[u] -= b['wager_amount']
             for td in mvp_tds:
                 u = td['user_id']
                 user_weekly_net[u] = user_weekly_net.get(u, 0) + 5
@@ -721,6 +758,7 @@ else:
                 top_mvp_id = max(user_weekly_net, key=user_weekly_net.get)
                 top_mvp_tokens = user_weekly_net[top_mvp_id]
                 mvp_profile = supabase.table("profiles").select("full_name, avatar_emoji, favorite_team").eq("id", top_mvp_id).single().execute().data
+                
                 if mvp_profile:
                     st.markdown(f"""
                         <div class="mvp-banner">
@@ -730,62 +768,173 @@ else:
                         </div>
                     """, unsafe_allow_html=True)
 
+        if graded_q_badge:
+            last_w_num = graded_q_badge[0]["week_number"]
+            st.divider()
+            st.subheader(f"📈 Week {last_w_num} Community Trends & Most Picked Lines")
+            
+            lw_all_bets = supabase.table("user_bets").select("question_id, pick, wager_amount, weekly_questions(question_text)").eq("week_number", last_w_num).execute().data
+            if lw_all_bets:
+                q_stats = {}
+                for b in lw_all_bets:
+                    q_text = b.get("weekly_questions", {}).get("question_text", "Question")
+                    clean_q = q_text.split(" | MATCHUP: ")[0] if " | MATCHUP: " in q_text else q_text
+                    if clean_q not in q_stats:
+                        q_stats[clean_q] = {"Yes": 0, "No": 0, "TotalWager": 0, "Votes": 0}
+                    q_stats[clean_q][b["pick"]] += 1
+                    q_stats[clean_q]["TotalWager"] += b["wager_amount"]
+                    q_stats[clean_q]["Votes"] += 1
+                
+                trend_list = []
+                for q_name, data in q_stats.items():
+                    yes_v = data["Yes"]
+                    no_v = data["No"]
+                    tot = data["Votes"]
+                    if tot > 0:
+                        yes_pct = int((yes_v / tot) * 100)
+                        no_pct = 100 - yes_pct
+                        majority_pick = "YES" if yes_pct >= 50 else "NO"
+                        majority_pct = max(yes_pct, no_pct)
+                        trend_list.append({
+                            "question": q_name,
+                            "consensus": f"{majority_pct}% {majority_pick}",
+                            "total_wagered": data["TotalWager"],
+                            "votes": tot
+                        })
+                
+                if trend_list:
+                    trend_df = pd.DataFrame(trend_list).sort_values(by="total_wagered", ascending=False).head(3)
+                    for _, row in trend_df.iterrows():
+                        st.markdown(f"""
+                            <div class="summary-box">
+                                <b>🔥 Heaviest Action: {row['question']}</b><br>
+                                • <b>League Consensus:</b> {row['consensus']} ({row['votes']} total player bets)<br>
+                                • <b>Total Tokens Wagered on Matchup:</b> {row['total_wagered']} 🪙
+                            </div>
+                        """, unsafe_allow_html=True)
+
+        st.divider()
+        st.subheader("📊 Last Week's Performance Summary")
+        
+        if not graded_q_badge:
+            st.info("No weeks have been graded yet. Place your bets for Week 1 to get started!")
+        else:
+            latest_graded_week = graded_q_badge[0]["week_number"]
+            
+            lw_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("user_id", user_id).eq("week_number", latest_graded_week).execute().data
+            lw_td = supabase.table("touchdown_picks").select("*").eq("user_id", user_id).eq("week_number", latest_graded_week).execute().data
+            
+            if not lw_bets and not lw_td:
+                st.warning(f"You did not submit any bets or touchdown picks for Week {latest_graded_week}.")
+            else:
+                bet_gains = 0
+                bet_losses = 0
+                correct_count = 0
+                total_bets_placed = len(lw_bets)
+                
+                for b in lw_bets:
+                    w_ans = b.get("weekly_questions", {}).get("winning_answer")
+                    if w_ans in ["Yes", "No"]:
+                        if b["pick"] == w_ans:
+                            bet_gains += b["wager_amount"]
+                            correct_count += 1
+                        else:
+                            bet_losses += b["wager_amount"]
+                
+                td_record = lw_td[0] if lw_td else None
+                td_is_graded = td_record is not None and td_record.get("is_correct") is not None
+                
+                if td_is_graded:
+                    td_bonus = 5 if td_record.get("is_correct") else 0
+                else:
+                    td_bonus = 0
+                    
+                td_player = td_record["player_name"] if td_record else "None"
+                
+                net_total = bet_gains - bet_losses + td_bonus
+                
+                if net_total > 0:
+                    st.balloons()
+                
+                st.markdown(f"### Week {latest_graded_week} Results")
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Net Tokens Earned", f"{'+' if net_total >= 0 else ''}{net_total} 🪙")
+                with col2:
+                    st.metric("Questions Correct", f"{correct_count} / {total_bets_placed}")
+                with col3:
+                    if not td_is_graded:
+                        st.metric("TD Scorer Bonus", "Pending ⏳")
+                    else:
+                        st.metric("TD Scorer Bonus", f"+{td_bonus} 🪙" if td_bonus > 0 else "0 🪙")
+                
+                if not td_is_graded:
+                    td_display_status = "⏳ Pending (Awaiting Admin Grading)"
+                else:
+                    td_display_status = "✅ +5 Tokens" if td_bonus > 0 else "❌ Missed"
+
+                st.markdown(f"""
+                <div class="summary-box">
+                    <b>Week {latest_graded_week} Breakdown:</b><br>
+                    • <b>Question Wins:</b> +{bet_gains} Tokens<br>
+                    • <b>Question Losses:</b> -{bet_losses} Tokens<br>
+                    • <b>Touchdown Scorer Pick:</b> '{td_player}' ({td_display_status})
+                </div>
+                """, unsafe_allow_html=True)
+
         st.divider()
         st.subheader("📈 Token History Graph")
         history_bets_all = supabase.table("user_bets").select("week_number, wager_amount, pick, weekly_questions(winning_answer)").eq("user_id", user_id).execute().data
+        
         if history_bets_all:
             week_tokens = {0: 10}
             curr_tokens = 10
+            
             weeks_logged = sorted(list(set([b['week_number'] for b in history_bets_all])))
             for w in weeks_logged:
                 w_bets = [b for b in history_bets_all if b['week_number'] == w]
                 for b in w_bets:
                     w_ans = b.get("weekly_questions", {}).get("winning_answer")
                     if w_ans in ["Yes", "No"]:
-                        if b["pick"] == w_ans: curr_tokens += b["wager_amount"]
-                        else: curr_tokens -= b["wager_amount"]
+                        if b["pick"] == w_ans:
+                            curr_tokens += b["wager_amount"]
+                        else:
+                            curr_tokens -= b["wager_amount"]
                 week_tokens[w] = max(0, curr_tokens)
-            st.line_chart(pd.DataFrame(list(week_tokens.items()), columns=["Week", "Tokens"]).set_index("Week"))
+                
+            chart_df = pd.DataFrame(list(week_tokens.items()), columns=["Week", "Tokens"]).set_index("Week")
+            st.line_chart(chart_df)
 
     # ------------------------------------------
-    # TAB 1: PROFILE & CUSTOMIZATION (With Border & Showcase Badges)
+    # TAB 1: PROFILE & TROPHY CABINET
     # ------------------------------------------
     with tab_profile:
-        st.header("👤 Profile & Customization")
-        st.caption("Personalize your avatar, select a custom border, and choose your top 3 badges to showcase on the leaderboard!")
+        st.header("👤 Profile & Trophy Cabinet")
+        st.caption("Personalize your profile settings and inspect player badge collections across the league!")
         
+        curr_team = profile.get("favorite_team", "🏈 Free Agent / Neutral")
+        team_index = NFL_TEAMS.index(curr_team) if curr_team in NFL_TEAMS else 0
+        
+        new_team = st.selectbox("Favorite NFL Team", NFL_TEAMS, index=team_index)
+        selected_team_data = NFL_TEAM_DATA.get(new_team, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
+        
+        col_logo, col_info = st.columns([1, 4])
+        with col_logo:
+            st.image(selected_team_data["logo"], width=75)
+        with col_info:
+            st.markdown(f"### {new_team}")
+
         with st.form("profile_customization_form"):
-            c1, c2 = st.columns(2)
-            with c1:
-                new_display_name = st.text_input("Display Name", value=profile.get("full_name", ""))
-                curr_team = profile.get("favorite_team", "🏈 Free Agent / Neutral")
-                new_team = st.selectbox("Favorite NFL Team", NFL_TEAMS, index=NFL_TEAMS.index(curr_team) if curr_team in NFL_TEAMS else 0)
-                new_bio = st.text_input("Catchphrase / Bio", value=profile.get("bio", "Ready for Kickoff!"), max_chars=100)
+            new_display_name = st.text_input("Display Name", value=profile.get("full_name", ""))
+            curr_avatar = profile.get("avatar_emoji", "🏈")
+            avatar_index = AVATAR_OPTIONS.index(curr_avatar) if curr_avatar in AVATAR_OPTIONS else 0
+            new_avatar = st.selectbox("Choose Profile Avatar Emoji", AVATAR_OPTIONS, index=avatar_index)
+            new_bio = st.text_input("Profile Catchphrase / Bio (max 100 chars)", value=profile.get("bio", "Ready for Kickoff!"), max_chars=100)
             
-            with c2:
-                curr_avatar = profile.get("avatar_emoji", "🏈")
-                new_avatar = st.selectbox("Profile Avatar Emoji", AVATAR_OPTIONS, index=AVATAR_OPTIONS.index(curr_avatar) if curr_avatar in AVATAR_OPTIONS else 0)
-                
-                curr_border = profile.get("avatar_border", "None")
-                border_keys = list(BORDER_OPTIONS.keys())
-                new_border = st.selectbox("Custom Avatar Border", border_keys, index=border_keys.index(curr_border) if curr_border in border_keys else 0)
-
-            st.divider()
-            st.markdown("#### 🏆 Showcase Your Top 3 Badges")
-            st.caption("Select up to 3 of your unlocked badges to display prominently next to your name on the leaderboard.")
+            save_profile = st.form_submit_button("Save Profile Settings 💾", type="primary")
             
-            unlocked_badges = get_user_badges(user_id)
-            current_showcase = profile.get("showcase_badges") or []
-            valid_showcase = [b for b in current_showcase if b in unlocked_badges][:3]
-            
-            selected_showcase = st.multiselect(
-                "Select Badges to Showcase (Max 3):",
-                options=unlocked_badges,
-                default=valid_showcase,
-                max_selections=3
-            )
-
-            if st.form_submit_button("Save Profile Settings 💾", type="primary"):
+            if save_profile:
                 if not new_display_name.strip():
                     st.error("Display Name cannot be blank.")
                 else:
@@ -793,214 +942,549 @@ else:
                         "full_name": new_display_name.strip(),
                         "favorite_team": new_team,
                         "avatar_emoji": new_avatar,
-                        "avatar_border": new_border,
-                        "bio": new_bio.strip(),
-                        "showcase_badges": selected_showcase
+                        "bio": new_bio.strip()
                     }).eq("id", user_id).execute()
-                    st.success("Profile and visual customizations updated successfully!")
+                    st.success("Profile updated successfully!")
                     st.rerun()
 
         st.divider()
         st.subheader("🏆 Virtual Trophy Cabinet")
+        st.caption("Inspect badge showcases across any league member.")
+        
         all_league_profiles = supabase.table("profiles").select("id, full_name, avatar_emoji, favorite_team").execute().data
         user_name_map = {p["full_name"]: p for p in all_league_profiles}
+        
         default_profile_name = profile.get("full_name", list(user_name_map.keys())[0] if user_name_map else "")
         default_index = list(user_name_map.keys()).index(default_profile_name) if default_profile_name in user_name_map else 0
         
-        selected_player_name = st.selectbox("Select Player Trophy Showcase", list(user_name_map.keys()), index=default_index, key="trophy_player_select")
+        st.markdown("**Select Player Trophy Showcase:**")
+        selected_player_name = st.selectbox("Select Player Trophy Showcase", list(user_name_map.keys()), index=default_index, key="trophy_player_select", label_visibility="collapsed")
         selected_player = user_name_map[selected_player_name]
+        
         selected_badges = get_user_badges(selected_player["id"])
+        selected_team_info = NFL_TEAM_DATA.get(selected_player.get("favorite_team"), NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
         
         unlocked_count = len(selected_badges)
         total_badges_count = len(MASTER_BADGES)
-        st.progress(unlocked_count / total_badges_count, text=f"**Cabinet Completion:** `{int((unlocked_count / total_badges_count) * 100)}%` Unlocked")
+        progress_ratio = unlocked_count / total_badges_count
+        progress_pct = int(progress_ratio * 100)
+        
+        col_t_logo, col_t_info = st.columns([1, 4])
+        with col_t_logo:
+            st.image(selected_team_info["logo"], width=70)
+        with col_t_info:
+            st.markdown(f"### {selected_player.get('avatar_emoji', '🏈')} {selected_player['full_name']}'s Showcase")
+            st.markdown(f"**Unlocked:** `{unlocked_count}` / `{total_badges_count}` Badges")
+        
+        st.progress(progress_ratio, text=f"**Cabinet Completion:** `{progress_pct}%` Unlocked")
+        st.write("")
         
         t_col1, t_col2 = st.columns(2)
         for idx, (b_name, b_desc) in enumerate(MASTER_BADGES.items()):
             is_unlocked = b_name in selected_badges
             target_col = t_col1 if idx % 2 == 0 else t_col2
+            
             with target_col:
                 if is_unlocked:
-                    st.markdown(f'<div class="trophy-card-unlocked"><b>{b_name}</b> <span style="color:#fbbf24;">(UNLOCKED)</span><br><small>{b_desc}</small></div>', unsafe_allow_html=True)
+                    st.markdown(f"""
+                        <div class="trophy-card-unlocked">
+                            <b>{b_name}</b> <span style="color:#fbbf24; font-weight:bold;">(UNLOCKED)</span><br>
+                            <small style="color:#cbd5e1;">{b_desc}</small>
+                        </div>
+                    """, unsafe_allow_html=True)
                 else:
-                    st.markdown(f'<div class="trophy-card-locked"><b>🔒 {b_name}</b><br><small>{b_desc}</small></div>', unsafe_allow_html=True)
+                    st.markdown(f"""
+                        <div class="trophy-card-locked">
+                            <b>🔒 {b_name}</b><br>
+                            <small>{b_desc}</small>
+                        </div>
+                    """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 2: RULES
+    # TAB 2: RULES & INFO
     # ------------------------------------------
     with tab_rules:
         st.header("📖 Rules & Information")
-        st.write("Each week I will release a new form with 10 scenarios. Each player will start with 10 tokens...")
+        
+        st.subheader("Welcome to TOUCHDOWN TOKENS!")
+        st.write("""
+        Each week I will release a new form with 10 scenarios. Each player will start with 10 tokens. 
+        If you win your bet, you will double however many tokens you placed on that scenario. 
+        If you lose the scenario, you will lose all your tokens that you placed on that scenario.
+        
+        Tokens are cumulative, so if you gain 8 tokens from right answers in Week 1, you will have 18 tokens for Week 2, and so on.
+        
+        At the bottom of the weekly picks is a place for you to write a free bet on a player you think will score a touchdown this week. 
+        If your player scores, you will gain extra bonus tokens to use in the next week!
+        
+        All games picked will be Sunday/Monday games. No Thursday games will be picked. 
+        Whilst you can pick the same scorer every week, mix it up and test your NFL knowledge!
+        """)
+        
+        st.divider()
+        st.subheader("📜 Official Game Rules")
+        
+        st.markdown("""
+        1. 🪙 **Wager Limits:** Don't go over your current total token balance.
+        2. 🎯 **One Choice Per Question:** You must only place a bet on 1 option (`Yes` or `No`) per question.
+        3. 📅 **Attendance & Active Play:** If you miss a week that is absolutely fine; however, if you continue to miss weeks, you will be docked points per week missed.
+        4. 🚑 **Late Scratches / Inactive Players:** If for any reason a player chosen in a scenario is ruled out just before a game, all points bet on that scenario will be refunded.
+        5. ⏰ **Submission Cutoff:** The cutoff for weekly submissions will be **15 minutes before the first kickoff** on Sunday.
+        6. 🏈 **Touchdown Scorer Eligibility:** The free bet scorer must either **rush or receive** a touchdown. Passing touchdowns do **NOT** count!
+        """)
+
+        st.markdown("""
+        <div class="summary-box">
+            <b>📱 Pro Tip: Add to Phone Home Screen!</b><br>
+            • <b>iPhone (Safari):</b> Tap the <i>Share Button</i> at the bottom → select <b>'Add to Home Screen'</b>.<br>
+            • <b>Android (Chrome):</b> Tap the <i>3 Dots Menu</i> at the top right → select <b>'Install App'</b> or <b>'Add to Home Screen'</b>.
+        </div>
+        """, unsafe_allow_html=True)
 
     # ------------------------------------------
     # TAB 3: PLACE BETS
     # ------------------------------------------
     with tab_bet:
         st.header("Weekly Predictions & Wagers")
+        st.link_button("🏈 View NFL Scores, Lines & Fixtures ↗️", "https://www.espn.com/nfl/schedule", use_container_width=True)
+        st.caption("Check real-time odds, matchups, and player news on ESPN before placing your bets!")
+        st.write("")
+
         if not available_weeks:
-            st.info("No active questions available yet.")
+            st.info("No active questions available yet. Check back soon when the Admin posts Week 1!")
         else:
             selected_week = st.selectbox("Select Week:", available_weeks, index=len(available_weeks)-1)
             q_res = supabase.table("weekly_questions").select("*").eq("week_number", selected_week).order("question_number").execute()
             questions = q_res.data
             
-            with st.form("weekly_bet_form"):
-                wagers, picks = {}, {}
-                for q in questions:
-                    if q.get("winning_answer", "").startswith("LOCKTIME:"): continue
-                    full_q_text = q['question_text']
-                    prompt_text = full_q_text.split(" | MATCHUP: ")[0] if " | MATCHUP: " in full_q_text else full_q_text
+            is_locked = False
+            lock_time_row = [q for q in questions if q.get("winning_answer", "").startswith("LOCKTIME:")]
+            
+            if lock_time_row:
+                raw_lock_str = lock_time_row[0]["winning_answer"].replace("LOCKTIME:", "")
+                try:
+                    lock_dt = datetime.fromisoformat(raw_lock_str).replace(tzinfo=timezone.utc)
+                    now_dt = datetime.now(timezone.utc)
+                    time_diff = lock_dt - now_dt
                     
-                    st.markdown(f"**Q{q['question_number']}: {prompt_text}**")
-                    col1, col2 = st.columns([1, 1])
-                    with col1:
-                        picks[q['id']] = st.radio(f"Pick Q{q['question_number']}", ["Yes", "No"], key=f"pick_{q['id']}", horizontal=True, label_visibility="collapsed")
-                    with col2:
-                        wagers[q['id']] = st.number_input(f"Wager Q{q['question_number']}", min_value=0, max_value=profile['tokens'], value=0, key=f"wager_{q['id']}", label_visibility="collapsed")
+                    total_seconds_left = int(time_diff.total_seconds())
+                    if total_seconds_left <= 0:
+                        is_locked = True
+                        st.error("🔒 Entries for this week are locked! Kickoff deadline has passed.")
+                    else:
+                        days, remainder = divmod(total_seconds_left, 86400)
+                        hours, remainder = divmod(remainder, 3600)
+                        minutes, seconds = divmod(remainder, 60)
+                        
+                        time_display_str = f"{days}d {hours}h {minutes}m {seconds}s" if days > 0 else f"{hours}h {minutes}m {seconds}s"
+                        
+                        st.markdown(f"""
+                            <div class="timer-card">
+                                ⏳ <b>KICKOFF LOCKOUT COUNTDOWN:</b> <span style="font-size:20px; font-weight:bold; color:{user_team_color};">{time_display_str} remaining</span>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        
+                        st.markdown("""
+                            <script>
+                                setTimeout(function(){
+                                    window.location.reload();
+                                }, 60000);
+                            </script>
+                        """, unsafe_allow_html=True)
+                except Exception:
+                    pass
+            
+            if any(q.get("winning_answer") == "LOCKED" for q in questions):
+                is_locked = True
+                st.error("🔒 Entries for this week have been manually locked by the Admin.")
+
+            if not questions:
+                st.info("No questions found for this week.")
+            else:
+                all_week_bets = supabase.table("user_bets").select("question_id, pick, wager_amount").eq("user_id", user_id).eq("week_number", selected_week).execute().data
                 
-                td_pick = st.text_input("Bonus Touchdown Scorer Pick", value="", key="td_scorer")
-                total_wagered = sum(wagers.values())
-                
-                if total_wagered > profile['tokens']:
-                    st.error(f"⚠️ Over-wagered! Allocated {total_wagered} tokens but only have {profile['tokens']} available.")
-                
-                if st.form_submit_button("Submit Weekly Bets 🚀", type="primary"):
-                    if total_wagered <= profile['tokens']:
-                        for q_id, pick_val in picks.items():
-                            supabase.table("user_bets").delete().eq("user_id", user_id).eq("question_id", q_id).execute()
-                            supabase.table("user_bets").insert({"user_id": user_id, "user_name": profile["full_name"], "week_number": selected_week, "question_id": q_id, "pick": pick_val, "wager_amount": wagers[q_id]}).execute()
-                        if td_pick:
-                            supabase.table("touchdown_picks").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
-                            supabase.table("touchdown_picks").insert({"user_id": user_id, "week_number": selected_week, "player_name": td_pick, "is_correct": None}).execute()
-                        st.balloons()
-                        st.success("Bets locked in successfully!")
+                if not is_locked and profile['tokens'] > 0:
+                    col_rand1, col_rand2 = st.columns([3, 1])
+                    with col_rand2:
+                        if st.button("🎲 Feeling Lucky (Randomize Bets)", help="Randomly distributes your available tokens across the questions!"):
+                            real_q_items = [q for q in questions if not q.get("winning_answer", "").startswith("LOCKTIME:")]
+                            if real_q_items:
+                                remaining_tokens = profile['tokens']
+                                supabase.table("user_bets").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
+                                
+                                token_allocations = {q['id']: 0 for q in real_q_items}
+                                for _ in range(remaining_tokens):
+                                    chosen_q = random.choice(real_q_items)
+                                    token_allocations[chosen_q['id']] += 1
+                                    
+                                for q_item in real_q_items:
+                                    random_pick = random.choice(["Yes", "No"])
+                                    w_amt = token_allocations[q_item['id']]
+                                    supabase.table("user_bets").insert({
+                                        "user_id": user_id,
+                                        "user_name": profile["full_name"],
+                                        "week_number": selected_week,
+                                        "question_id": q_item['id'],
+                                        "pick": random_pick,
+                                        "wager_amount": w_amt
+                                    }).execute()
+                                st.success("🎲 Random bets generated and allocated successfully!")
+                                st.rerun()
+
+                with st.form("weekly_bet_form"):
+                    wagers = {}
+                    picks = {}
+                    
+                    st.markdown("### 10 Weekly Questions")
+                    st.caption("Expand any question below to make your pick and wager tokens.")
+                    
+                    for q in questions:
+                        if q.get("winning_answer", "").startswith("LOCKTIME:"):
+                            continue
+                            
+                        full_q_text = q['question_text']
+                        away_team_name = "🏈 Free Agent / Neutral"
+                        home_team_name = "🏈 Free Agent / Neutral"
+                        prompt_text = full_q_text
+                        
+                        if " | MATCHUP: " in full_q_text:
+                            parts = full_q_text.split(" | MATCHUP: ")
+                            prompt_text = parts[0]
+                            matchup_str = parts[1]
+                            if " @ " in matchup_str:
+                                teams_split = matchup_str.split(" @ ")
+                                away_team_name = teams_split[0]
+                                home_team_name = teams_split[1]
+
+                        away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
+                        home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
+
+                        existing_bet_row = [b for b in all_week_bets if b.get('question_id') == q['id']]
+                        default_pick_val = existing_bet_row[0]['pick'] if existing_bet_row else "Yes"
+                        default_wager_val = existing_bet_row[0]['wager_amount'] if existing_bet_row else 0
+
+                        with st.expander(f"Q{q['question_number']}: {prompt_text[:50]}... ({away_team_name} @ {home_team_name})", expanded=True):
+                            col_away_logo, col_matchup_txt, col_home_logo = st.columns([1, 4, 1])
+                            with col_away_logo:
+                                st.image(away_info["logo"], width=40)
+                            with col_matchup_txt:
+                                st.markdown(f"""
+                                    <div style="text-align:center; padding-top:2px;">
+                                        <span class="matchup-team-title">{away_team_name}</span>
+                                        <span style="color:#cbd5e1; font-weight:bold; margin: 0 6px;">@</span>
+                                        <span class="matchup-team-title">{home_team_name}</span>
+                                    </div>
+                                """, unsafe_allow_html=True)
+                            with col_home_logo:
+                                st.image(home_info["logo"], width=40)
+
+                            q_bets = [b for b in all_week_bets if b['question_id'] == q['id']]
+                            if q_bets:
+                                yes_cnt = sum(1 for b in q_bets if b['pick'] == "Yes")
+                                pct_yes = int((yes_cnt / len(q_bets)) * 100)
+                                st.markdown(f'<span class="consensus-badge">📊 League Pick: {pct_yes}% YES ({len(q_bets)} votes)</span>', unsafe_allow_html=True)
+
+                            st.markdown(f"**Question: {prompt_text}**")
+                            col1, col2 = st.columns([1, 1])
+                            with col1:
+                                picks[q['id']] = st.radio(
+                                    f"Pick Q{q['question_number']}", 
+                                    ["Yes", "No"], 
+                                    index=0 if default_pick_val == "Yes" else 1,
+                                    key=f"pick_{q['id']}", 
+                                    horizontal=True,
+                                    disabled=is_locked
+                                )
+                            with col2:
+                                wagers[q['id']] = st.number_input(
+                                    f"Wager Q{q['question_number']}", 
+                                    min_value=0, 
+                                    max_value=profile['tokens'], 
+                                    value=default_wager_val, 
+                                    key=f"wager_{q['id']}",
+                                    disabled=is_locked
+                                )
+
+                    st.markdown("### 🏈 Bonus Touchdown Scorer Pick")
+                    st.caption("Name 1 player to score a TD this week (Rushing/Receiving only!). Correct pick = Bonus Tokens!")
+                    
+                    existing_td = supabase.table("touchdown_picks").select("player_name").eq("user_id", user_id).eq("week_number", selected_week).execute().data
+                    default_td = existing_td[0]["player_name"] if existing_td else ""
+                    
+                    td_pick = st.text_input("Player Name (e.g., Patrick Mahomes)", value=default_td, key="td_scorer", disabled=is_locked)
+                    
+                    total_wagered = sum(wagers.values())
+                    max_available = max(1, profile['tokens'])
+                    progress_val = min(1.0, total_wagered / max_available)
+                    pct_str = int(progress_val * 100)
+                    
+                    if total_wagered > profile['tokens']:
+                        st.error(f"⚠️ Over-wagered! You have allocated {total_wagered} tokens but only have {profile['tokens']} available.")
+                    else:
+                        st.progress(
+                            progress_val, 
+                            text=f"**Tokens Allocated:** `{total_wagered}` / `{profile['tokens']}` Tokens ({pct_str}%)"
+                        )
+                    
+                    col_sub1, col_sub2 = st.columns([2, 1])
+                    with col_sub1:
+                        submit_bet = st.form_submit_button("Submit Weekly Bets 🚀", type="primary", use_container_width=True, disabled=is_locked)
+                    with col_sub2:
+                        clear_bet = st.form_submit_button("Clear Bet Choices 🗑️", use_container_width=True, disabled=is_locked)
+                    
+                    if clear_bet and not is_locked:
+                        supabase.table("user_bets").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
+                        supabase.table("touchdown_picks").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
+                        st.success("Your bet choices for this week have been cleared!")
+                        st.rerun()
+
+                    if submit_bet and not is_locked:
+                        if total_wagered > profile['tokens']:
+                            st.error(f"Cannot wager {total_wagered} tokens! You only have {profile['tokens']} tokens available.")
+                        else:
+                            for q_id, pick_val in picks.items():
+                                w_amt = wagers[q_id]
+                                supabase.table("user_bets").delete().eq("user_id", user_id).eq("question_id", q_id).execute()
+                                supabase.table("user_bets").insert({
+                                    "user_id": user_id,
+                                    "user_name": profile["full_name"],
+                                    "week_number": selected_week,
+                                    "question_id": q_id,
+                                    "pick": pick_val,
+                                    "wager_amount": w_amt
+                                }).execute()
+                                
+                            if td_pick:
+                                supabase.table("touchdown_picks").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
+                                supabase.table("touchdown_picks").insert({
+                                    "user_id": user_id,
+                                    "week_number": selected_week,
+                                    "player_name": td_pick,
+                                    "is_correct": None
+                                }).execute()
+                                
+                            st.balloons()
+                            st.success("Your bets and touchdown pick have been successfully locked in!")
 
     # ------------------------------------------
-    # TAB 4: HISTORY
+    # TAB 4: MY HISTORY
     # ------------------------------------------
     with tab_history:
         st.header("Your Past Bets & Results")
         history_bets = supabase.table("user_bets").select("*, weekly_questions(question_number, question_text, winning_answer)").eq("user_id", user_id).execute().data
-        if history_bets:
+        
+        if not history_bets:
+            st.info("You haven't placed any bets yet.")
+        else:
             formatted_data = []
             for b in history_bets:
                 q_info = b.get("weekly_questions", {})
                 w_ans = q_info.get("winning_answer", "Pending")
-                raw_q = q_info.get("question_text", "N/A").split(" | MATCHUP: ")[0]
-                outcome = "Pending" if w_ans in ["Pending", "LOCKED"] or w_ans.startswith("LOCKTIME:") else (f"✅ Won (+{b['wager_amount'] * 2} Tokens)" if b["pick"] == w_ans else f"❌ Lost (-{b['wager_amount']} Tokens)")
-                formatted_data.append({"Week": b["week_number"], "Question": raw_q, "Your Pick": b["pick"], "Wager": b["wager_amount"], "Result": outcome})
+                raw_q_text = q_info.get("question_text", "N/A")
+                clean_q_prompt = raw_q_text.split(" | MATCHUP: ")[0] if " | MATCHUP: " in raw_q_text else raw_q_text
+                
+                if w_ans in ["Pending", "LOCKED"] or w_ans.startswith("LOCKTIME:"):
+                    outcome = "Pending"
+                elif b["pick"] == w_ans:
+                    outcome = f"✅ Won (+{b['wager_amount'] * 2} Tokens)"
+                else:
+                    outcome = f"❌ Lost (-{b['wager_amount']} Tokens)"
+                        
+                formatted_data.append({
+                    "Week": b["week_number"],
+                    "Question": clean_q_prompt,
+                    "Your Pick": b["pick"],
+                    "Wager": b["wager_amount"],
+                    "Winner": w_ans if not w_ans.startswith("LOCKTIME:") and w_ans not in ["Pending", "LOCKED"] else "Pending",
+                    "Result": outcome
+                })
             st.dataframe(formatted_data, use_container_width=True)
 
     # ------------------------------------------
-    # TAB 5: LEADERBOARD & HEAD-TO-HEAD
+    # TAB 5: LEADERBOARD
     # ------------------------------------------
     with tab_leaders:
-        st.header("🏆 League Standings & Head-to-Head")
-        leader_res = supabase.table("profiles").select("*").execute().data
-        player_stats = []
+        st.header("🏆 Player Standings")
+        st.caption("Ranked by Correct Touchdown Scorers (Tiebreaker), then Token Balance.")
+        
+        leader_res = supabase.table("profiles").select("id, full_name, tokens, favorite_team, bio, avatar_emoji").execute().data
         
         if leader_res:
+            player_stats = []
             for p in leader_res:
                 correct_tds = supabase.table("touchdown_picks").select("*").eq("user_id", p["id"]).eq("is_correct", True).execute().data
                 td_count = len(correct_tds) if correct_tds else 0
-                u_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("user_id", p["id"]).execute().data
-                wins, total_graded = 0, 0
-                for b in u_bets:
-                    w_ans = b.get("weekly_questions", {}).get("winning_answer")
-                    if w_ans in ["Yes", "No"]:
-                        total_graded += 1
-                        if b["pick"] == w_ans: wins += 1
-                win_rate = int((wins / total_graded) * 100) if total_graded > 0 else 0
-                player_stats.append({**p, "correct_tds": td_count, "win_rate": win_rate, "total_bets": total_graded})
+                player_stats.append({
+                    **p,
+                    "correct_tds": td_count
+                })
             
-            player_stats = sorted(player_stats, key=lambda x: (-x["tokens"], -x["correct_tds"], x["full_name"]))
-            
-            # Head-to-Head Rival Comparison
-            with st.expander("⚔️ Head-to-Head Player Comparison", expanded=False):
-                all_other_names = [p["full_name"] for p in player_stats if p["id"] != user_id]
-                if all_other_names:
-                    compare_name = st.selectbox("Select Rival to Compare Against:", all_other_names)
-                    my_stat = next(p for p in player_stats if p["id"] == user_id)
-                    rival_stat = next(p for p in player_stats if p["full_name"] == compare_name)
-                    
-                    c1, c2, c3 = st.columns([3, 1, 3])
-                    with c1:
-                        st.markdown(f"""
-                        <div class="vs-card">
-                            <h3>{my_stat['avatar_emoji']} You ({my_stat['full_name']})</h3>
-                            <h2 style="color: {user_team_color};">{my_stat['tokens']} 🪙</h2>
-                            <p><b>Win Rate:</b> {my_stat['win_rate']}%</p>
-                            <p><b>Correct TDs:</b> {my_stat['correct_tds']}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    with c2: st.markdown("<h1 style='text-align:center; margin-top:50px;'>VS</h1>", unsafe_allow_html=True)
-                    with c3:
-                        r_color = NFL_TEAM_DATA.get(rival_stat.get("favorite_team"), NFL_TEAM_DATA["🏈 Free Agent / Neutral"])["color"]
-                        st.markdown(f"""
-                        <div class="vs-card">
-                            <h3>{rival_stat.get('avatar_emoji','🏈')} {rival_stat['full_name']}</h3>
-                            <h2 style="color: {r_color};">{rival_stat['tokens']} 🪙</h2>
-                            <p><b>Win Rate:</b> {rival_stat['win_rate']}%</p>
-                            <p><b>Correct TDs:</b> {rival_stat['correct_tds']}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-
-            st.divider()
+            player_stats = sorted(player_stats, key=lambda x: (-x["correct_tds"], -x["tokens"], x["full_name"]))
 
             current_rank = 1
-            prev_score, prev_tds = None, None
+            prev_tds = None
+            prev_score = None
+            
             for idx, p in enumerate(player_stats):
-                score, tds = p["tokens"], p["correct_tds"]
-                if idx > 0 and score == prev_score and tds == prev_tds: display_rank = current_rank
-                else: current_rank, display_rank = idx + 1, idx + 1
-                prev_score, prev_tds = score, tds
+                score = p["tokens"]
+                tds = p["correct_tds"]
+                
+                if idx > 0 and tds == prev_tds and score == prev_score:
+                    display_rank = current_rank
+                else:
+                    current_rank = idx + 1
+                    display_rank = current_rank
+                
+                prev_tds = tds
+                prev_score = score
                 
                 av = p.get("avatar_emoji") or "🏈"
-                p_border = p.get("avatar_border", "None")
-                p_border_css = BORDER_OPTIONS.get(p_border, "border: none;")
                 team_name = p.get("favorite_team") or "🏈 Free Agent / Neutral"
                 t_info = NFL_TEAM_DATA.get(team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
+                p_badges = get_user_badges(p["id"])
                 
-                showcased = p.get("showcase_badges") or []
-                badges_html = "".join([f'<span class="badge-pill">{b}</span>' for b in showcased]) if showcased else '<span style="color:#64748b; font-size:12px;">No Badges Displayed</span>'
+                badges_html = "".join([f'<span class="badge-pill">{b}</span>' for b in p_badges]) if p_badges else '<span style="color:#64748b; font-size:12px;">No Badges Yet</span>'
+                bio_text = p.get('bio', '')
                 
                 podium_class = "leaderboard-row"
-                if display_rank == 1: podium_class, rank_display = podium_class + " podium-rank-1", "🥇 #1"
-                elif display_rank == 2: podium_class, rank_display = podium_class + " podium-rank-2", "🥈 #2"
-                elif display_rank == 3: podium_class, rank_display = podium_class + " podium-rank-3", "🥉 #3"
-                else: rank_display = f"#{display_rank}"
+                if display_rank == 1:
+                    podium_class += " podium-rank-1"
+                    rank_display = "🥇 #1"
+                elif display_rank == 2:
+                    podium_class += " podium-rank-2"
+                    rank_display = "🥈 #2"
+                elif display_rank == 3:
+                    podium_class += " podium-rank-3"
+                    rank_display = "🥉 #3"
+                else:
+                    rank_display = f"#{display_rank}"
                 
                 st.markdown(f"""
                     <div class="{podium_class}">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
                                 <span style="font-family: 'Bebas Neue'; font-size: 26px; color: #fbbf24; width: 45px;">{rank_display}</span>
-                                <div style="font-size:24px; width:45px; height:45px; display:flex; align-items:center; justify-content:center; border-radius:50%; {p_border_css} background:rgba(255,255,255,0.05);">
-                                    {av}
-                                </div>
+                                <img src="{t_info['logo']}" style="width: 32px; height: 32px;" />
                                 <div>
-                                    <b style="font-size: 19px; color: #ffffff;">{p['full_name']}</b>
-                                    <div style="font-size: 13px; color: #94a3b8;">{team_name} • Correct TDs: <b>{tds}</b></div>
+                                    <b style="font-size: 19px; color: #ffffff;">{av} {p['full_name']}</b>
+                                    <div style="font-size: 13px; color: #94a3b8;">{team_name} {f'• "{bio_text}"' if bio_text else ''} • 🏈 Correct TDs (Tiebreaker): <b>{tds}</b></div>
                                 </div>
                             </div>
-                            <div style="text-align: right;"><span style="font-family: 'Bebas Neue'; font-size: 30px; color: #38bdf8;">{p['tokens']} 🪙</span></div>
+                            <div style="text-align: right;">
+                                <span style="font-family: 'Bebas Neue'; font-size: 30px; color: #38bdf8;">{p['tokens']} 🪙</span>
+                            </div>
                         </div>
                         <div style="border-top: 1px solid #334155; padding-top: 8px; margin-top: 4px;">
-                            <span style="font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: bold; margin-right: 8px;">Showcase:</span> {badges_html}
+                            <span style="font-size: 12px; text-transform: uppercase; color: #94a3b8; font-weight: bold; margin-right: 8px;">Trophies:</span> {badges_html}
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
 
+        st.divider()
+        st.subheader("💬 League Trash Talk Feed")
+        
+        with st.form("trash_talk_form"):
+            chat_msg = st.text_input("Post a message to the league...", key="chat_input")
+            post_chat = st.form_submit_button("Post Message 💬")
+            
+            if post_chat and chat_msg.strip():
+                try:
+                    supabase.table("trash_talk").insert({
+                        "user_id": user_id,
+                        "message": chat_msg.strip()
+                    }).execute()
+                    st.success("Message posted!")
+                    st.rerun()
+                except Exception as e:
+                    st.error("Make sure the 'trash_talk' table is created in Supabase.")
+
+        recent_chats = supabase.table("trash_talk").select("message, created_at, user_id").order("created_at", desc=True).limit(10).execute().data
+        all_profiles = supabase.table("profiles").select("id, full_name, avatar_emoji, favorite_team").execute().data
+        profile_map = {p["id"]: p for p in all_profiles}
+
+        if recent_chats:
+            for c in recent_chats:
+                p_info = profile_map.get(c["user_id"], {})
+                author_name = p_info.get("full_name", "Player")
+                author_av = p_info.get("avatar_emoji", "🏈")
+                author_team = p_info.get("favorite_team", "🏈 Free Agent / Neutral")
+                t_info = NFL_TEAM_DATA.get(author_team, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
+                
+                st.markdown(f"""
+                <div class="chat-bubble" style="border-left: 5px solid {t_info['color']} !important;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <img src="{t_info['logo']}" style="width:28px; height:28px;" />
+                        <b>{author_av} {author_name}</b> <small style="opacity:0.7;">({author_team})</small>
+                    </div>
+                    <div style="margin-top:6px;">{c['message']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
     # ------------------------------------------
-    # TAB 6: HALL OF FAME
+    # TAB 6: HALL OF FAME & SEASON ARCHIVES (2023 & 2024)
     # ------------------------------------------
     with tab_hof:
         st.header("🏛️ Touchdown Tokens Hall of Fame")
-        archive_year_sel = st.selectbox("Select Season Archive", ["2024 Season", "2023 Season"])
+        st.caption("Archive of past champions and legendary historical seasons.")
+        
+        st.markdown("**Select Season Archive:**")
+        archive_year_sel = st.selectbox("Select Season Archive", ["2024 Season", "2023 Season"], label_visibility="collapsed")
+        
         if archive_year_sel == "2024 Season":
-            st.dataframe(pd.DataFrame([{"Rank": "🥇", "Player": "Louis Lynn", "Final Tokens": 74}, {"Rank": "🥈", "Player": "John Willis", "Final Tokens": 66}]), use_container_width=True, hide_index=True)
+            st.markdown(f"""
+                <div class="champion-card">
+                    <div style="font-size: 20px; letter-spacing: 2px;">👑 2024 SEASON CHAMPION</div>
+                    <div style="font-size: 48px; font-weight: 900; margin: 8px 0;">Louis Lynn (74 🪙)</div>
+                    <div style="font-size: 16px;">Crowned the ultimate Touchdown Tokens victor of the 2024 campaign!</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            st.subheader("📜 2024 Official Season Final Standings")
+            st.caption("Complete historical results from the 2024 Touchdown Tokens leaderboard.")
+            
+            data_2024 = [
+                {"Rank": "🥇", "Player": "Louis Lynn", "Final Tokens": 74},
+                {"Rank": "🥈", "Player": "John Willis", "Final Tokens": 66},
+                {"Rank": "🥉", "Player": "Will Granger", "Final Tokens": 29},
+                {"Rank": "3nd (Tied)", "Player": "Adam Volpin", "Final Tokens": 29},
+                {"Rank": "5th", "Player": "Gary Shaw", "Final Tokens": 23},
+                {"Rank": "6th", "Player": "Suzie McKenna", "Final Tokens": 21},
+                {"Rank": "7th", "Player": "Dan Hammerton", "Final Tokens": 14},
+                {"Rank": "7th (Tied)", "Player": "Tom Wood", "Final Tokens": 14},
+                {"Rank": "9th", "Player": "Patrick Smith", "Final Tokens": 13},
+                {"Rank": "10th", "Player": "Joe Kewley-Joy", "Final Tokens": 10},
+                {"Rank": "11th", "Player": "Paul Hindle", "Final Tokens": 6},
+                {"Rank": "12th", "Player": "Liam Murphy", "Final Tokens": 0},
+            ]
+            df_2024 = pd.DataFrame(data_2024)
+            st.dataframe(df_2024, use_container_width=True, hide_index=True)
+            
         else:
-            st.dataframe(pd.DataFrame([{"Rank": "🥇", "Player": "Ed McKenna", "Final Tokens": 117}, {"Rank": "🥈", "Player": "Suzie McKenna", "Final Tokens": 87}]), use_container_width=True, hide_index=True)
+            st.markdown(f"""
+                <div class="champion-card">
+                    <div style="font-size: 20px; letter-spacing: 2px;">👑 2023 SEASON CHAMPION</div>
+                    <div style="font-size: 48px; font-weight: 900; margin: 8px 0;">Ed McKenna (117 🪙)</div>
+                    <div style="font-size: 16px;">Crowned the ultimate Touchdown Tokens victor of the 2023 campaign!</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            st.subheader("📜 2023 Official Season Final Standings")
+            st.caption("Complete historical results from the 2023 Touchdown Tokens leaderboard.")
+            
+            data_2023 = [
+                {"Rank": "🥇", "Player": "Ed McKenna", "Final Tokens": 117},
+                {"Rank": "🥈", "Player": "Suzie McKenna", "Final Tokens": 87},
+                {"Rank": "🥉", "Player": "Gary Shaw", "Final Tokens": 76},
+                {"Rank": "4th", "Player": "Adam Volpin", "Final Tokens": 67},
+                {"Rank": "5th", "Player": "Tom Wood", "Final Tokens": 49},
+                {"Rank": "6th", "Player": "Jay Kewley-Joy", "Final Tokens": 48},
+                {"Rank": "7th", "Player": "Will Granger", "Final Tokens": 47},
+                {"Rank": "8th", "Player": "John Willis", "Final Tokens": 28},
+                {"Rank": "9th", "Player": "Patrick Smith", "Final Tokens": 4},
+                {"Rank": "10th", "Player": "Ethan Lewis", "Final Tokens": 3},
+            ]
+            df_2023 = pd.DataFrame(data_2023)
+            st.dataframe(df_2023, use_container_width=True, hide_index=True)
 
     # ------------------------------------------
     # TAB 7: ADMIN CONTROL
@@ -1008,77 +1492,462 @@ else:
     if profile.get("is_admin"):
         with tab_admin:
             st.header("⚙️ Admin Management Portal")
+            
             admin_sec = st.radio("Select Action", ["Manage Questions", "Auto-Lockout Scheduler", "Grade Week & Calculate Points", "Bulk Token Adjuster", "Export League Data (CSV)", "League Chat Announcement", "Archive & Reset Season", "Season Champion Banner"], horizontal=True)
             
             if admin_sec == "Manage Questions":
-                st.subheader("📋 Manage & Edit Weekly Questions")
+                st.subheader("📋 Manage & Edit Weekly Questions & Matchups")
+                st.caption("Select a week below to view, publish, or edit questions and matchups dynamically. They will stay right here for ongoing edits!")
+                
                 all_db_weeks = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).execute().data
                 db_week_nums = sorted(list(set([r["week_number"] for r in all_db_weeks]))) if all_db_weeks else []
-                next_week = (db_week_nums[-1] + 1) if db_week_nums else 1
-                selected_manage_week = st.selectbox("Select Week", db_week_nums + [next_week], index=len(db_week_nums))
+                next_suggested_week = (db_week_nums[-1] + 1) if db_week_nums else 1
                 
-                if st.button("📋 Load Default Question Templates"):
-                    for i in range(1, 11): st.session_state[f"m_prompt_w{selected_manage_week}_q{i}"] = DEFAULT_QUESTION_TEMPLATES[i-1]
-                    st.success("Templates loaded!")
-                    st.rerun()
+                week_options = db_week_nums + [next_suggested_week] if next_suggested_week not in db_week_nums else db_week_nums
+                selected_manage_week = st.selectbox("Select Week to Manage", week_options, index=len(week_options)-1, key="admin_manage_week_sel")
                 
-                with st.form("manage_questions_form"):
-                    q_payloads = []
+                existing_week_qs = supabase.table("weekly_questions").select("*").eq("week_number", selected_manage_week).order("question_number").execute().data
+                real_existing_qs = {q["question_number"]: q for q in existing_week_qs if q.get("question_number", 0) <= 10}
+                
+                col_btn1, col_btn2 = st.columns([1, 1])
+                with col_btn1:
+                    if st.button("📋 Load 10 Default Question Templates"):
+                        for i in range(1, 11):
+                            st.session_state[f"m_prompt_w{selected_manage_week}_q{i}"] = DEFAULT_QUESTION_TEMPLATES[i-1]
+                        st.success("Default templates loaded instantly!")
+                        st.rerun()
+                with col_btn2:
+                    if st.button("🗑️ Clear Unpublished Questions", help="Deletes all unpublished questions for this week"):
+                        try:
+                            supabase.table("weekly_questions").delete().eq("week_number", selected_manage_week).eq("winning_answer", "Pending").execute()
+                            for i in range(1, 11):
+                                skey = f"m_prompt_w{selected_manage_week}_q{i}"
+                                if skey in st.session_state:
+                                    del st.session_state[skey]
+                            st.success(f"Cleared unpublished questions for Week {selected_manage_week}!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error clearing questions: {e}")
+
+                with st.form(key=f"manage_questions_form_week_{selected_manage_week}"):
+                    question_payloads = []
+                    
                     for i in range(1, 11):
-                        prompt = st.text_input(f"Question {i} Prompt", value=DEFAULT_QUESTION_TEMPLATES[i-1], key=f"m_prompt_w{selected_manage_week}_q{i}")
-                        q_payloads.append({"question_number": i, "prompt": prompt})
-                    if st.form_submit_button("Save Questions 💾", type="primary"):
-                        for item in q_payloads:
-                            supabase.table("weekly_questions").insert({"week_number": selected_manage_week, "question_number": item["question_number"], "question_text": item["prompt"], "winning_answer": "Pending"}).execute()
-                        st.success("Questions published successfully!")
+                        st.markdown(f"#### Question {i}")
+                        
+                        q_obj = real_existing_qs.get(i, {})
+                        raw_txt = q_obj.get("question_text", "")
+                        
+                        db_prompt = raw_txt.split(" | MATCHUP: ")[0] if " | MATCHUP: " in raw_txt else raw_txt
+                        session_key = f"m_prompt_w{selected_manage_week}_q{i}"
+                        
+                        existing_prompt = st.session_state.get(session_key, db_prompt)
+                            
+                        existing_away = "🏈 Free Agent / Neutral"
+                        existing_home = "🏈 Free Agent / Neutral"
+                        
+                        if " | MATCHUP: " in raw_txt:
+                            matchup_part = raw_txt.split(" | MATCHUP: ")[1]
+                            if " @ " in matchup_part:
+                                split_teams = matchup_part.split(" @ ")
+                                existing_away = split_teams[0] if split_teams[0] in NFL_TEAMS else "🏈 Free Agent / Neutral"
+                                existing_home = split_teams[1] if split_teams[1] in NFL_TEAMS else "🏈 Free Agent / Neutral"
+
+                        col_m1, col_m2 = st.columns(2)
+                        with col_m1:
+                            away_t = st.selectbox(f"Q{i} Away Team", NFL_TEAMS, index=NFL_TEAMS.index(existing_away) if existing_away in NFL_TEAMS else 0, key=f"m_away_w{selected_manage_week}_q{i}")
+                        with col_m2:
+                            home_t = st.selectbox(f"Q{i} Home Team", NFL_TEAMS, index=NFL_TEAMS.index(existing_home) if existing_home in NFL_TEAMS else 0, key=f"m_home_w{selected_manage_week}_q{i}")
+                            
+                        prompt_val = st.text_input(f"Question {i} Prompt", value=existing_prompt, key=session_key)
+                        
+                        question_payloads.append({
+                            "question_number": i,
+                            "prompt": prompt_val.strip(),
+                            "away": away_t,
+                            "home": home_t,
+                            "db_id": q_obj.get("id")
+                        })
+                        st.divider()
+                    
+                    save_all_questions_btn = st.form_submit_button("Save & Publish All Questions 💾", type="primary")
+                    
+                    if save_all_questions_btn:
+                        for item in question_payloads:
+                            if item["prompt"]:
+                                combined_text = f"{item['prompt']} | MATCHUP: {item['away']} @ {item['home']}"
+                                
+                                if item["db_id"]:
+                                    supabase.table("weekly_questions").update({
+                                        "question_text": combined_text
+                                    }).eq("id", item["db_id"]).execute()
+                                else:
+                                    supabase.table("weekly_questions").insert({
+                                        "week_number": selected_manage_week,
+                                        "question_number": item["question_number"],
+                                        "question_text": combined_text,
+                                        "winning_answer": "Pending"
+                                    }).execute()
+                                    
+                        st.balloons()
+                        st.success(f"Successfully saved and updated Week {selected_manage_week} questions!")
+                        st.rerun()
+
+            elif admin_sec == "Auto-Lockout Scheduler":
+                st.subheader("⏰ Auto-Lockout Scheduler & Emergency Override")
+                lock_week = st.number_input("Select Week", min_value=1, max_value=24, step=1, key="admin_lock_week")
+                
+                existing_lock_row = supabase.table("weekly_questions").select("winning_answer").eq("week_number", lock_week).eq("question_number", 99).execute().data
+                current_lock_val = existing_lock_row[0]["winning_answer"] if existing_lock_row else "Not Set"
+                
+                st.info(f"Current Lock Status for Week {lock_week}: `{current_lock_val}`")
+                
+                col_sch1, col_sch2 = st.columns(2)
+                with col_sch1:
+                    lock_date = st.date_input("Automatic Lockout Date (UTC)")
+                    lock_time = st.time_input("Automatic Lockout Time (UTC)")
+                with col_sch2:
+                    st.write("")
+                    st.write("")
+                    manual_override_toggle = st.toggle("🚨 Manual Emergency Lockout Override", value=(current_lock_val == "LOCKED"))
+                
+                if st.button("Save Lockout Configuration 🔒", type="primary"):
+                    if manual_override_toggle:
+                        supabase.table("weekly_questions").delete().eq("week_number", lock_week).eq("question_number", 99).execute()
+                        supabase.table("weekly_questions").insert({
+                            "week_number": lock_week,
+                            "question_number": 99,
+                            "question_text": "WEEK LOCKOUT TIMESTAMP",
+                            "winning_answer": "LOCKED"
+                        }).execute()
+                        st.success(f"Week {lock_week} has been MANUALLY LOCKED by Admin override!")
+                    else:
+                        combined_dt = datetime.combine(lock_date, lock_time).isoformat()
+                        supabase.table("weekly_questions").delete().eq("week_number", lock_week).eq("question_number", 99).execute()
+                        supabase.table("weekly_questions").insert({
+                            "week_number": lock_week,
+                            "question_number": 99,
+                            "question_text": "WEEK LOCKOUT TIMESTAMP",
+                            "winning_answer": f"LOCKTIME:{combined_dt}"
+                        }).execute()
+                        st.success(f"Auto-lockout scheduled for Week {lock_week} at {combined_dt} UTC!")
 
             elif admin_sec == "Grade Week & Calculate Points":
-                st.subheader("Grade Weekly Results")
-                grade_week = st.number_input("Week to Grade", min_value=1, max_value=24, step=1)
-                week_q = supabase.table("weekly_questions").select("*").eq("week_number", grade_week).order("question_number").execute().data
+                st.subheader("Grade Weekly Results & Live Score Feeder")
+                grade_week = st.number_input("Select Week to Grade", min_value=1, max_value=24, step=1, key="grade_week_num")
                 
-                with st.form("grade_form"):
-                    answers = {}
-                    for q in week_q:
-                        if q.get("question_number", 0) <= 10:
-                            answers[q["id"]] = st.selectbox(f"Q{q['question_number']}: {q['question_text']}", ["Pending", "Yes", "No"], key=f"ans_{q['id']}")
-                    if st.form_submit_button("Process Payouts 🏆", type="primary"):
-                        for q_id, ans in answers.items():
-                            supabase.table("weekly_questions").update({"winning_answer": ans}).eq("id", q_id).execute()
-                        st.success("Scores graded successfully!")
+                with st.expander("⚡ Fetch Live ESPN Scores for Reference", expanded=False):
+                    st.caption("Pull live game scores from ESPN to verify outcomes before grading below.")
+                    if st.button("🔄 Fetch Live Scores Now"):
+                        try:
+                            espn_url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+                            resp = requests.get(espn_url, timeout=10)
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                events = data.get("events", [])
+                                st.success(f"Connected to ESPN! Found {len(events)} games.")
+                                
+                                game_results_cache = {}
+                                for ev in events:
+                                    comp = ev.get("competitions", [{}])[0]
+                                    status_type = ev.get("status", {}).get("type", {}).get("name", "")
+                                    competitors = comp.get("competitors", [])
+                                    
+                                    home_team_abbr = ""
+                                    away_team_abbr = ""
+                                    home_score = 0
+                                    away_score = 0
+                                    
+                                    for team_obj in competitors:
+                                        abbr = team_obj.get("team", {}).get("abbreviation", "")
+                                        score = int(team_obj.get("score", 0))
+                                        if team_obj.get("homeAway") == "home":
+                                            home_team_abbr = abbr
+                                            home_score = score
+                                        else:
+                                            away_team_abbr = abbr
+                                            away_score = score
+                                            
+                                    if status_type == "STATUS_FINAL":
+                                        game_results_cache[f"{away_team_abbr} @ {home_team_abbr}"] = {
+                                            "status": "FINAL",
+                                            "home_score": home_score,
+                                            "away_score": away_score
+                                        }
+                                st.session_state["espn_fetched_scores"] = game_results_cache
+                            else:
+                                st.error("Failed to reach ESPN scoreboard API.")
+                        except Exception as e:
+                            st.error(f"API Error: {e}")
+                            
+                    if "espn_fetched_scores" in st.session_state:
+                        st.write("**Live API Game Status Feed:**")
+                        fetched_map = st.session_state["espn_fetched_scores"]
+                        for matchup_key, info in fetched_map.items():
+                            st.info(f"🏟️ **{matchup_key}** | Status: `{info['status']}` | Score: {info['away_score']} - {info['home_score']}")
+
+                week_q = supabase.table("weekly_questions").select("*").eq("week_number", grade_week).order("question_number").execute().data
+                real_grade_q = [q for q in week_q if q.get("question_number", 0) <= 10]
+                
+                if not real_grade_q:
+                    st.warning("No questions found for this week.")
+                else:
+                    with st.form("grade_form"):
+                        answers = {}
+                        for q in real_grade_q:
+                            default_val = q["winning_answer"] if q["winning_answer"] in ["Yes", "No"] else "Pending"
+                            clean_prompt = q["question_text"].split(" | MATCHUP: ")[0] if " | MATCHUP: " in q["question_text"] else q["question_text"]
+                            
+                            answers[q["id"]] = st.selectbox(
+                                f"Q{q['question_number']}: {clean_prompt}", 
+                                ["Pending", "Yes", "No"], 
+                                index=["Pending", "Yes", "No"].index(default_val),
+                                key=f"ans_{q['id']}"
+                            )
+                        
+                        st.markdown("---")
+                        st.markdown("#### 🏈 Touchdown Scorer Correct Picks")
+                        st.caption("Check the box next to any player who successfully scored a TD (+5 bonus tokens).")
+                        
+                        td_picks_data = supabase.table("touchdown_picks").select("*").eq("week_number", grade_week).execute().data
+                        all_profiles = supabase.table("profiles").select("id, full_name").execute().data
+                        profile_dict = {p["id"]: p["full_name"] for p in all_profiles}
+                        
+                        td_winners = []
+                        if not td_picks_data:
+                            st.info("No Touchdown picks submitted for this week.")
+                        else:
+                            for td in td_picks_data:
+                                player_user_name = profile_dict.get(td["user_id"], "Unknown Player")
+                                current_is_correct = td.get("is_correct")
+                                default_checkbox_val = bool(current_is_correct) if current_is_correct is not None else False
+                                
+                                is_winner = st.checkbox(
+                                    f"**{player_user_name}** picked: *{td['player_name']}*", 
+                                    value=default_checkbox_val,
+                                    key=f"td_check_{td['id']}"
+                                )
+                                if is_winner:
+                                    td_winners.append(td["user_id"])
+                                    supabase.table("touchdown_picks").update({"is_correct": True}).eq("id", td["id"]).execute()
+                                else:
+                                    supabase.table("touchdown_picks").update({"is_correct": False}).eq("id", td["id"]).execute()
+
+                        if st.form_submit_button("Calculate & Process Payouts 🏆", type="primary"):
+                            for q_id, ans in answers.items():
+                                supabase.table("weekly_questions").update({"winning_answer": ans}).eq("id", q_id).execute()
+                            
+                            week_bets = supabase.table("user_bets").select("*").eq("week_number", grade_week).execute().data
+                            
+                            user_token_changes = {}
+                            for bet in week_bets:
+                                u_id = bet["user_id"]
+                                q_id = bet["question_id"]
+                                correct_ans = answers.get(q_id)
+                                wager = bet["wager_amount"]
+                                
+                                if u_id not in user_token_changes:
+                                    user_token_changes[u_id] = 0
+                                    
+                                if correct_ans in ["Yes", "No"]:
+                                    if bet["pick"] == correct_ans:
+                                        user_token_changes[u_id] += wager
+                                    else:
+                                        user_token_changes[u_id] -= wager
+                            
+                            for winner_id in td_winners:
+                                user_token_changes[winner_id] = user_token_changes.get(winner_id, 0) + 5
+                            
+                            for u_id, change in user_token_changes.items():
+                                p_data = supabase.table("profiles").select("tokens").eq("id", u_id).single().execute().data
+                                new_balance = max(0, p_data["tokens"] + change)
+                                supabase.table("profiles").update({"tokens": new_balance}).eq("id", u_id).execute()
+                                
+                            st.balloons()
+                            st.success("Scores graded and user token balances updated!")
 
             elif admin_sec == "Bulk Token Adjuster":
-                st.subheader("👥 Bulk Token Adjuster")
-                all_profiles_bulk = supabase.table("profiles").select("id, full_name, tokens").execute().data
-                with st.form("bulk_form"):
-                    selected_users = [p['id'] for p in all_profiles_bulk if st.checkbox(f"{p['full_name']} ({p['tokens']} 🪙)", key=f"bulk_{p['id']}")]
-                    val = st.number_input("Token Adjustment Value", value=5)
-                    if st.form_submit_button("Apply"):
-                        for u_id in selected_users:
-                            curr = supabase.table("profiles").select("tokens").eq("id", u_id).single().execute().data.get("tokens", 0)
-                            supabase.table("profiles").update({"tokens": curr + val}).eq("id", u_id).execute()
-                        st.success("Bulk tokens applied!")
+                st.subheader("👥 Bulk Player Token Adjuster & Reset Wizard")
+                st.caption("Select multiple players at once and apply a token adjustment or reset.")
+                
+                all_profiles_bulk = supabase.table("profiles").select("id, full_name, tokens, favorite_team").order("tokens", desc=True).execute().data
+                
+                if not all_profiles_bulk:
+                    st.info("No players found.")
+                else:
+                    with st.form("bulk_token_form"):
+                        st.markdown("#### Select Players")
+                        selected_user_ids = []
+                        
+                        for p in all_profiles_bulk:
+                            is_checked = st.checkbox(f"**{p['full_name']}** (Current Balance: `{p['tokens']} 🪙` | Team: {p['favorite_team']})", key=f"bulk_chk_{p['id']}")
+                            if is_checked:
+                                selected_user_ids.append(p['id'])
+                                
+                        st.divider()
+                        st.markdown("#### Action to Apply")
+                        col_ba1, col_ba2 = st.columns(2)
+                        with col_ba1:
+                            action_type = st.selectbox("Operation", ["Add Tokens", "Subtract Tokens", "Set Exact Token Balance"])
+                        with col_ba2:
+                            token_amount_val = st.number_input("Token Value Amount", min_value=0, value=5, step=1)
+                            
+                        submit_bulk = st.form_submit_button("Apply Bulk Adjustment ⚡", type="primary")
+                        
+                        if submit_bulk:
+                            if not selected_user_ids:
+                                st.warning("Please check off at least one player above.")
+                            else:
+                                for u_id in selected_user_ids:
+                                    p_curr = supabase.table("profiles").select("tokens").eq("id", u_id).single().execute().data.get("tokens", 0)
+                                    
+                                    if action_type == "Add Tokens":
+                                        new_bal = p_curr + token_amount_val
+                                    elif action_type == "Subtract Tokens":
+                                        new_bal = max(0, p_curr - token_amount_val)
+                                    else:
+                                        new_bal = token_amount_val
+                                        
+                                    supabase.table("profiles").update({"tokens": new_bal}).eq("id", u_id).execute()
+                                    
+                                st.balloons()
+                                st.success(f"Successfully updated tokens for {len(selected_user_ids)} players!")
+                                st.rerun()
 
             elif admin_sec == "Export League Data (CSV)":
-                st.subheader("📥 Export CSV")
-                bets_data = supabase.table("user_bets").select("*").execute().data
-                if bets_data: st.download_button("Download All Bets (CSV)", data=pd.DataFrame(bets_data).to_csv(index=False), file_name="bets.csv", mime="text/csv")
+                st.subheader("📥 Export League Data to CSV")
+                st.caption("Download full database dumps for Excel or record archives.")
+                
+                col_exp1, col_exp2 = st.columns(2)
+                
+                with col_exp1:
+                    bets_data = supabase.table("user_bets").select("*").execute().data
+                    if bets_data:
+                        df_bets = pd.DataFrame(bets_data)
+                        st.download_button(
+                            label="Download All User Bets (CSV)",
+                            data=df_bets.to_csv(index=False),
+                            file_name="touchdown_tokens_all_bets.csv",
+                            mime="text/csv"
+                        )
+                
+                with col_exp2:
+                    users_data = supabase.table("profiles").select("full_name, tokens, favorite_team, bio").order("tokens", desc=True).execute().data
+                    if users_data:
+                        df_users = pd.DataFrame(users_data)
+                        st.download_button(
+                            label="Download Standings & Tokens (CSV)",
+                            data=df_users.to_csv(index=False),
+                            file_name="touchdown_tokens_standings.csv",
+                            mime="text/csv"
+                        )
 
             elif admin_sec == "League Chat Announcement":
-                st.subheader("📢 Announcement Generator")
-                st.code("🏈 WEEK IS LIVE! Place your wagers now!", language="markdown")
+                st.subheader("📢 Pre-Formatted League Announcement Generator")
+                st.caption("Copy and paste this message directly into your WhatsApp or group chat!")
+                
+                ann_week = st.number_input("Week Number", min_value=1, max_value=24, step=1, key="admin_ann_week")
+                
+                graded_q_badge_ann = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
+                
+                top_winner_str = "TBD"
+                biggest_loser_str = "TBD"
+                
+                if graded_q_badge_ann:
+                    ann_graded_w = graded_q_badge_ann[0]["week_number"]
+                    w_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("week_number", ann_graded_w).execute().data
+                    w_tds = supabase.table("touchdown_picks").select("*").eq("week_number", ann_graded_w).eq("is_correct", True).execute().data
+                    
+                    u_net = {}
+                    for b in w_bets:
+                        u = b['user_id']
+                        w_ans = b.get("weekly_questions", {}).get("winning_answer")
+                        if u not in u_net: u_net[u] = 0
+                        if w_ans in ["Yes", "No"]:
+                            if b['pick'] == w_ans: u_net[u] += b['wager_amount']
+                            else: u_net[u] -= b['wager_amount']
+                    for td in w_tds:
+                        u = td['user_id']
+                        u_net[u] = u_net.get(u, 0) + 5
+                        
+                    if u_net:
+                        best_u_id = max(u_net, key=u_net.get)
+                        worst_u_id = min(u_net, key=u_net.get)
+                        
+                        b_prof = supabase.table("profiles").select("full_name").eq("id", best_u_id).single().execute().data
+                        w_prof = supabase.table("profiles").select("full_name").eq("id", worst_u_id).single().execute().data
+                        
+                        if b_prof and u_net[best_u_id] > 0:
+                            top_winner_str = f"{b_prof['full_name']} (+{u_net[best_u_id]} tokens)"
+                        if w_prof and u_net[worst_u_id] < 0:
+                            biggest_loser_str = f"{w_prof['full_name']} ({u_net[worst_u_id]} tokens)"
+
+                top_player_res = supabase.table("profiles").select("full_name, tokens").order("tokens", desc=True).limit(1).execute().data
+                leader_str = f"{top_player_res[0]['full_name']} ({top_player_res[0]['tokens']} Tokens)" if top_player_res else "TBD"
+                
+                announcement_template = f"""🏈 *TOUCHDOWN TOKENS - WEEK {ann_week} IS LIVE!* 🏈
+
+👑 *Current League Leader:* {leader_str}
+🚀 *Biggest Winner Last Week:* {top_winner_str}
+📉 *Wall Street Bets Award (Biggest Loss):* {biggest_loser_str}
+
+⏰ *Kickoff Cutoff:* Sunday before 1st Kickoff
+
+👉 Place your wagers and TD scorer pick now on Touchdown Tokens!
+Good luck this week! 🔥"""
+                
+                st.code(announcement_template, language="markdown")
 
             elif admin_sec == "Archive & Reset Season":
-                st.subheader("🧹 End-of-Season Reset")
-                if st.button("Reset All Users to 10 Tokens"):
-                    for p in supabase.table("profiles").select("id").execute().data:
-                        supabase.table("profiles").update({"tokens": 10}).eq("id", p["id"]).execute()
-                    st.success("Season reset!")
+                st.subheader("🧹 End-of-Season Reset & Archive Utility")
+                st.caption("Archive final season standings and reset all active player balances back to 10 tokens for a fresh pre-season launch.")
+                st.warning("⚠️ Action Warning: This will reset all active user token totals to 10!")
+                
+                season_label = st.text_input("Season Label", value="2026 Season Archive")
+                confirm_check = st.checkbox("I confirm I wish to reset all user balances to 10 tokens for the new season.")
+                
+                if st.button("Archive & Reset Balances Now 🔄", type="primary", disabled=not confirm_check):
+                    try:
+                        all_profiles = supabase.table("profiles").select("id, full_name, tokens, favorite_team").order("tokens", desc=True).execute().data
+                        
+                        df_archive = pd.DataFrame(all_profiles)
+                        df_archive["season_label"] = season_label
+                        
+                        for p in all_profiles:
+                            supabase.table("profiles").update({"tokens": 10}).eq("id", p["id"]).execute()
+                            
+                        st.success("All player balances have been reset to 10 tokens! Season archived.")
+                        st.download_button(
+                            label="📥 Download Archived Season Summary (CSV)",
+                            data=df_archive.to_csv(index=False),
+                            file_name=f"{season_label.lower().replace(' ', '_')}_final.csv",
+                            mime="text/csv"
+                        )
+                    except Exception as e:
+                        st.error(f"Error resetting season: {e}")
 
             elif admin_sec == "Season Champion Banner":
-                st.subheader("🏆 Champion Banner")
-                enable_champ = st.toggle("Enable Champion Banner")
-                if st.button("Save Banner"):
+                st.subheader("🏆 End-of-Season Celebration Banner")
+                st.caption("Enable this banner to show confetti and a gold Champion card on the Home tab when the season ends.")
+                
+                all_players = supabase.table("profiles").select("full_name").order("tokens", desc=True).execute().data
+                player_names = [p["full_name"] for p in all_players] if all_players else ["Player"]
+                
+                champ_row = supabase.table("weekly_questions").select("*").eq("week_number", 999).execute().data
+                current_state = champ_row[0]["winning_answer"] if champ_row else "OFF"
+                current_champ = champ_row[0]["question_text"] if champ_row else player_names[0]
+                
+                banner_toggle = st.toggle("Enable Season Champion Banner", value=(current_state == "ON"))
+                selected_champion = st.selectbox("Select Season Winner", player_names, index=player_names.index(current_champ) if current_champ in player_names else 0)
+                
+                if st.button("Save Champion Banner Settings 🏆"):
+                    state_str = "ON" if banner_toggle else "OFF"
                     supabase.table("weekly_questions").delete().eq("week_number", 999).execute()
-                    supabase.table("weekly_questions").insert({"week_number": 999, "question_number": 1, "question_text": "Champion", "winning_answer": "ON" if enable_champ else "OFF"}).execute()
-                    st.success("Banner updated!")
+                    supabase.table("weekly_questions").insert({
+                        "week_number": 999,
+                        "question_number": 1,
+                        "question_text": selected_champion,
+                        "winning_answer": state_str
+                    }).execute()
+                    st.success("Updated Season Champion Banner settings!")
+                    st.rerun()
