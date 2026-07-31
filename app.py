@@ -600,7 +600,8 @@ if st.session_state.user is None:
                             "is_admin": False,
                             "favorite_team": "🏈 Free Agent / Neutral",
                             "bio": "Ready for Kickoff!",
-                            "avatar_emoji": "🏈"
+                            "avatar_emoji": "🏈",
+                            "featured_badges": []
                         }).execute()
                         st.success("Account created successfully! You can now log in using the Log In tab above.")
                 except Exception as e:
@@ -620,7 +621,7 @@ else:
     
     get_user_badges(user_id, check_celebration=True)
 
-    # --- SIDEBAR (Cleaned up: Profile Info & Logout Only) ---
+    # --- SIDEBAR ---
     st.sidebar.title(f"{user_avatar} {profile['full_name']}")
     st.sidebar.image(team_data["logo"], width=55)
     st.sidebar.caption(f"Team: {user_team}")
@@ -907,11 +908,11 @@ else:
             st.line_chart(chart_df)
 
     # ------------------------------------------
-    # TAB 1: PROFILE & TROPHY CABINET
+    # TAB 1: PROFILE & TROPHY CABINET (WITH FEATURED BADGES)
     # ------------------------------------------
     with tab_profile:
         st.header("👤 Profile & Trophy Cabinet")
-        st.caption("Personalize your profile settings and inspect player badge collections across the league!")
+        st.caption("Personalize your profile settings, select your featured badges, and inspect player trophy showcases!")
         
         curr_team = profile.get("favorite_team", "🏈 Free Agent / Neutral")
         team_index = NFL_TEAMS.index(curr_team) if curr_team in NFL_TEAMS else 0
@@ -946,6 +947,35 @@ else:
                     }).eq("id", user_id).execute()
                     st.success("Profile updated successfully!")
                     st.rerun()
+
+        # --- FEATURED BADGES SELECTION ---
+        st.divider()
+        st.subheader("⭐ Featured Badge Showcase")
+        st.caption("Choose up to 3 unlocked badges to showcase on your leaderboard card.")
+
+        unlocked_badges = get_user_badges(user_id)
+        current_featured = profile.get("featured_badges", [])
+        if not isinstance(current_featured, list):
+            current_featured = []
+        valid_current_featured = [b for b in current_featured if b in unlocked_badges]
+
+        with st.form("featured_badges_form"):
+            selected_featured = st.multiselect(
+                "Select up to 3 Badges to Showcase",
+                options=unlocked_badges,
+                default=valid_current_featured,
+                max_selections=3,
+                help="Choose your favorite trophies to display proudly on the leaderboard!"
+            )
+            
+            save_featured_btn = st.form_submit_button("Save Featured Badges 🌟", type="primary")
+            
+            if save_featured_btn:
+                supabase.table("profiles").update({
+                    "featured_badges": selected_featured
+                }).eq("id", user_id).execute()
+                st.success("Featured badges updated successfully!")
+                st.rerun()
 
         st.divider()
         st.subheader("🏆 Virtual Trophy Cabinet")
@@ -1301,13 +1331,13 @@ else:
             st.dataframe(formatted_data, use_container_width=True)
 
     # ------------------------------------------
-    # TAB 5: LEADERBOARD
+    # TAB 5: LEADERBOARD (SHOWCASING FEATURED BADGES)
     # ------------------------------------------
     with tab_leaders:
         st.header("🏆 Player Standings")
         st.caption("Ranked by Correct Touchdown Scorers (Tiebreaker), then Token Balance.")
         
-        leader_res = supabase.table("profiles").select("id, full_name, tokens, favorite_team, bio, avatar_emoji").execute().data
+        leader_res = supabase.table("profiles").select("id, full_name, tokens, favorite_team, bio, avatar_emoji, featured_badges").execute().data
         
         if leader_res:
             player_stats = []
@@ -1341,9 +1371,14 @@ else:
                 av = p.get("avatar_emoji") or "🏈"
                 team_name = p.get("favorite_team") or "🏈 Free Agent / Neutral"
                 t_info = NFL_TEAM_DATA.get(team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
-                p_badges = get_user_badges(p["id"])
                 
-                badges_html = "".join([f'<span class="badge-pill">{b}</span>' for b in p_badges]) if p_badges else '<span style="color:#64748b; font-size:12px;">No Badges Yet</span>'
+                # Fetch featured badges (fallback to first 3 unlocked if none selected)
+                feat_badges = p.get("featured_badges", [])
+                if not feat_badges or not isinstance(feat_badges, list):
+                    all_p_badges = get_user_badges(p["id"])
+                    feat_badges = all_p_badges[:3]
+                
+                badges_html = "".join([f'<span class="badge-pill">{b}</span>' for b in feat_badges]) if feat_badges else '<span style="color:#64748b; font-size:12px;">No Badges Featured</span>'
                 bio_text = p.get('bio', '')
                 
                 podium_class = "leaderboard-row"
@@ -1375,7 +1410,7 @@ else:
                             </div>
                         </div>
                         <div style="border-top: 1px solid #334155; padding-top: 8px; margin-top: 4px;">
-                            <span style="font-size: 12px; text-transform: uppercase; color: #94a3b8; font-weight: bold; margin-right: 8px;">Trophies:</span> {badges_html}
+                            <span style="font-size: 12px; text-transform: uppercase; color: #94a3b8; font-weight: bold; margin-right: 8px;">Featured Trophies:</span> {badges_html}
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
@@ -1421,7 +1456,7 @@ else:
                 """, unsafe_allow_html=True)
 
     # ------------------------------------------
-    # TAB 6: HALL OF FAME & SEASON ARCHIVES (2023 & 2024)
+    # TAB 6: HALL OF FAME & SEASON ARCHIVES
     # ------------------------------------------
     with tab_hof:
         st.header("🏛️ Touchdown Tokens Hall of Fame")
