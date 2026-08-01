@@ -44,7 +44,6 @@ def get_cached_all_weekly_questions_meta():
     res = supabase.table("weekly_questions").select("week_number, question_number, winning_answer").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).execute()
     return res.data if res.data else []
 
-# Comprehensive NFL Team Logos & Primary Accent Hex Colors (Safe to cache globally as it's static reference data)
 @st.cache_data
 def get_static_nfl_team_data():
     return {
@@ -84,7 +83,6 @@ def get_static_nfl_team_data():
     }
 
 NFL_TEAM_DATA = get_static_nfl_team_data()
-
 NFL_TEAMS = list(NFL_TEAM_DATA.keys())
 AVATAR_OPTIONS = [
     "🏈", "🐐", "⚡", "👑", "🎯", "💣", "💎", "🔥", "🛡️", "🚀",
@@ -506,7 +504,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- REFRESH BUTTON AT THE TOP OF THE PAGE ---
-col_top_spacer, col_top_btn = [st.columns([4, 1])[0], st.columns([4, 1])[1]]
+col_top_spacer, col_top_btn = st.columns([4, 1])
 with col_top_btn:
     if st.button("🔄 Refresh App", use_container_width=True, help="Clears cache and reloads the application instantly across all pages!"):
         st.cache_data.clear()
@@ -1593,14 +1591,11 @@ else:
         if not available_weeks:
             st.info("No active questions available yet. Check back soon when the Admin posts Week 1!")
         else:
-            # --- FILTER OUT GRADED/CLOSED WEEKS FROM PLACE BETS SECTION ---
             active_unscored_weeks = []
             for w in available_weeks:
-                # Check if week is closed via marker
                 week_status_row = supabase.table("weekly_questions").select("winning_answer").eq("week_number", w).eq("question_number", 96).execute().data
                 is_closed = week_status_row and week_status_row[0]["winning_answer"] == "CLOSED"
                 
-                # Check if all questions are graded
                 if not is_closed:
                     w_qs_check = supabase.table("weekly_questions").select("winning_answer").eq("week_number", w).neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).execute().data
                     if w_qs_check and all(q["winning_answer"] in ["Yes", "No"] for q in w_qs_check):
@@ -1670,8 +1665,6 @@ else:
                                     for q_item in real_q_items:
                                         random_pick = random.choice(["Yes", "No"])
                                         w_amt = token_allocations[q_item['id']]
-                                        st.session_state[f"pick_{q_item['id']}"] = random_pick
-                                        st.session_state[f"wager_{q_item['id']}"] = w_amt
                                         
                                         supabase.table("user_bets").insert({
                                             "user_id": user_id,
@@ -1747,7 +1740,7 @@ else:
                                         f"Pick Q{q['question_number']}",
                                         ["Yes", "No"],
                                         index=pick_index,
-                                        key=f"pick_{q['id']}",
+                                        key=f"pick_w{selected_week}_{q['id']}",
                                         horizontal=True,
                                         disabled=is_locked
                                     )
@@ -1757,14 +1750,14 @@ else:
                                         min_value=0, 
                                         max_value=profile['tokens'], 
                                         value=default_wager_val, 
-                                        key=f"wager_{q['id']}",
+                                        key=f"wager_w{selected_week}_{q['id']}",
                                         disabled=is_locked
                                     )
 
                         st.markdown("### 🏈 Bonus Touchdown Scorer Pick")
                         st.caption("Name 1 player to score a TD this week (Rushing/Receiving only!). Correct pick = Bonus Tokens!")
                         
-                        td_pick = st.text_input("Player Name (e.g., Patrick Mahomes)", value=default_td, key="td_scorer", disabled=is_locked)
+                        td_pick = st.text_input("Player Name (e.g., Patrick Mahomes)", value=default_td, key=f"td_scorer_w{selected_week}", disabled=is_locked)
                         
                         total_wagered = sum(wagers.values())
                         max_available = max(1, profile['tokens'])
@@ -2602,7 +2595,6 @@ else:
                                     "winning_answer": "CLOSED"
                                 }).execute()
                                 
-                                # --- CLEAR CACHE AUTOMATICALLY SO LEADERBOARD UPDATES INSTANTLY ---
                                 st.cache_data.clear()
                                     
                                 st.balloons()
