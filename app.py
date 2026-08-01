@@ -47,7 +47,7 @@ def get_cached_all_weekly_questions_meta():
     res = supabase.table("weekly_questions").select("week_number, question_number, winning_answer").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).execute()
     return res.data if res.data else []
 
-# --- NEW: IDEMPOTENT TOKEN RECALCULATOR ---
+# --- IDEMPOTENT TOKEN RECALCULATOR ---
 def recalculate_all_user_balances(supabase_client):
     """
     Completely recalculates every user's total token balance from scratch.
@@ -1227,7 +1227,6 @@ else:
                 
                 td_record = lw_td[0] if lw_td else None
                 
-                # FIX: Bulletproof TD string/boolean check
                 if td_record is None or td_record.get("is_correct") is None:
                     td_is_graded = False
                     td_bonus = 0
@@ -1909,7 +1908,6 @@ else:
                 p_name = td["player_name"]
                 is_c = td.get("is_correct")
                 
-                # FIX: Bulletproof TD string/boolean check
                 if is_c is None:
                     status_str = "⏳ Pending (Awaiting Admin Grading)"
                 elif str(is_c).lower() == "true":
@@ -2484,9 +2482,7 @@ else:
                     col_reopen1, col_reopen2 = st.columns([2, 2])
                     with col_reopen1:
                         if st.button(f"🔓 Reopen Week {grade_week} for Regrading", type="secondary"):
-                            # Delete the CLOSED marker
                             supabase.table("weekly_questions").delete().eq("week_number", grade_week).eq("question_number", 96).execute()
-                            # Idempotent recalculation resets balances to pre-graded state!
                             recalculate_all_user_balances(supabase)
                             st.cache_data.clear()
                             st.success(f"Week {grade_week} has been reopened and balances restored successfully!")
@@ -2578,7 +2574,6 @@ else:
                                 player_user_name = profile_dict.get(td["user_id"], "Unknown Player")
                                 current_is_correct = td.get("is_correct")
                                 
-                                # FIX: Bulletproof TD string/boolean check for Admin menu
                                 if current_is_correct is None:
                                     default_choice = "Pending"
                                 elif str(current_is_correct).lower() == "true":
@@ -2608,11 +2603,10 @@ else:
                             if is_week_closed:
                                 st.error("This week is closed and cannot be graded again unless reopened.")
                             else:
-                                # 1. Save all question answers
                                 for q_id, ans in answers.items():
                                     supabase.table("weekly_questions").update({"winning_answer": ans}).eq("id", q_id).execute()
                                 
-                                # 2. Save all TD Pick Outcomes
+                                # FIX: Explicitly handle Incorrect (Miss) to write False to database
                                 for td_id, choice in td_grading_results.items():
                                     if choice == "Correct (+5 🪙)":
                                         supabase.table("touchdown_picks").update({"is_correct": True}).eq("id", td_id).execute()
@@ -2621,7 +2615,6 @@ else:
                                     else:
                                         supabase.table("touchdown_picks").update({"is_correct": None}).eq("id", td_id).execute()
                                 
-                                # 3. Mark the week as CLOSED
                                 supabase.table("weekly_questions").delete().eq("week_number", grade_week).eq("question_number", 96).execute()
                                 supabase.table("weekly_questions").insert({
                                     "week_number": grade_week,
@@ -2630,12 +2623,9 @@ else:
                                     "winning_answer": "CLOSED"
                                 }).execute()
                                 
-                                # 4. IDEMPOTENT RECALCULATE: 
-                                # Re-sum all players from exactly 10 tokens based on historical wins/losses.
                                 recalculate_all_user_balances(supabase)
                                 
                                 st.cache_data.clear()
-                                    
                                 st.balloons()
                                 st.success("Scores graded, payouts processed, and week successfully closed!")
                                 st.rerun()
