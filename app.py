@@ -984,7 +984,7 @@ else:
                             • Your Pick: <b style="color:{user_team_color};">{pick_val}</b> | Wager: <b>{wager_amt} 🪙</b>
                         </div>
                     """, unsafe_allow_html=True)
-                    share_lines.append(f"Q{q_num}: {pick_val} ({wager_amt} tokens)")
+                    share_lines.append(f"Q{q_{num}}: {pick_val} ({wager_amt} tokens)")
                 
                 td_name = curr_user_td[0]["player_name"] if curr_user_td else "None"
                 st.markdown(f"""
@@ -1756,6 +1756,36 @@ else:
 
         st.divider()
 
+        # --- TOUCHDOWN SCORER PICK HISTORY ---
+        st.subheader("🏈 Touchdown Scorer Pick History")
+        st.caption("Review your bonus touchdown scorer pick outcomes week by week.")
+        
+        all_td_picks = supabase.table("touchdown_picks").select("*").eq("user_id", user_id).order("week_number").execute().data
+        if all_td_picks:
+            td_history_rows = []
+            for td in all_td_picks:
+                w_num = td["week_number"]
+                p_name = td["player_name"]
+                is_c = td.get("is_correct")
+                
+                if is_c is None:
+                    status_str = "⏳ Pending (Awaiting Admin Grading)"
+                elif is_c:
+                    status_str = "✅ Correct (+5 Bonus Tokens)"
+                else:
+                    status_str = "❌ Incorrect (Missed)"
+                    
+                td_history_rows.append({
+                    "Week": f"Week {w_num}",
+                    "Touchdown Scorer Pick": p_name,
+                    "Result": status_str
+                })
+            st.dataframe(pd.DataFrame(td_history_rows), use_container_width=True, hide_index=True)
+        else:
+            st.info("No touchdown scorer picks submitted yet.")
+
+        st.divider()
+
         # --- SIDE-BY-SIDE COMPARISON (CLEAN CARD UI) ---
         with st.expander("⚔️ Side-by-Side History Comparison vs. Rival", expanded=False):
             st.caption("Compare your graded week bets side by side against any league member in a clean head-to-head match card format!")
@@ -1858,36 +1888,6 @@ else:
                     st.info("You did not place any bets for this selected comparison week.")
             else:
                 st.info("Side-by-side historical comparison will unlock here automatically once at least one week has been fully graded by the Admin and other players have participated!")
-
-        st.divider()
-
-        # --- TOUCHDOWN SCORER PICK HISTORY ---
-        st.subheader("🏈 Touchdown Scorer Pick History")
-        st.caption("Review your bonus touchdown scorer pick outcomes week by week.")
-        
-        all_td_picks = supabase.table("touchdown_picks").select("*").eq("user_id", user_id).order("week_number").execute().data
-        if all_td_picks:
-            td_history_rows = []
-            for td in all_td_picks:
-                w_num = td["week_number"]
-                p_name = td["player_name"]
-                is_c = td.get("is_correct")
-                
-                if is_c is None:
-                    status_str = "⏳ Pending (Awaiting Admin Grading)"
-                elif is_c:
-                    status_str = "✅ Correct (+5 Bonus Tokens)"
-                else:
-                    status_str = "❌ Incorrect (Missed)"
-                    
-                td_history_rows.append({
-                    "Week": f"Week {w_num}",
-                    "Touchdown Scorer Pick": p_name,
-                    "Result": status_str
-                })
-            st.dataframe(pd.DataFrame(td_history_rows), use_container_width=True, hide_index=True)
-        else:
-            st.info("No touchdown scorer picks submitted yet.")
 
     # ------------------------------------------
     # TAB 5: LEADERBOARD & HALL OF FAME
