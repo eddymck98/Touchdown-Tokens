@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import random
 import requests
+import plotly.graph_objects as go
 from datetime import datetime, timezone
 from supabase import create_client, Client
 
@@ -1069,10 +1070,33 @@ else:
         st.divider()
         st.subheader("📊 Last Week's Performance Summary")
         
-        if not graded_q_badge:
+        # --- FIXED PERFORMANCE SUMMARY CALCULATION ---
+        all_graded_weeks_meta = get_cached_all_weekly_questions_meta()
+        graded_weeks_set = set()
+        closed_markers = supabase.table("weekly_questions").select("week_number").eq("question_number", 96).eq("winning_answer", "CLOSED").execute().data
+        if closed_markers:
+            for cm in closed_markers:
+                graded_weeks_set.add(cm["week_number"])
+                
+        if all_graded_weeks_meta:
+            w_map = {}
+            for q in all_graded_weeks_meta:
+                w_num = q["week_number"]
+                ans = q["winning_answer"]
+                if w_num not in w_map:
+                    w_map[w_num] = []
+                if q.get("question_number", 0) <= 10:
+                    w_map[w_num].append(ans)
+            for w_num, ans_list in w_map.items():
+                if ans_list and all(a in ["Yes", "No"] for a in ans_list):
+                    graded_weeks_set.add(w_num)
+
+        graded_weeks_list = sorted(list(graded_weeks_set))
+
+        if not graded_weeks_list:
             st.info("No weeks have been graded yet. Place your bets for Week 1 to get started!")
         else:
-            latest_graded_week = graded_q_badge[0]["week_number"]
+            latest_graded_week = graded_weeks_list[-1]
             
             lw_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("user_id", user_id).eq("week_number", latest_graded_week).execute().data
             lw_td = supabase.table("touchdown_picks").select("*").eq("user_id", user_id).eq("week_number", latest_graded_week).execute().data
@@ -1140,14 +1164,20 @@ else:
 
         st.divider()
         st.subheader("📈 Token History Graph")
-        history_bets_all = supabase.table("user_bets").select("week_number, wager_amount, pick, weekly_questions(winning_answer)").eq("user_id", user_id).execute().data
         
-        if history_bets_all:
+        # --- UPGRADED PLOTLY TOKEN HISTORY GRAPH ---
+        history_bets_all = supabase.table("user_bets").select("week_number, wager_amount, pick, weekly_questions(winning_answer)").eq("user_id", user_id).execute().data
+        all_td_history = supabase.table("touchdown_picks").select("week_number, is_correct").eq("user_id", user_id).eq("is_correct", True).execute().data
+        
+        td_wins_map = {td["week_number"]: 5 for td in all_td_history}
+        
+        if history_bets_all or td_wins_map:
             week_tokens = {0: 10}
             curr_tokens = 10
             
-            weeks_logged = sorted(list(set([b['week_number'] for b in history_bets_all])))
-            for w in weeks_logged:
+            all_weeks_involved = sorted(list(set([b['week_number'] for b in history_bets_all] + list(td_wins_map.keys()))))
+            
+            for w in all_weeks_involved:
                 w_bets = [b for b in history_bets_all if b['week_number'] == w]
                 for b in w_bets:
                     w_ans = b.get("weekly_questions", {}).get("winning_answer")
@@ -1156,10 +1186,53 @@ else:
                             curr_tokens += b["wager_amount"]
                         else:
                             curr_tokens -= b["wager_amount"]
+                if w in td_wins_map:
+                    curr_tokens += 5
+                    
                 week_tokens[w] = max(0, curr_tokens)
                 
-            chart_df = pd.DataFrame(list(week_tokens.items()), columns=["Week", "Tokens"]).set_index("Week")
-            st.line_chart(chart_df)
+            chart_weeks = list(week_tokens.keys())
+            chart_vals = list(week_tokens.values())
+            
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=[f"Week {w}" if w > 0 else "Start" for w in chart_weeks],
+                y=chart_vals,
+                mode='lines+markers',
+                name='Token Bank',
+                line=dict(color=user_team_color, width=4, shape='spline'),
+                marker=dict(size=10, color=user_team_color, line=dict(color="#ffffff", width=2)),
+                fill='tozeroy',
+                fillcolor=f"{user_team_color}22",
+                hovertemplate='<b>%{x}</b><br>Token Balance: %{y} 🪙<extra></extra>'
+            ))
+            
+            fig.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(15, 23, 42, 0.75)',
+                margin=dict(l=10, r=10, t=10, b=10),
+                xaxis=dict(
+                    showgrid=True,
+                    gridcolor='rgba(255,255,255,0.08)',
+                    tickfont=dict(color='#cbd5e1', family='Inter', size=12),
+                    zeroline=False
+                ),
+                yaxis=dict(
+                    showgrid=True,
+                    gridcolor='rgba(255,255,255,0.08)',
+                    tickfont=dict(color='#cbd5e1', family='Inter', size=12),
+                    zeroline=False
+                ),
+                hoverlabel=dict(
+                    bgcolor='#0f172a',
+                    font_color='#ffffff',
+                    font_family='Inter'
+                )
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No token history data available yet.")
 
     # ------------------------------------------
     # TAB 1: PROFILE & TROPHY CABINET
@@ -1654,7 +1727,6 @@ else:
         st.header("📜 Your Past Bets & Results")
         st.caption("Review your historical predictions, weekly outcomes, and track your performance over time.")
         
-        # --- FIXED GRADED WEEKS DETECTION ---
         all_graded_weeks_res = get_cached_all_weekly_questions_meta()
         graded_weeks_set = set()
         
