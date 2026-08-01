@@ -47,11 +47,11 @@ def get_cached_all_weekly_questions_meta():
     res = supabase.table("weekly_questions").select("week_number, question_number, winning_answer").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).execute()
     return res.data if res.data else []
 
-# --- ROBUST TOKEN RECALCULATOR (WITH DIAGNOSTIC LOGGING) ---
+# --- ROBUST TOKEN RECALCULATOR (WITH UI DEBUG BANNER) ---
 def recalculate_all_user_balances(supabase_client):
     """
-    Recalculates every user's total token balance from scratch with debug printing
-    to trace exact net changes and fix stuck balances.
+    Recalculates every user's total token balance from scratch and displays
+    debug warnings in the UI to trace exact net changes and fix stuck balances.
     """
     all_users = supabase_client.table("profiles").select("id, full_name, tokens").execute().data
     if not all_users:
@@ -68,7 +68,7 @@ def recalculate_all_user_balances(supabase_client):
     all_questions = supabase_client.table("weekly_questions").select("id, week_number, winning_answer").execute().data
     all_tds = supabase_client.table("touchdown_picks").select("*").execute().data
     
-    q_map = {q["id"]: str(q.get("winning_answer", "")).strip().lower() for q in all_questions}
+    q_map = {q["id"]: str(q.get("winning_answer", "")).strip() for q in all_questions}
     
     user_net_changes = {u["id"]: 0 for u in all_users}
     user_name_map = {u["id"]: u["full_name"] for u in all_users}
@@ -85,12 +85,8 @@ def recalculate_all_user_balances(supabase_client):
             if uid in user_net_changes and w_ans in ["yes", "no"]:
                 if pick == w_ans:
                     user_net_changes[uid] += wager
-                    print(f"DIAGNOSTIC: User {user_name_map.get(uid)} WON bet on Q {q_id}. Added {wager}. Net now: {user_net_changes[uid]}")
                 else:
                     user_net_changes[uid] -= wager
-                    print(f"DIAGNOSTIC: User {user_name_map.get(uid)} LOST bet on Q {q_id}. Subtracted {wager}. Net now: {user_net_changes[uid]}")
-            else:
-                print(f"DIAGNOSTIC SKIPPED: q_id {q_id} answer was '{w_ans}' (not valid yes/no)")
                     
     for td in all_tds:
         w_num = td.get("week_number")
@@ -99,12 +95,11 @@ def recalculate_all_user_balances(supabase_client):
             is_c = td.get("is_correct")
             if uid in user_net_changes and str(is_c).lower() == "true":
                 user_net_changes[uid] += 5
-                print(f"DIAGNOSTIC: User {user_name_map.get(uid)} WON Touchdown Bonus (+5). Net now: {user_net_changes[uid]}")
                 
-    # Push final computed balances back and print to console for debugging
+    # Push final computed balances back and display right in the UI for debugging
     for uid, net_change in user_net_changes.items():
         final_balance = max(0, 10 + net_change)
-        print(f"DEBUG RECALC -> User: {user_name_map.get(uid)} | Net Change: {net_change} | Final Token Balance: {final_balance}")
+        st.warning(f"DEBUG RECALC -> User: {user_name_map.get(uid)} | Net Change: {net_change} | Final Token Balance: {final_balance}")
         supabase_client.table("profiles").update({"tokens": final_balance}).eq("id", uid).execute()
 
 @st.cache_data
@@ -1326,12 +1321,8 @@ else:
             chart_vals = list(week_tokens.values())
             
             def hex_to_rgba(hex_str, alpha=0.25):
-                if not hex_str:
-                    return f"rgba(251, 191, 36, {alpha})"
-                hex_str = hex_str.strip('#')
-                if len(hex_str) == 8:
-                    hex_str = hex_str[:6]
-                elif len(hex_str) == 3:
+                hex_str = hex_str.lstrip('#')
+                if len(hex_str) == 3:
                     hex_str = ''.join([c*2 for c in hex_str])
                 try:
                     r, g, b = int(hex_str[0:2], 16), int(hex_str[2:4], 16), int(hex_str[4:6], 16)
@@ -2836,7 +2827,7 @@ Good luck this week! 🔥"""
                     state_str = "ON" if banner_toggle else "OFF"
                     supabase.table("weekly_questions").delete().eq("week_number", 999).execute()
                     supabase.table("weekly_questions").insert({
-                        "week_number": 999,
+                        "week_number", 999,
                         "question_number": 1,
                         "question_text": selected_champion,
                         "winning_answer": state_str
