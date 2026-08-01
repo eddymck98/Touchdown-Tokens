@@ -515,8 +515,12 @@ st.markdown("""
 st.write("")
 
 def sync_and_get_user_badges(target_user_id, check_celebration=False):
-    p_data = supabase.table("profiles").select("tokens, unlocked_badges").eq("id", target_user_id).single().execute().data
-    if not p_data:
+    try:
+        p_res = supabase.table("profiles").select("tokens, unlocked_badges").eq("id", target_user_id).single().execute()
+        p_data = p_res.data
+        if not p_data:
+            return []
+    except Exception:
         return []
         
     toks = p_data.get("tokens", 0)
@@ -829,8 +833,51 @@ if st.session_state.user is None:
 # ==========================================
 else:
     user_id = st.session_state.user.id
-    profile_res = supabase.table("profiles").select("*").eq("id", user_id).single().execute()
-    profile = profile_res.data
+    
+    # Safe profile fetch with auto-repair if missing
+    try:
+        profile_res = supabase.table("profiles").select("*").eq("id", user_id).single().execute()
+        profile = profile_res.data
+    except Exception:
+        profile = None
+
+    if not profile:
+        try:
+            fallback_name = st.session_state.user.email.split("@")[0].capitalize()
+            supabase.table("profiles").insert({
+                "id": user_id,
+                "email": st.session_state.user.email,
+                "full_name": fallback_name,
+                "tokens": 10,
+                "is_admin": False,
+                "favorite_team": "🏈 Free Agent / Neutral",
+                "bio": "Ready for Kickoff!",
+                "avatar_emoji": "🏈",
+                "featured_badges": [],
+                "unlocked_badges": [],
+                "avatar_border": "solid",
+                "favorite_player": "",
+                "avatar_color": "#1e3a8a",
+                "selected_title": "🏈 Gridiron Contender"
+            }).execute()
+            profile_res = supabase.table("profiles").select("*").eq("id", user_id).single().execute()
+            profile = profile_res.data
+        except Exception:
+            profile = {
+                "id": user_id,
+                "full_name": "Player",
+                "tokens": 10,
+                "is_admin": False,
+                "favorite_team": "🏈 Free Agent / Neutral",
+                "bio": "Ready for Kickoff!",
+                "avatar_emoji": "🏈",
+                "featured_badges": [],
+                "unlocked_badges": [],
+                "avatar_border": "solid",
+                "favorite_player": "",
+                "avatar_color": "#1e3a8a",
+                "selected_title": "🏈 Gridiron Contender"
+            }
     
     user_avatar = profile.get("avatar_emoji", "🏈")
     user_team = profile.get('favorite_team', '🏈 Free Agent / Neutral')
