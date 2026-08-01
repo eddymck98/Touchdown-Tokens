@@ -1233,7 +1233,7 @@ else:
                 """, unsafe_allow_html=True)
 
         st.divider()
-        st.subheader("📈 Token History Graph")
+        st.subheader("📊 Token History Graph")
         
         history_bets_all = supabase.table("user_bets").select("week_number, wager_amount, pick, weekly_questions(winning_answer)").eq("user_id", user_id).execute().data
         all_td_history = supabase.table("touchdown_picks").select("week_number, is_correct").eq("user_id", user_id).eq("is_correct", True).execute().data
@@ -1593,211 +1593,233 @@ else:
         if not available_weeks:
             st.info("No active questions available yet. Check back soon when the Admin posts Week 1!")
         else:
-            selected_week = st.selectbox("Select Week:", available_weeks, index=len(available_weeks)-1)
-            q_res = get_cached_weekly_questions(selected_week)
-            questions = q_res
-            
-            is_locked = False
-            lock_time_row = [q for q in questions if q.get("winning_answer", "").startswith("LOCKTIME:")]
-            
-            if lock_time_row:
-                raw_lock_str = lock_time_row[0]["winning_answer"].replace("LOCKTIME:", "")
-                try:
-                    lock_dt = datetime.fromisoformat(raw_lock_str).replace(tzinfo=timezone.utc)
-                    now_dt = datetime.now(timezone.utc)
-                    time_diff = lock_dt - now_dt
-                    
-                    total_seconds_left = int(time_diff.total_seconds())
-                    if total_seconds_left <= 0:
-                        is_locked = True
-                        st.error("🔒 Entries for this week are locked! Kickoff deadline has passed.")
-                    else:
-                        days, remainder = divmod(total_seconds_left, 86400)
-                        hours, remainder = divmod(remainder, 3600)
-                        minutes, seconds = divmod(remainder, 60)
-                        
-                        time_display_str = f"{days}d {hours}h {minutes}m {seconds}s" if days > 0 else f"{hours}h {minutes}m {seconds}s"
-                        
-                        st.markdown(f"""
-                            <div class="timer-card">
-                                ⏳ <b>KICKOFF LOCKOUT COUNTDOWN:</b> <span style="font-size:20px; font-weight:bold; color:{user_team_color};">{time_display_str} remaining</span>
-                            </div>
-                        """, unsafe_allow_html=True)
-                except Exception:
-                    pass
-            
-            if any(q.get("winning_answer") == "LOCKED" for q in questions):
-                is_locked = True
-                st.error("🔒 Entries for this week have been manually locked by the Admin.")
+            # --- FILTER OUT GRADED/CLOSED WEEKS FROM PLACE BETS SECTION ---
+            active_unscored_weeks = []
+            for w in available_weeks:
+                # Check if week is closed via marker
+                week_status_row = supabase.table("weekly_questions").select("winning_answer").eq("week_number", w).eq("question_number", 96).execute().data
+                is_closed = week_status_row and week_status_row[0]["winning_answer"] == "CLOSED"
+                
+                # Check if all questions are graded
+                if not is_closed:
+                    w_qs_check = supabase.table("weekly_questions").select("winning_answer").eq("week_number", w).neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).execute().data
+                    if w_qs_check and all(q["winning_answer"] in ["Yes", "No"] for q in w_qs_check):
+                        is_closed = True
+                
+                if not is_closed:
+                    active_unscored_weeks.append(w)
 
-            if not questions:
-                st.info("No questions found for this week.")
+            if not active_unscored_weeks:
+                st.info("🎉 All currently available weeks have been graded and closed! Check back when the Admin posts a new active week.")
             else:
-                if not is_locked and profile['tokens'] > 0:
-                    col_rand_sp1, col_rand_btn = st.columns([3, 1])
-                    with col_rand_btn:
-                        if st.button("🎲 Feeling Lucky (Randomize)", help="Randomly distributes your available tokens and picks across the questions!"):
-                            real_q_items = [q for q in questions if not q.get("winning_answer", "").startswith("LOCKTIME:")]
-                            if real_q_items:
-                                remaining_tokens = profile['tokens']
-                                supabase.table("user_bets").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
+                selected_week = st.selectbox("Select Week:", active_unscored_weeks, index=len(active_unscored_weeks)-1)
+            
+                q_res = get_cached_weekly_questions(selected_week)
+                questions = q_res
+                
+                is_locked = False
+                lock_time_row = [q for q in questions if q.get("winning_answer", "").startswith("LOCKTIME:")]
+                
+                if lock_time_row:
+                    raw_lock_str = lock_time_row[0]["winning_answer"].replace("LOCKTIME:", "")
+                    try:
+                        lock_dt = datetime.fromisoformat(raw_lock_str).replace(tzinfo=timezone.utc)
+                        now_dt = datetime.now(timezone.utc)
+                        time_diff = lock_dt - now_dt
+                        
+                        total_seconds_left = int(time_diff.total_seconds())
+                        if total_seconds_left <= 0:
+                            is_locked = True
+                            st.error("🔒 Entries for this week are locked! Kickoff deadline has passed.")
+                        else:
+                            days, remainder = divmod(total_seconds_left, 86400)
+                            hours, remainder = divmod(remainder, 3600)
+                            minutes, seconds = divmod(remainder, 60)
+                            
+                            time_display_str = f"{days}d {hours}h {minutes}m {seconds}s" if days > 0 else f"{hours}h {minutes}m {seconds}s"
+                            
+                            st.markdown(f"""
+                                <div class="timer-card">
+                                    ⏳ <b>KICKOFF LOCKOUT COUNTDOWN:</b> <span style="font-size:20px; font-weight:bold; color:{user_team_color};">{time_display_str} remaining</span>
+                                </div>
+                            """, unsafe_allow_html=True)
+                    except Exception:
+                        pass
+                
+                if any(q.get("winning_answer") == "LOCKED" for q in questions):
+                    is_locked = True
+                    st.error("🔒 Entries for this week have been manually locked by the Admin.")
+
+                if not questions:
+                    st.info("No questions found for this week.")
+                else:
+                    if not is_locked and profile['tokens'] > 0:
+                        col_rand_sp1, col_rand_btn = st.columns([3, 1])
+                        with col_rand_btn:
+                            if st.button("🎲 Feeling Lucky (Randomize)", help="Randomly distributes your available tokens and picks across the questions!"):
+                                real_q_items = [q for q in questions if not q.get("winning_answer", "").startswith("LOCKTIME:")]
+                                if real_q_items:
+                                    remaining_tokens = profile['tokens']
+                                    supabase.table("user_bets").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
+                                    
+                                    token_allocations = {q['id']: 0 for q in real_q_items}
+                                    for _ in range(remaining_tokens):
+                                        chosen_q = random.choice(real_q_items)
+                                        token_allocations[chosen_q['id']] += 1
+                                        
+                                    for q_item in real_q_items:
+                                        random_pick = random.choice(["Yes", "No"])
+                                        w_amt = token_allocations[q_item['id']]
+                                        st.session_state[f"pick_{q_item['id']}"] = random_pick
+                                        st.session_state[f"wager_{q_item['id']}"] = w_amt
+                                        
+                                        supabase.table("user_bets").insert({
+                                            "user_id": user_id,
+                                            "user_name": profile["full_name"],
+                                            "week_number": selected_week,
+                                            "question_id": q_item['id'],
+                                            "pick": random_pick,
+                                            "wager_amount": w_amt
+                                        }).execute()
+                                    st.success("🎲 Random bets generated and populated successfully!")
+                                    st.rerun()
+
+                    all_week_bets = supabase.table("user_bets").select("question_id, pick, wager_amount").eq("user_id", user_id).eq("week_number", selected_week).execute().data
+                    existing_bets_map = {b['question_id']: b for b in all_week_bets}
+                    
+                    existing_td = supabase.table("touchdown_picks").select("player_name").eq("user_id", user_id).eq("week_number", selected_week).execute().data
+                    default_td = existing_td[0]["player_name"] if existing_td else ""
+
+                    with st.form("weekly_bet_form"):
+                        wagers = {}
+                        picks = {}
+                        
+                        st.markdown("### 10 Weekly Questions")
+                        st.caption("Select your pick (Yes/No) and assign your token wagers smoothly without interruptions. Hit submit at the bottom when ready!")
+                        
+                        for q in questions:
+                            if q.get("winning_answer", "").startswith("LOCKTIME:"):
+                                continue
                                 
-                                token_allocations = {q['id']: 0 for q in real_q_items}
-                                for _ in range(remaining_tokens):
-                                    chosen_q = random.choice(real_q_items)
-                                    token_allocations[chosen_q['id']] += 1
-                                    
-                                for q_item in real_q_items:
-                                    random_pick = random.choice(["Yes", "No"])
-                                    w_amt = token_allocations[q_item['id']]
-                                    st.session_state[f"pick_{q_item['id']}"] = random_pick
-                                    st.session_state[f"wager_{q_item['id']}"] = w_amt
-                                    
+                            full_q_text = q['question_text']
+                            away_team_name = "🏈 Free Agent / Neutral"
+                            home_team_name = "🏈 Free Agent / Neutral"
+                            prompt_text = full_q_text
+                            
+                            if " | MATCHUP: " in full_q_text:
+                                parts = full_q_text.split(" | MATCHUP: ")
+                                prompt_text = parts[0]
+                                matchup_str = parts[1]
+                                if " @ " in matchup_str:
+                                    teams_split = matchup_str.split(" @ ")
+                                    away_team_name = teams_split[0]
+                                    home_team_name = teams_split[1]
+
+                            away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
+                            home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
+
+                            prev_bet = existing_bets_map.get(q['id'], {})
+                            default_pick_val = prev_bet.get('pick', 'Yes')
+                            default_wager_val = prev_bet.get('wager_amount', 0)
+                            
+                            pick_index = 0 if default_pick_val == "Yes" else 1
+
+                            with st.expander(f"Q{q['question_number']}: {prompt_text[:45]}... ({away_team_name} @ {home_team_name})", expanded=True):
+                                col_away_logo, col_matchup_txt, col_home_logo = st.columns([1, 4, 1])
+                                with col_away_logo:
+                                    st.image(away_info["logo"], width=35)
+                                with col_matchup_txt:
+                                    st.markdown(f"""
+                                        <div style="text-align:center; padding-top:2px;">
+                                            <span class="matchup-team-title" style="font-size:20px;">{away_team_name}</span>
+                                            <span style="color:#cbd5e1; font-weight:bold; margin: 0 6px;">@</span>
+                                            <span class="matchup-team-title" style="font-size:20px;">{home_team_name}</span>
+                                        </div>
+                                    """, unsafe_allow_html=True)
+                                with col_home_logo:
+                                    st.image(home_info["logo"], width=35)
+
+                                st.markdown(f"**Question: {prompt_text}**")
+                                
+                                col_pick, col_wager = st.columns([1, 1])
+                                with col_pick:
+                                    picks[q['id']] = st.radio(
+                                        f"Pick Q{q['question_number']}",
+                                        ["Yes", "No"],
+                                        index=pick_index,
+                                        key=f"pick_{q['id']}",
+                                        horizontal=True,
+                                        disabled=is_locked
+                                    )
+                                with col_wager:
+                                    wagers[q['id']] = st.number_input(
+                                        f"Wager Q{q['question_number']}", 
+                                        min_value=0, 
+                                        max_value=profile['tokens'], 
+                                        value=default_wager_val, 
+                                        key=f"wager_{q['id']}",
+                                        disabled=is_locked
+                                    )
+
+                        st.markdown("### 🏈 Bonus Touchdown Scorer Pick")
+                        st.caption("Name 1 player to score a TD this week (Rushing/Receiving only!). Correct pick = Bonus Tokens!")
+                        
+                        td_pick = st.text_input("Player Name (e.g., Patrick Mahomes)", value=default_td, key="td_scorer", disabled=is_locked)
+                        
+                        total_wagered = sum(wagers.values())
+                        max_available = max(1, profile['tokens'])
+                        progress_val = min(1.0, total_wagered / max_available)
+                        pct_str = int(progress_val * 100)
+                        
+                        if total_wagered > profile['tokens']:
+                            st.error(f"⚠️ Over-wagered! You have allocated {total_wagered} tokens but only have {profile['tokens']} available.")
+                        else:
+                            st.progress(
+                                progress_val, 
+                                text=f"**Tokens Allocated:** `{total_wagered}` / `{profile['tokens']}` Tokens ({pct_str}%)"
+                            )
+                        
+                        st.caption("💡 *Tip: Remember that even if you don't want to risk tokens on a question, you can set the wager to 0 tokens to submit your answer and test how you would have done!*")
+
+                        col_sub1, col_sub2 = st.columns([2, 1])
+                        with col_sub1:
+                            submit_bet = st.form_submit_button("Submit Weekly Bets 🚀", type="primary", use_container_width=True, disabled=is_locked)
+                        with col_sub2:
+                            clear_bet = st.form_submit_button("Clear Bet Choices 🗑️", use_container_width=True, disabled=is_locked)
+                        
+                        if clear_bet and not is_locked:
+                            supabase.table("user_bets").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
+                            supabase.table("touchdown_picks").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
+                            st.success("Your bet choices for this week have been cleared!")
+                            st.rerun()
+
+                        if submit_bet and not is_locked:
+                            if total_wagered > profile['tokens']:
+                                st.error(f"Cannot wager {total_wagered} tokens! You only have {profile['tokens']} tokens available.")
+                            else:
+                                for q_id, pick_val in picks.items():
+                                    w_amt = wagers[q_id]
+                                    supabase.table("user_bets").delete().eq("user_id", user_id).eq("question_id", q_id).execute()
                                     supabase.table("user_bets").insert({
                                         "user_id": user_id,
                                         "user_name": profile["full_name"],
                                         "week_number": selected_week,
-                                        "question_id": q_item['id'],
-                                        "pick": random_pick,
+                                        "question_id": q_id,
+                                        "pick": pick_val,
                                         "wager_amount": w_amt
                                     }).execute()
-                                st.success("🎲 Random bets generated and populated successfully!")
-                                st.rerun()
-
-                all_week_bets = supabase.table("user_bets").select("question_id, pick, wager_amount").eq("user_id", user_id).eq("week_number", selected_week).execute().data
-                existing_bets_map = {b['question_id']: b for b in all_week_bets}
-                
-                existing_td = supabase.table("touchdown_picks").select("player_name").eq("user_id", user_id).eq("week_number", selected_week).execute().data
-                default_td = existing_td[0]["player_name"] if existing_td else ""
-
-                with st.form("weekly_bet_form"):
-                    wagers = {}
-                    picks = {}
-                    
-                    st.markdown("### 10 Weekly Questions")
-                    st.caption("Select your pick (Yes/No) and assign your token wagers smoothly without interruptions. Hit submit at the bottom when ready!")
-                    
-                    for q in questions:
-                        if q.get("winning_answer", "").startswith("LOCKTIME:"):
-                            continue
-                            
-                        full_q_text = q['question_text']
-                        away_team_name = "🏈 Free Agent / Neutral"
-                        home_team_name = "🏈 Free Agent / Neutral"
-                        prompt_text = full_q_text
-                        
-                        if " | MATCHUP: " in full_q_text:
-                            parts = full_q_text.split(" | MATCHUP: ")
-                            prompt_text = parts[0]
-                            matchup_str = parts[1]
-                            if " @ " in matchup_str:
-                                teams_split = matchup_str.split(" @ ")
-                                away_team_name = teams_split[0]
-                                home_team_name = teams_split[1]
-
-                        away_info = NFL_TEAM_DATA.get(away_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
-                        home_info = NFL_TEAM_DATA.get(home_team_name, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
-
-                        prev_bet = existing_bets_map.get(q['id'], {})
-                        default_pick_val = prev_bet.get('pick', 'Yes')
-                        default_wager_val = prev_bet.get('wager_amount', 0)
-                        
-                        pick_index = 0 if default_pick_val == "Yes" else 1
-
-                        with st.expander(f"Q{q['question_number']}: {prompt_text[:45]}... ({away_team_name} @ {home_team_name})", expanded=True):
-                            col_away_logo, col_matchup_txt, col_home_logo = st.columns([1, 4, 1])
-                            with col_away_logo:
-                                st.image(away_info["logo"], width=35)
-                            with col_matchup_txt:
-                                st.markdown(f"""
-                                    <div style="text-align:center; padding-top:2px;">
-                                        <span class="matchup-team-title" style="font-size:20px;">{away_team_name}</span>
-                                        <span style="color:#cbd5e1; font-weight:bold; margin: 0 6px;">@</span>
-                                        <span class="matchup-team-title" style="font-size:20px;">{home_team_name}</span>
-                                    </div>
-                                """, unsafe_allow_html=True)
-                            with col_home_logo:
-                                st.image(home_info["logo"], width=35)
-
-                            st.markdown(f"**Question: {prompt_text}**")
-                            
-                            col_pick, col_wager = st.columns([1, 1])
-                            with col_pick:
-                                picks[q['id']] = st.radio(
-                                    f"Pick Q{q['question_number']}",
-                                    ["Yes", "No"],
-                                    index=pick_index,
-                                    key=f"pick_{q['id']}",
-                                    horizontal=True
-                                )
-                            with col_wager:
-                                wagers[q['id']] = st.number_input(
-                                    f"Wager Q{q['question_number']}", 
-                                    min_value=0, 
-                                    max_value=profile['tokens'], 
-                                    value=default_wager_val, 
-                                    key=f"wager_{q['id']}"
-                                )
-
-                    st.markdown("### 🏈 Bonus Touchdown Scorer Pick")
-                    st.caption("Name 1 player to score a TD this week (Rushing/Receiving only!). Correct pick = Bonus Tokens!")
-                    
-                    td_pick = st.text_input("Player Name (e.g., Patrick Mahomes)", value=default_td, key="td_scorer", disabled=is_locked)
-                    
-                    total_wagered = sum(wagers.values())
-                    max_available = max(1, profile['tokens'])
-                    progress_val = min(1.0, total_wagered / max_available)
-                    pct_str = int(progress_val * 100)
-                    
-                    if total_wagered > profile['tokens']:
-                        st.error(f"⚠️ Over-wagered! You have allocated {total_wagered} tokens but only have {profile['tokens']} available.")
-                    else:
-                        st.progress(
-                            progress_val, 
-                            text=f"**Tokens Allocated:** `{total_wagered}` / `{profile['tokens']}` Tokens ({pct_str}%)"
-                        )
-                    
-                    st.caption("💡 *Tip: Remember that even if you don't want to risk tokens on a question, you can set the wager to 0 tokens to submit your answer and test how you would have done!*")
-
-                    col_sub1, col_sub2 = st.columns([2, 1])
-                    with col_sub1:
-                        submit_bet = st.form_submit_button("Submit Weekly Bets 🚀", type="primary", use_container_width=True, disabled=is_locked)
-                    with col_sub2:
-                        clear_bet = st.form_submit_button("Clear Bet Choices 🗑️", use_container_width=True, disabled=is_locked)
-                    
-                    if clear_bet and not is_locked:
-                        supabase.table("user_bets").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
-                        supabase.table("touchdown_picks").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
-                        st.success("Your bet choices for this week have been cleared!")
-                        st.rerun()
-
-                    if submit_bet and not is_locked:
-                        if total_wagered > profile['tokens']:
-                            st.error(f"Cannot wager {total_wagered} tokens! You only have {profile['tokens']} tokens available.")
-                        else:
-                            for q_id, pick_val in picks.items():
-                                w_amt = wagers[q_id]
-                                supabase.table("user_bets").delete().eq("user_id", user_id).eq("question_id", q_id).execute()
-                                supabase.table("user_bets").insert({
-                                    "user_id": user_id,
-                                    "user_name": profile["full_name"],
-                                    "week_number": selected_week,
-                                    "question_id": q_id,
-                                    "pick": pick_val,
-                                    "wager_amount": w_amt
-                                }).execute()
-                                
-                            if td_pick:
-                                supabase.table("touchdown_picks").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
-                                supabase.table("touchdown_picks").insert({
-                                    "user_id": user_id,
-                                    "week_number": selected_week,
-                                    "player_name": td_pick,
-                                    "is_correct": None
-                                }).execute()
-                                
-                            st.balloons()
-                            st.success("Your bets and touchdown pick have been successfully locked in!")
+                                    
+                                if td_pick:
+                                    supabase.table("touchdown_picks").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
+                                    supabase.table("touchdown_picks").insert({
+                                        "user_id": user_id,
+                                        "week_number": selected_week,
+                                        "player_name": td_pick,
+                                        "is_correct": None
+                                    }).execute()
+                                    
+                                st.balloons()
+                                st.success("Your bets and touchdown pick have been successfully locked in!")
 
     # ------------------------------------------
     # TAB 4: MY HISTORY & SIDE-BY-SIDE COMPARISON
