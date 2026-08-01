@@ -28,7 +28,6 @@ if "user" not in st.session_state:
     except Exception:
         pass
 
-# NEW: Form refresh counter for safe widget state resets
 if "form_refresh" not in st.session_state:
     st.session_state.form_refresh = 0
 
@@ -47,6 +46,42 @@ def get_cached_weekly_questions(w_num):
 def get_cached_all_weekly_questions_meta():
     res = supabase.table("weekly_questions").select("week_number, question_number, winning_answer").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).execute()
     return res.data if res.data else []
+
+# --- NEW: IDEMPOTENT TOKEN RECALCULATOR ---
+def recalculate_all_user_balances(supabase_client):
+    """
+    Completely recalculates every user's total token balance from scratch.
+    This guarantees perfectly accurate math, even if weeks are reopened or graded multiple times.
+    """
+    all_users = supabase_client.table("profiles").select("id").execute().data
+    closed_week_rows = supabase_client.table("weekly_questions").select("week_number").eq("question_number", 96).eq("winning_answer", "CLOSED").execute().data
+    closed_weeks = [r["week_number"] for r in closed_week_rows]
+    
+    # Start everyone at the base 10 tokens
+    user_balances = {u["id"]: 10 for u in all_users}
+    
+    all_bets = supabase_client.table("user_bets").select("*, weekly_questions(winning_answer)").execute().data
+    all_tds = supabase_client.table("touchdown_picks").select("*").execute().data
+    
+    for b in all_bets:
+        if b.get("week_number") in closed_weeks:
+            uid = b["user_id"]
+            w_ans = b.get("weekly_questions", {}).get("winning_answer")
+            if w_ans in ["Yes", "No"] and uid in user_balances:
+                if b["pick"] == w_ans:
+                    user_balances[uid] += b["wager_amount"] # Won wager amount as profit
+                else:
+                    user_balances[uid] -= b["wager_amount"] # Lost wager amount
+                    
+    for td in all_tds:
+        if td.get("week_number") in closed_weeks:
+            uid = td["user_id"]
+            is_c = td.get("is_correct")
+            if str(is_c).lower() == "true" and uid in user_balances:
+                user_balances[uid] += 5
+                
+    for uid, new_bal in user_balances.items():
+        supabase_client.table("profiles").update({"tokens": max(0, new_bal)}).eq("id", uid).execute()
 
 @st.cache_data
 def get_static_nfl_team_data():
@@ -1191,15 +1226,23 @@ else:
                             bet_losses += b["wager_amount"]
                 
                 td_record = lw_td[0] if lw_td else None
-                td_is_graded = td_record is not None and td_record.get("is_correct") is not None
                 
-                if td_is_graded:
-                    td_bonus = 5 if td_record.get("is_correct") else 0
-                else:
+                # FIX: Bulletproof TD string/boolean check
+                if td_record is None or td_record.get("is_correct") is None:
+                    td_is_graded = False
                     td_bonus = 0
+                    td_display_status = "⏳ Pending (Awaiting Admin Grading)"
+                else:
+                    td_is_graded = True
+                    is_c = td_record.get("is_correct")
+                    if str(is_c).lower() == "true":
+                        td_bonus = 5
+                        td_display_status = "✅ Correct (+5 Tokens)"
+                    else:
+                        td_bonus = 0
+                        td_display_status = "❌ Incorrect (Missed)"
                     
                 td_player = td_record["player_name"] if td_record else "None"
-                
                 net_total = bet_gains - bet_losses + td_bonus
                 
                 celeb_key = f"celebrated_week_{latest_graded_week}_{user_id}"
@@ -1219,11 +1262,6 @@ else:
                         st.metric("TD Scorer Bonus", "Pending ⏳")
                     else:
                         st.metric("TD Scorer Bonus", f"+{td_bonus} 🪙" if td_bonus > 0 else "0 🪙")
-                
-                if not td_is_graded:
-                    td_display_status = "⏳ Pending (Awaiting Admin Grading)"
-                else:
-                    td_display_status = "✅ +5 Tokens" if td_bonus > 0 else "❌ Missed"
 
                 st.markdown(f"""
                 <div class="summary-box">
@@ -1681,10 +1719,7 @@ else:
                                             }).execute()
                                         
                                         st.cache_data.clear()
-                                        
-                                        # NEW: Force new widget keys to bypass form state lock
                                         st.session_state.form_refresh += 1
-                                        
                                         st.success("🎲 Random bets generated and populated successfully!")
                                         st.rerun()
 
@@ -1747,7 +1782,6 @@ else:
                                 
                                 col_pick, col_wager = st.columns([1, 1])
                                 with col_pick:
-                                    # UPDATED: Add form_refresh to key
                                     picks[q['id']] = st.radio(
                                         f"Pick Q{q['question_number']}",
                                         ["Yes", "No"],
@@ -1757,7 +1791,6 @@ else:
                                         disabled=is_locked
                                     )
                                 with col_wager:
-                                    # UPDATED: Add form_refresh to key
                                     wagers[q['id']] = st.number_input(
                                         f"Wager Q{q['question_number']}", 
                                         min_value=0, 
@@ -1770,7 +1803,6 @@ else:
                         st.markdown("### 🏈 Bonus Touchdown Scorer Pick")
                         st.caption("Name 1 player to score a TD this week (Rushing/Receiving only!). Correct pick = Bonus Tokens!")
                         
-                        # UPDATED: Add form_refresh to key
                         td_pick = st.text_input(
                             "Player Name (e.g., Patrick Mahomes)", 
                             value=default_td, 
@@ -1803,9 +1835,7 @@ else:
                             supabase.table("user_bets").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
                             supabase.table("touchdown_picks").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
                             
-                            # NEW: Force new widget keys to bypass form state lock
                             st.session_state.form_refresh += 1
-                                
                             st.success("Your bet choices for this week have been cleared!")
                             st.rerun()
 
@@ -1879,12 +1909,13 @@ else:
                 p_name = td["player_name"]
                 is_c = td.get("is_correct")
                 
+                # FIX: Bulletproof TD string/boolean check
                 if is_c is None:
                     status_str = "⏳ Pending (Awaiting Admin Grading)"
-                elif is_c:
+                elif str(is_c).lower() == "true":
                     status_str = "✅ Correct (+5 Bonus Tokens)"
                 else:
-                    status_str = "❌ Incorrect (Miss)"
+                    status_str = "❌ Incorrect (Missed)"
                     
                 td_history_rows.append({
                     "Week": f"Week {w_num}",
@@ -2329,7 +2360,7 @@ else:
                                 skey = f"m_prompt_w{selected_manage_week}_q{i}"
                                 if skey in st.session_state:
                                     del st.session_state[skey]
-                            st.cache_data.clear()  # Clear cache after clearing questions
+                            st.cache_data.clear()
                             st.success(f"Cleared unpublished questions for Week {selected_manage_week}!")
                             st.rerun()
                         except Exception as e:
@@ -2395,9 +2426,7 @@ else:
                                         "winning_answer": "Pending"
                                     }).execute()
                                     
-                        # --- CLEAR CACHE AUTOMATICALLY UPON PUBLISHING ---
                         st.cache_data.clear()
-                                    
                         st.balloons()
                         st.success(f"Successfully saved and updated Week {selected_manage_week} questions!")
                         st.rerun()
@@ -2455,9 +2484,12 @@ else:
                     col_reopen1, col_reopen2 = st.columns([2, 2])
                     with col_reopen1:
                         if st.button(f"🔓 Reopen Week {grade_week} for Regrading", type="secondary"):
+                            # Delete the CLOSED marker
                             supabase.table("weekly_questions").delete().eq("week_number", grade_week).eq("question_number", 96).execute()
+                            # Idempotent recalculation resets balances to pre-graded state!
+                            recalculate_all_user_balances(supabase)
                             st.cache_data.clear()
-                            st.success(f"Week {grade_week} has been reopened successfully!")
+                            st.success(f"Week {grade_week} has been reopened and balances restored successfully!")
                             st.rerun()
                     st.divider()
                 
@@ -2538,7 +2570,6 @@ else:
                         all_profiles = get_cached_profiles()
                         profile_dict = {p["id"]: p["full_name"] for p in all_profiles}
                         
-                        td_winners = []
                         td_grading_results = {}
                         if not td_picks_data:
                             st.info("No Touchdown picks submitted for this week.")
@@ -2547,12 +2578,13 @@ else:
                                 player_user_name = profile_dict.get(td["user_id"], "Unknown Player")
                                 current_is_correct = td.get("is_correct")
                                 
-                                if current_is_correct is True:
-                                    default_choice = "Correct (+5 🪙)"
-                                elif current_is_correct is False:
-                                    default_choice = "Incorrect (Miss)"
-                                else:
+                                # FIX: Bulletproof TD string/boolean check for Admin menu
+                                if current_is_correct is None:
                                     default_choice = "Pending"
+                                elif str(current_is_correct).lower() == "true":
+                                    default_choice = "Correct (+5 🪙)"
+                                else:
+                                    default_choice = "Incorrect (Miss)"
                                     
                                 col_p_name, col_p_sel = st.columns([2, 1])
                                 with col_p_name:
@@ -2567,8 +2599,6 @@ else:
                                     )
                                 
                                 td_grading_results[td["id"]] = grade_choice
-                                if grade_choice == "Correct (+5 🪙)":
-                                    td_winners.append(td["user_id"])
                                     
                             st.divider()
 
@@ -2578,9 +2608,11 @@ else:
                             if is_week_closed:
                                 st.error("This week is closed and cannot be graded again unless reopened.")
                             else:
+                                # 1. Save all question answers
                                 for q_id, ans in answers.items():
                                     supabase.table("weekly_questions").update({"winning_answer": ans}).eq("id", q_id).execute()
                                 
+                                # 2. Save all TD Pick Outcomes
                                 for td_id, choice in td_grading_results.items():
                                     if choice == "Correct (+5 🪙)":
                                         supabase.table("touchdown_picks").update({"is_correct": True}).eq("id", td_id).execute()
@@ -2589,34 +2621,7 @@ else:
                                     else:
                                         supabase.table("touchdown_picks").update({"is_correct": None}).eq("id", td_id).execute()
                                 
-                                week_bets = supabase.table("user_bets").select("*").eq("week_number", grade_week).execute().data
-                                
-                                user_token_changes = {}
-                                for bet in week_bets:
-                                    u_id = bet["user_id"]
-                                    q_id = bet["question_id"]
-                                    correct_ans = answers.get(q_id)
-                                    wager = bet["wager_amount"]
-                                    
-                                    if u_id not in user_token_changes:
-                                        user_token_changes[u_id] = 0
-                                        
-                                    if correct_ans in ["Yes", "No"]:
-                                        if bet["pick"] == correct_ans:
-                                            user_token_changes[u_id] += wager
-                                        else:
-                                            user_token_changes[u_id] -= wager
-                                
-                                for winner_id in td_winners:
-                                    user_token_changes[winner_id] = user_token_changes.get(winner_id, 0) + 5
-                                
-                                for u_id, net_change in user_token_changes.items():
-                                    p_data = supabase.table("profiles").select("tokens").eq("id", u_id).single().execute().data
-                                    current_bank = p_data["tokens"]
-                                    
-                                    new_balance = max(0, current_bank + net_change)
-                                    supabase.table("profiles").update({"tokens": new_balance}).eq("id", u_id).execute()
-                                
+                                # 3. Mark the week as CLOSED
                                 supabase.table("weekly_questions").delete().eq("week_number", grade_week).eq("question_number", 96).execute()
                                 supabase.table("weekly_questions").insert({
                                     "week_number": grade_week,
@@ -2624,6 +2629,10 @@ else:
                                     "question_text": "WEEK CLOSED MARKER",
                                     "winning_answer": "CLOSED"
                                 }).execute()
+                                
+                                # 4. IDEMPOTENT RECALCULATE: 
+                                # Re-sum all players from exactly 10 tokens based on historical wins/losses.
+                                recalculate_all_user_balances(supabase)
                                 
                                 st.cache_data.clear()
                                     
