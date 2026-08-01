@@ -879,9 +879,23 @@ else:
     active_tokens_display = profile['tokens']
     if available_weeks:
         latest_w_active = available_weeks[-1]
-        user_active_bets = supabase.table("user_bets").select("wager_amount").eq("user_id", user_id).eq("week_number", latest_w_active).execute().data
-        total_wagered_active = sum([b['wager_amount'] for b in user_active_bets]) if user_active_bets else 0
-        active_tokens_display = max(0, profile['tokens'] - total_wagered_active)
+        
+        # Check if the latest active week has been graded/closed by checking the week 96 marker or question winners
+        is_latest_graded = False
+        latest_week_status = supabase.table("weekly_questions").select("winning_answer").eq("week_number", latest_w_active).eq("question_number", 96).execute().data
+        if latest_week_status and latest_week_status[0]["winning_answer"] == "CLOSED":
+            is_latest_graded = True
+        else:
+            # Fallback: check if questions for this week are all graded Yes/No
+            w_qs_check = supabase.table("weekly_questions").select("winning_answer").eq("week_number", latest_w_active).neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).execute().data
+            if w_qs_check and all(q["winning_answer"] in ["Yes", "No"] for q in w_qs_check):
+                is_latest_graded = True
+
+        # Only deduct active wagers if the week is still OPEN / un-graded!
+        if not is_latest_graded:
+            user_active_bets = supabase.table("user_bets").select("wager_amount").eq("user_id", user_id).eq("week_number", latest_w_active).execute().data
+            total_wagered_active = sum([b['wager_amount'] for b in user_active_bets]) if user_active_bets else 0
+            active_tokens_display = max(0, profile['tokens'] - total_wagered_active)
 
     st.sidebar.metric(label="Available Tokens", value=f"{active_tokens_display} 🪙", help="Total Tokens minus active wagers placed for the upcoming week.")
     
@@ -2429,9 +2443,12 @@ else:
                                         
                                     if correct_ans in ["Yes", "No"]:
                                         if bet["pick"] == correct_ans:
-                                            user_token_changes[u_id] += wager
+                                            # Winnings rule: When you win, you get your wager back PLUS winnings equal to your wager (Net gain = +wager).
+                                            # Since wagered tokens were already deducted from your bank when you placed the bet, winning means adding (wager * 2) back to restore the wager + double winnings!
+                                            user_token_changes[u_id] += (wager * 2)
                                         else:
-                                            user_token_changes[u_id] -= wager
+                                            # Lost wager: Tokens were already deducted when placed, so 0 additional change is needed here.
+                                            pass
                                 
                                 for winner_id in td_winners:
                                     user_token_changes[winner_id] = user_token_changes.get(winner_id, 0) + 5
@@ -2463,7 +2480,7 @@ else:
                     st.info("No players found.")
                 else:
                     with st.form("bulk_token_form"):
-                        st.markdown("#### Select Players")
+                        st.markdown("#### Select players")
                         selected_user_ids = []
                         
                         for p in all_profiles_bulk:
@@ -2603,7 +2620,7 @@ Good luck this week! 🔥"""
                         for p in all_profiles:
                             supabase.table("profiles").update({"tokens": 10}).eq("id", p["id"]).execute()
                             
-                        st.success("All player balances have been reset to 10 tokens! Season archived.")
+                        st.success("All player balances have0 been reset to 10 tokens! Season archived.")
                         st.download_button(
                             label="📥 Download Archived Season Summary (CSV)",
                             data=df_archive.to_csv(index=False),
