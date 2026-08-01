@@ -676,11 +676,8 @@ def get_earned_title(target_user_id):
         prof_res = supabase.table("profiles").select("selected_title").eq("id", target_user_id).single().execute().data
         if prof_res and prof_res.get("selected_title"):
             saved_title = prof_res.get("selected_title")
-            req_info = AVAILABLE_TITLES.get(saved_title)
-            if req_info and req_info["badge"]:
-                user_badges = get_user_badges(target_user_id)
-                if req_info["badge"] in user_badges:
-                    return saved_title
+            if saved_title in AVAILABLE_TITLES:
+                return saved_title
     except Exception:
         pass
         
@@ -880,7 +877,6 @@ else:
     if available_weeks:
         latest_w_active = available_weeks[-1]
         
-        # Check if the latest active week has been graded/closed by checking the week 96 marker or question winners
         is_latest_graded = False
         latest_week_status = supabase.table("weekly_questions").select("winning_answer").eq("week_number", latest_w_active).eq("question_number", 96).execute().data
         if latest_week_status and latest_week_status[0]["winning_answer"] == "CLOSED":
@@ -890,7 +886,6 @@ else:
             if w_qs_check and all(q["winning_answer"] in ["Yes", "No"] for q in w_qs_check):
                 is_latest_graded = True
 
-        # Only deduct active wagers if the week is still OPEN / un-graded!
         if not is_latest_graded:
             user_active_bets = supabase.table("user_bets").select("wager_amount").eq("user_id", user_id).eq("week_number", latest_w_active).execute().data
             total_wagered_active = sum([b['wager_amount'] for b in user_active_bets]) if user_active_bets else 0
