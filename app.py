@@ -1675,6 +1675,8 @@ else:
                                                 "pick": random_pick,
                                                 "wager_amount": w_amt
                                             }).execute()
+                                        
+                                        st.cache_data.clear()
                                         st.success("🎲 Random bets generated and populated successfully!")
                                         st.rerun()
 
