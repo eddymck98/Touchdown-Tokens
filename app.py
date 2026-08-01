@@ -2501,7 +2501,13 @@ else:
                     with col_reopen1:
                         if st.button(f"🔓 Reopen Week {grade_week} for Regrading", type="secondary"):
                             supabase.table("weekly_questions").delete().eq("week_number", grade_week).eq("question_number", 96).execute()
+                            
+                            # RESET: Temporarily set everyone back to 10 base tokens, then recalculate only remaining closed weeks
+                            all_users_reopen = supabase.table("profiles").select("id").execute().data
+                            for u in all_users_reopen:
+                                supabase.table("profiles").update({"tokens": 10}).eq("id", u["id"]).execute()
                             recalculate_all_user_balances(supabase)
+                            
                             st.cache_data.clear()
                             st.success(f"Week {grade_week} has been reopened and balances restored successfully!")
                             st.rerun()
