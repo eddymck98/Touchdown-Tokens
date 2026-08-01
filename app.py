@@ -160,8 +160,7 @@ BORDER_STYLE_OPTIONS = {
     "Dashed Gridiron": "dashed",
     "Stealth Dotted": "dotted",
     "Championship Ridge": "ridge",
-    "Groove Outlined": "groove",
-    "Inset Shaded": "inset"
+    "Groove Outlined": "inset"
 }
 
 AVAILABLE_TITLES = {
@@ -737,6 +736,7 @@ def sync_and_get_user_badges(target_user_id, check_celebration=False):
             
     return final_badges_list
 
+@st.cache_data(ttl=60)
 def get_earned_title(target_user_id):
     try:
         prof_res = supabase.table("profiles").select("selected_title").eq("id", target_user_id).single().execute().data
@@ -753,6 +753,7 @@ def get_earned_title(target_user_id):
             return title
     return "🏈 Gridiron Contender"
 
+@st.cache_data(ttl=60)
 def calculate_nemesis(target_user_id):
     try:
         user_bets = supabase.table("user_bets").select("week_number, question_id, pick").eq("user_id", target_user_id).execute().data
@@ -787,6 +788,7 @@ def calculate_nemesis(target_user_id):
     except Exception:
         return "None Yet", 0
 
+@st.cache_data(ttl=60)
 def calculate_streak(target_user_id):
     try:
         u_bets = supabase.table("user_bets").select("week_number, pick, weekly_questions(winning_answer)").eq("user_id", target_user_id).order("week_number", desc=True).execute().data
@@ -804,6 +806,44 @@ def calculate_streak(target_user_id):
         return f"{streak}W" if streak > 0 else "0W"
     except Exception:
         return "0W"
+
+@st.cache_data(ttl=60)
+def get_cached_leaderboard_stats():
+    """Fetches and calculates the entire leaderboard, caching it for 60 seconds to prevent UI lag."""
+    leader_res = get_cached_profiles()
+    stats = []
+    if not leader_res:
+        return stats
+        
+    for p in leader_res:
+        correct_tds = supabase.table("touchdown_picks").select("*").eq("user_id", p["id"]).eq("is_correct", True).execute().data
+        td_count = len(correct_tds) if correct_tds else 0
+        
+        u_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("user_id", p["id"]).execute().data
+        wins, total_graded = 0, 0
+        for b in u_bets:
+            w_ans = b.get("weekly_questions", {}).get("winning_answer")
+            if w_ans in ["Yes", "No"]:
+                total_graded += 1
+                if b["pick"] == w_ans:
+                    wins += 1
+        win_rate = int((wins / total_graded) * 100) if total_graded > 0 else 0
+        
+        nem_name, nem_score = calculate_nemesis(p["id"])
+        player_streak = calculate_streak(p["id"])
+        
+        stats.append({
+            **p, 
+            "correct_tds": td_count, 
+            "win_rate": win_rate, 
+            "total_bets": total_graded,
+            "nemesis_name": nem_name,
+            "nemesis_score": nem_score,
+            "streak": player_streak
+        })
+        
+    return sorted(stats, key=lambda x: (-x["tokens"], -x["correct_tds"], x["full_name"]))
+
 
 signin_lock_setting = supabase.table("weekly_questions").select("winning_answer").eq("week_number", 998).execute().data
 is_signin_locked = signin_lock_setting and signin_lock_setting[0]["winning_answer"] == "LOCKED"
@@ -1505,7 +1545,12 @@ else:
         selected_player_name = st.selectbox("Select Player Trophy Showcase", list(user_name_map.keys()), index=default_index, key="trophy_player_select", label_visibility="collapsed")
         selected_player = user_name_map[selected_player_name]
         
-        selected_badges = sync_and_get_user_badges(selected_player["id"])
+        # Deep sync your own profile, but instantly load rivals from the memory cache!
+        if selected_player["id"] == user_id:
+            selected_badges = sync_and_get_user_badges(user_id)
+        else:
+            selected_badges = selected_player.get("unlocked_badges") or []
+        
         selected_team_info = NFL_TEAM_DATA.get(selected_player.get("favorite_team"), NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
         
         unlocked_count = len(selected_badges)
@@ -2120,37 +2165,9 @@ else:
     with tab_leaders:
         st.header("🏆 League Standings & Head-to-Head")
 
-        leader_res = get_cached_profiles()
-        player_stats = []
+        player_stats = get_cached_leaderboard_stats()
         
-        if leader_res:
-            for p in leader_res:
-                correct_tds = supabase.table("touchdown_picks").select("*").eq("user_id", p["id"]).eq("is_correct", True).execute().data
-                td_count = len(correct_tds) if correct_tds else 0
-                u_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("user_id", p["id"]).execute().data
-                wins, total_graded = 0, 0
-                for b in u_bets:
-                    w_ans = b.get("weekly_questions", {}).get("winning_answer")
-                    if w_ans in ["Yes", "No"]:
-                        total_graded += 1
-                        if b["pick"] == w_ans: wins += 1
-                win_rate = int((wins / total_graded) * 100) if total_graded > 0 else 0
-                
-                nem_name, nem_score = calculate_nemesis(p["id"])
-                player_streak = calculate_streak(p["id"])
-                
-                player_stats.append({
-                    **p, 
-                    "correct_tds": td_count, 
-                    "win_rate": win_rate, 
-                    "total_bets": total_graded,
-                    "nemesis_name": nem_name,
-                    "nemesis_score": nem_score,
-                    "streak": player_streak
-                })
-            
-            player_stats = sorted(player_stats, key=lambda x: (-x["tokens"], -x["correct_tds"], x["full_name"]))
-            
+        if player_stats:
             with st.expander("⚔️ Head-to-Head Player Comparison", expanded=False):
                 all_other_names = [p["full_name"] for p in player_stats if p["id"] != user_id]
                 if all_other_names:
@@ -2209,7 +2226,7 @@ else:
                 
                 showcased = p.get("featured_badges") or []
                 if not showcased or not isinstance(showcased, list):
-                    showcased = sync_and_get_user_badges(p["id"])[:3]
+                    showcased = p.get("unlocked_badges", [])[:3] 
                 
                 badges_html = "".join([f'<span class="badge-pill">{b}</span>' for b in showcased]) if showcased else '<span style="color:#64748b; font-size:12px;">No Badges Displayed</span>'
                 
@@ -2690,7 +2707,8 @@ else:
                                 st.warning("Please check off at least one player above.")
                             else:
                                 for u_id in selected_user_ids:
-                                    p_curr = supabase.table("profiles").select("tokens").eq("id", u_id).single().execute().data.get("tokens", 0)
+                                    # Find the user's current tokens instantly from our cached list
+                                    p_curr = next((p['tokens'] for p in all_profiles_bulk if p['id'] == u_id), 0)
                                     
                                     if action_type == "Add Tokens":
                                         new_bal = p_curr + token_amount_val
