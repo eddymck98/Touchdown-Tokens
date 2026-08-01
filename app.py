@@ -505,6 +505,13 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
+# --- REFRESH BUTTON AT THE TOP OF THE PAGE ---
+col_top_spacer, col_top_btn = [st.columns([4, 1])[0], st.columns([4, 1])[1]]
+with col_top_btn:
+    if st.button("🔄 Refresh App", use_container_width=True, help="Clears cache and reloads the application instantly across all pages!"):
+        st.cache_data.clear()
+        st.rerun()
+
 st.markdown("""
     <div class="nfl-header">
         <img src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" class="header-logo" alt="NFL Logo" />
@@ -943,35 +950,26 @@ else:
             del st.session_state["supabase_client"]
         st.rerun()
 
-    # --- STICKY HEADER / COMPACT BALANCE BAR WITH GLOBAL REFRESH BUTTON ---
-    col_bar_info, col_bar_btn = st.columns([3, 1])
-    
-    with col_bar_info:
-        st.markdown(f"""
-            <div class="sticky-balance-bar">
-                <div style="display: flex; align-items: center; gap: 14px;">
-                    <div style="border: 3px {user_border_style} {user_team_color}; border-radius: 10px; padding: 3px 8px; background: {user_avatar_color}; box-shadow: 0 4px 12px {user_team_color}33;">
-                        <span style="font-size: 26px;">{user_avatar}</span>
-                    </div>
-                    <div>
-                        <b style="font-size: 16px; color: #ffffff;">{profile['full_name']}</b> <span style="font-size:11px; color:#38bdf8; margin-left:6px;">({get_earned_title(user_id)})</span>
-                        <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">{user_team}</div>
-                    </div>
+    # --- STICKY HEADER / COMPACT BALANCE BAR ---
+    st.markdown(f"""
+        <div class="sticky-balance-bar">
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <div style="border: 3px {user_border_style} {user_team_color}; border-radius: 10px; padding: 3px 8px; background: {user_avatar_color}; box-shadow: 0 4px 12px {user_team_color}33;">
+                    <span style="font-size: 26px;">{user_avatar}</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <div style="text-align: right;">
-                        <span style="font-family: 'Bebas Neue'; font-size: 26px; color: {user_team_color};">{active_tokens_display} 🪙</span>
-                        <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Available Tokens</div>
-                    </div>
+                <div>
+                    <b style="font-size: 16px; color: #ffffff;">{profile['full_name']}</b> <span style="font-size:11px; color:#38bdf8; margin-left:6px;">({get_earned_title(user_id)})</span>
+                    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">{user_team}</div>
                 </div>
             </div>
-        """, unsafe_allow_html=True)
-        
-    with col_bar_btn:
-        st.write("") # vertical alignment spacer
-        if st.button("🔄 Refresh App", use_container_width=True, help="Clears cache and reloads the application instantly across all pages!"):
-            st.cache_data.clear()
-            st.rerun()
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div style="text-align: right;">
+                    <span style="font-family: 'Bebas Neue'; font-size: 26px; color: {user_team_color};">{active_tokens_display} 🪙</span>
+                    <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Available Tokens</div>
+                </div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
     if profile.get("is_admin"):
         tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_admin = st.tabs(
@@ -1895,7 +1893,7 @@ else:
                     if w_ans in ["Pending", "LOCKED"] or w_ans.startswith("LOCKTIME:"):
                         outcome = "⏳ Pending"
                     elif b["pick"] == w_ans:
-                        outcome = f"✅ Won (+{b['wager_amount'] * 2} 🪙)"
+                        outcome = f"✅ Won (+{b['wager_amount']} 🪙)"
                     else:
                         outcome = f"❌ Lost (-{b['wager_amount']} 🪙)"
                             
@@ -1983,13 +1981,13 @@ else:
                         my_pill_bg = "rgba(16, 185, 129, 0.18)" if my_won else "rgba(239, 68, 68, 0.18)"
                         my_pill_border = "#10b981" if my_won else "#ef4444"
                         my_pill_color = "#34d399" if my_won else "#f87171"
-                        my_status_text = f"Won (+{my_wager * 2}🪙)" if my_won else f"Lost (-{my_wager}🪙)"
+                        my_status_text = f"Won (+{my_wager}🪙)" if my_won else f"Lost (-{my_wager}🪙)"
                         
                         if riv_pick in ["Yes", "No"]:
                             riv_pill_bg = "rgba(16, 185, 129, 0.18)" if riv_won else "rgba(239, 68, 68, 0.18)"
                             riv_pill_border = "#10b981" if riv_won else "#ef4444"
                             riv_pill_color = "#34d399" if riv_won else "#f87171"
-                            riv_status_text = f"Won (+{riv_wager * 2}🪙)" if riv_won else f"Lost (-{riv_wager}🪙)"
+                            riv_status_text = f"Won (+{riv_wager}🪙)" if riv_won else f"Lost (-{riv_wager}🪙)"
                         else:
                             riv_pill_bg = "rgba(100, 116, 139, 0.2)"
                             riv_pill_border = "#64748b"
@@ -2560,18 +2558,18 @@ else:
                                         
                                     if correct_ans in ["Yes", "No"]:
                                         if bet["pick"] == correct_ans:
-                                            user_token_changes[u_id] += (wager * 2)
+                                            user_token_changes[u_id] += wager
                                         else:
-                                            pass
+                                            user_token_changes[u_id] -= wager
                                 
                                 for winner_id in td_winners:
                                     user_token_changes[winner_id] = user_token_changes.get(winner_id, 0) + 5
                                 
-                                for u_id, change in user_token_changes.items():
+                                for u_id, net_change in user_token_changes.items():
                                     p_data = supabase.table("profiles").select("tokens").eq("id", u_id).single().execute().data
                                     current_bank = p_data["tokens"]
                                     
-                                    new_balance = max(0, current_bank + change)
+                                    new_balance = max(0, current_bank + net_change)
                                     supabase.table("profiles").update({"tokens": new_balance}).eq("id", u_id).execute()
                                 
                                 supabase.table("weekly_questions").delete().eq("week_number", grade_week).eq("question_number", 96).execute()
