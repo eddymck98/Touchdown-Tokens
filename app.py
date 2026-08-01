@@ -1127,8 +1127,10 @@ else:
                 
                 net_total = bet_gains - bet_losses + td_bonus
                 
-                if net_total > 0:
+                celeb_key = f"celebrated_week_{latest_graded_week}_{user_id}"
+                if net_total > 0 and not st.session_state.get(celeb_key, False):
                     st.balloons()
+                    st.session_state[celeb_key] = True
                 
                 st.markdown(f"### Week {latest_graded_week} Results")
                 
