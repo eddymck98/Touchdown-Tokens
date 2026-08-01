@@ -40,7 +40,7 @@ def get_cached_weekly_questions(w_num):
 
 @st.cache_data(ttl=30)
 def get_cached_all_weekly_questions_meta():
-    res = supabase.table("weekly_questions").select("week_number, winning_answer").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).execute()
+    res = supabase.table("weekly_questions").select("week_number, question_number, winning_answer").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).execute()
     return res.data if res.data else []
 
 # Comprehensive NFL Team Logos & Primary Accent Hex Colors (Safe to cache globally as it's static reference data)
@@ -886,7 +886,6 @@ else:
         if latest_week_status and latest_week_status[0]["winning_answer"] == "CLOSED":
             is_latest_graded = True
         else:
-            # Fallback: check if questions for this week are all graded Yes/No
             w_qs_check = supabase.table("weekly_questions").select("winning_answer").eq("week_number", latest_w_active).neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).execute().data
             if w_qs_check and all(q["winning_answer"] in ["Yes", "No"] for q in w_qs_check):
                 is_latest_graded = True
@@ -1689,8 +1688,15 @@ else:
         st.header("📜 Your Past Bets & Results")
         st.caption("Review your historical predictions, weekly outcomes, and track your performance over time.")
         
+        # --- FIXED GRADED WEEKS DETECTION ---
         all_graded_weeks_res = get_cached_all_weekly_questions_meta()
         graded_weeks_set = set()
+        
+        closed_markers = supabase.table("weekly_questions").select("week_number").eq("question_number", 96).eq("winning_answer", "CLOSED").execute().data
+        if closed_markers:
+            for cm in closed_markers:
+                graded_weeks_set.add(cm["week_number"])
+                
         if all_graded_weeks_res:
             week_ans_map = {}
             for q in all_graded_weeks_res:
@@ -1698,7 +1704,8 @@ else:
                 ans = q["winning_answer"]
                 if w_num not in week_ans_map:
                     week_ans_map[w_num] = []
-                week_ans_map[w_num].append(ans)
+                if q.get("question_number", 0) <= 10:
+                    week_ans_map[w_num].append(ans)
             
             for w_num, ans_list in week_ans_map.items():
                 if ans_list and all(a in ["Yes", "No"] for a in ans_list):
@@ -2443,11 +2450,8 @@ else:
                                         
                                     if correct_ans in ["Yes", "No"]:
                                         if bet["pick"] == correct_ans:
-                                            # Winnings rule: When you win, you get your wager back PLUS winnings equal to your wager (Net gain = +wager).
-                                            # Since wagered tokens were already deducted from your bank when you placed the bet, winning means adding (wager * 2) back to restore the wager + double winnings!
                                             user_token_changes[u_id] += (wager * 2)
                                         else:
-                                            # Lost wager: Tokens were already deducted when placed, so 0 additional change is needed here.
                                             pass
                                 
                                 for winner_id in td_winners:
@@ -2457,8 +2461,6 @@ else:
                                     p_data = supabase.table("profiles").select("tokens").eq("id", u_id).single().execute().data
                                     current_bank = p_data["tokens"]
                                     
-                                    # Since wagers were deducted upfront, grading only needs to ADD the winning returns (`change`).
-                                    # If change is 0 (all bets lost), their bank remains whatever un-wagered tokens they had left.
                                     new_balance = max(0, current_bank + change)
                                     supabase.table("profiles").update({"tokens": new_balance}).eq("id", u_id).execute()
                                 
@@ -2624,7 +2626,7 @@ Good luck this week! 🔥"""
                         for p in all_profiles:
                             supabase.table("profiles").update({"tokens": 10}).eq("id", p["id"]).execute()
                             
-                        st.success("All player balances have0 been reset to 10 tokens! Season archived.")
+                        st.success("All player balances have been reset to 10 tokens! Season archived.")
                         st.download_button(
                             label="📥 Download Archived Season Summary (CSV)",
                             data=df_archive.to_csv(index=False),
