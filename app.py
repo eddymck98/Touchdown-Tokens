@@ -1194,6 +1194,18 @@ else:
             chart_weeks = list(week_tokens.keys())
             chart_vals = list(week_tokens.values())
             
+            def hex_to_rgba(hex_str, alpha=0.25):
+                hex_str = hex_str.lstrip('#')
+                if len(hex_str) == 3:
+                    hex_str = ''.join([c*2 for c in hex_str])
+                try:
+                    r, g, b = int(hex_str[0:2], 16), int(hex_str[2:4], 16), int(hex_str[4:6], 16)
+                    return f"rgba({r}, {g}, {b}, {alpha})"
+                except Exception:
+                    return f"rgba(251, 191, 36, {alpha})"
+
+            fill_rgba_color = hex_to_rgba(user_team_color, 0.25)
+            
             fig = go.Figure()
             fig.add_trace(go.Scatter(
                 x=[f"Week {w}" if w > 0 else "Start" for w in chart_weeks],
@@ -1203,7 +1215,7 @@ else:
                 line=dict(color=user_team_color, width=4, shape='spline'),
                 marker=dict(size=10, color=user_team_color, line=dict(color="#ffffff", width=2)),
                 fill='tozeroy',
-                fillcolor=f"{user_team_color}22",
+                fillcolor=fill_rgba_color,
                 hovertemplate='<b>%{x}</b><br>Token Balance: %{y} 🪙<extra></extra>'
             ))
             
