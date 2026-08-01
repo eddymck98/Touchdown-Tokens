@@ -230,12 +230,10 @@ st.markdown(f"""
     .avatar-champion-frame {{
         animation: goldGlow 2.5s infinite ease-in-out !important;
         border-width: 3px !important;
-        border-style: solid !important;
     }}
     .avatar-tycoon-frame {{
         animation: neonPulseAnim 2.5s infinite ease-in-out !important;
         border-width: 3px !important;
-        border-style: solid !important;
     }}
 
     .sticky-balance-bar {{
@@ -1986,8 +1984,8 @@ else:
                 prev_score, prev_tds = score, tds
                 
                 av = p.get("avatar_emoji") or "🏈"
-                p_border = p.get("avatar_border", "solid")
-                p_bg_col = p.get("avatar_color", "#1e3a8a")
+                p_border = p.get("avatar_border") or "solid"
+                p_bg_col = p.get("avatar_color") or "#1e3a8a"
                 t_info = NFL_TEAM_DATA.get(p.get("favorite_team"), NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
                 team_name = p.get("favorite_team") or "🏈 Free Agent / Neutral"
                 fav_pl = p.get("favorite_player", "")
