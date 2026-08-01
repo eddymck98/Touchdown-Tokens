@@ -1756,12 +1756,12 @@ else:
 
         st.divider()
 
-        # --- SIDE-BY-SIDE COMPARISON ---
+        # --- SIDE-BY-SIDE COMPARISON (CLEAN CARD UI) ---
         with st.expander("⚔️ Side-by-Side History Comparison vs. Rival", expanded=False):
-            st.caption("Compare your graded week bets side by side against any league member!")
+            st.caption("Compare your graded week bets side by side against any league member in a clean head-to-head match card format!")
             
             all_profiles_hist = get_cached_profiles()
-            rival_options = {p["full_name"]: p["id"] for p in all_profiles_hist if p["id"] != user_id}
+            rival_options = {p["full_name"]: p for p in all_profiles_hist if p["id"] != user_id}
             
             if rival_options and graded_weeks_list:
                 col_comp_w, col_comp_r = st.columns(2)
@@ -1770,14 +1770,32 @@ else:
                 with col_comp_r:
                     comp_rival_name = st.selectbox("Select Rival", list(rival_options.keys()), key="hist_comp_rival")
                     
-                rival_id = rival_options[comp_rival_name]
+                rival_prof = rival_options[comp_rival_name]
+                rival_id = rival_prof["id"]
                 
                 my_hist_bets = supabase.table("user_bets").select("question_id, pick, wager_amount, weekly_questions(question_number, question_text, winning_answer)").eq("user_id", user_id).eq("week_number", comp_week_sel).order("question_id").execute().data
                 rival_hist_bets = supabase.table("user_bets").select("question_id, pick, wager_amount").eq("user_id", rival_id).eq("week_number", comp_week_sel).execute().data
                 rival_bets_map = {b["question_id"]: (b["pick"], b["wager_amount"]) for b in rival_hist_bets}
                 
                 if my_hist_bets:
-                    comparison_rows = []
+                    st.write("")
+                    rival_team_info = NFL_TEAM_DATA.get(rival_prof.get("favorite_team"), NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
+                    rival_color = rival_team_info["color"]
+                    rival_avatar = rival_prof.get("avatar_emoji", "🏈")
+                    
+                    st.markdown(f"""
+                        <div style="background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255,255,255,0.12); border-left: 4px solid {rival_color}; padding: 12px 18px; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 24px;">{rival_avatar}</span>
+                                <div>
+                                    <b style="color: #fff; font-size: 16px;">Head-to-Head: Week {comp_week_sel} Matchup</b>
+                                    <div style="font-size: 12px; color: #94a3b8;">{profile['full_name']} vs. {comp_rival_name}</div>
+                                </div>
+                            </div>
+                            <img src="{rival_team_info['logo']}" style="width: 32px; height: 32px;" />
+                        </div>
+                    """, unsafe_allow_html=True)
+
                     for b in my_hist_bets:
                         q_info = b.get("weekly_questions", {})
                         q_num = q_info.get("question_number", "?")
@@ -1792,17 +1810,50 @@ else:
                         riv_pick = riv_data[0]
                         riv_wager = riv_data[1]
                         
-                        my_status = "✅ Won" if my_pick == w_ans else "❌ Lost"
-                        riv_status = "✅ Won" if riv_pick == w_ans else ("❌ Lost" if riv_pick in ["Yes", "No"] else "N/A")
+                        my_won = (my_pick == w_ans)
+                        riv_won = (riv_pick == w_ans)
                         
-                        comparison_rows.append({
-                            f"Q{q_num}": clean_q,
-                            f"You ({my_pick} / {my_wager}🪙)": my_status,
-                            f"{comp_rival_name} ({riv_pick} / {riv_wager}🪙)": riv_status,
-                            "Result": w_ans
-                        })
+                        my_pill_bg = "rgba(16, 185, 129, 0.18)" if my_won else "rgba(239, 68, 68, 0.18)"
+                        my_pill_border = "#10b981" if my_won else "#ef4444"
+                        my_pill_color = "#34d399" if my_won else "#f87171"
+                        my_status_text = f"Won (+{my_wager * 2}🪙)" if my_won else f"Lost (-{my_wager}🪙)"
                         
-                    st.dataframe(pd.DataFrame(comparison_rows), use_container_width=True, hide_index=True)
+                        if riv_pick in ["Yes", "No"]:
+                            riv_pill_bg = "rgba(16, 185, 129, 0.18)" if riv_won else "rgba(239, 68, 68, 0.18)"
+                            riv_pill_border = "#10b981" if riv_won else "#ef4444"
+                            riv_pill_color = "#34d399" if riv_won else "#f87171"
+                            riv_status_text = f"Won (+{riv_wager * 2}🪙)" if riv_won else f"Lost (-{riv_wager}🪙)"
+                        else:
+                            riv_pill_bg = "rgba(100, 116, 139, 0.2)"
+                            riv_pill_border = "#64748b"
+                            riv_pill_color = "#94a3b8"
+                            riv_status_text = "Did Not Bet"
+
+                        st.markdown(f"""
+                            <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 14px; padding: 16px; margin-bottom: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <span style="font-family: 'Bebas Neue'; font-size: 20px; color: {user_team_color}; letter-spacing: 1px;">QUESTION {q_num}</span>
+                                    <span style="font-size: 13px; color: #cbd5e1; background: rgba(255,255,255,0.08); padding: 2px 10px; border-radius: 8px;">Official Winner: <b style="color: #38bdf8;">{w_ans}</b></span>
+                                </div>
+                                <div style="font-size: 15px; font-weight: 600; color: #ffffff; margin-bottom: 12px; line-height: 1.4;">{clean_q}</div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                    <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px 12px;">
+                                        <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: bold; margin-bottom: 4px;">You ({profile['full_name']})</div>
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <span style="font-size: 15px; font-weight: 700; color: #fff;">Pick: <span style="color: {user_team_color};">{my_pick}</span> ({my_wager}🪙)</span>
+                                            <span style="font-size: 12px; font-weight: 600; background: {my_pill_bg}; border: 1px solid {my_pill_border}; color: {my_pill_color}; padding: 2px 8px; border-radius: 6px;">{my_status_text}</span>
+                                        </div>
+                                    </div>
+                                    <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px 12px;">
+                                        <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: bold; margin-bottom: 4px;">{comp_rival_name}</div>
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <span style="font-size: 15px; font-weight: 700; color: #fff;">Pick: <span style="color: {rival_color};">{riv_pick}</span> ({riv_wager}🪙)</span>
+                                            <span style="font-size: 12px; font-weight: 600; background: {riv_pill_bg}; border: 1px solid {riv_pill_border}; color: {riv_pill_color}; padding: 2px 8px; border-radius: 6px;">{riv_status_text}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        """, unsafe_allow_html=True)
                 else:
                     st.info("You did not place any bets for this selected comparison week.")
             else:
