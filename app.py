@@ -28,6 +28,10 @@ if "user" not in st.session_state:
     except Exception:
         pass
 
+# NEW: Form refresh counter for safe widget state resets
+if "form_refresh" not in st.session_state:
+    st.session_state.form_refresh = 0
+
 # --- CACHED HELPERS FOR ADMIN & PERFORMANCE ---
 @st.cache_data(ttl=30)
 def get_cached_profiles():
@@ -1678,15 +1682,9 @@ else:
                                         
                                         st.cache_data.clear()
                                         
-                                        # Force Streamlit to forget the old widget memory so it renders the new values
-                                        for q_item in real_q_items:
-                                            p_key = f"pick_w{selected_week}_{q_item['id']}"
-                                            w_key = f"wager_w{selected_week}_{q_item['id']}"
-                                            if p_key in st.session_state:
-                                                del st.session_state[p_key]
-                                            if w_key in st.session_state:
-                                                del st.session_state[w_key]
-
+                                        # NEW: Force new widget keys to bypass form state lock
+                                        st.session_state.form_refresh += 1
+                                        
                                         st.success("🎲 Random bets generated and populated successfully!")
                                         st.rerun()
 
@@ -1749,28 +1747,36 @@ else:
                                 
                                 col_pick, col_wager = st.columns([1, 1])
                                 with col_pick:
+                                    # UPDATED: Add form_refresh to key
                                     picks[q['id']] = st.radio(
                                         f"Pick Q{q['question_number']}",
                                         ["Yes", "No"],
                                         index=pick_index,
-                                        key=f"pick_w{selected_week}_{q['id']}",
+                                        key=f"pick_w{selected_week}_{q['id']}_{st.session_state.form_refresh}",
                                         horizontal=True,
                                         disabled=is_locked
                                     )
                                 with col_wager:
+                                    # UPDATED: Add form_refresh to key
                                     wagers[q['id']] = st.number_input(
                                         f"Wager Q{q['question_number']}", 
                                         min_value=0, 
                                         max_value=profile['tokens'], 
                                         value=default_wager_val, 
-                                        key=f"wager_w{selected_week}_{q['id']}",
+                                        key=f"wager_w{selected_week}_{q['id']}_{st.session_state.form_refresh}",
                                         disabled=is_locked
                                     )
 
                         st.markdown("### 🏈 Bonus Touchdown Scorer Pick")
                         st.caption("Name 1 player to score a TD this week (Rushing/Receiving only!). Correct pick = Bonus Tokens!")
                         
-                        td_pick = st.text_input("Player Name (e.g., Patrick Mahomes)", value=default_td, key=f"td_scorer_w{selected_week}", disabled=is_locked)
+                        # UPDATED: Add form_refresh to key
+                        td_pick = st.text_input(
+                            "Player Name (e.g., Patrick Mahomes)", 
+                            value=default_td, 
+                            key=f"td_scorer_w{selected_week}_{st.session_state.form_refresh}", 
+                            disabled=is_locked
+                        )
                         
                         total_wagered = sum(wagers.values())
                         max_available = max(1, profile['tokens'])
@@ -1797,18 +1803,8 @@ else:
                             supabase.table("user_bets").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
                             supabase.table("touchdown_picks").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
                             
-                            # Wipe the widget memory so the form visually resets to 0
-                            for q in questions:
-                                p_key = f"pick_w{selected_week}_{q['id']}"
-                                w_key = f"wager_w{selected_week}_{q['id']}"
-                                if p_key in st.session_state:
-                                    del st.session_state[p_key]
-                                if w_key in st.session_state:
-                                    del st.session_state[w_key]
-                                    
-                            td_key = f"td_scorer_w{selected_week}"
-                            if td_key in st.session_state:
-                                del st.session_state[td_key]
+                            # NEW: Force new widget keys to bypass form state lock
+                            st.session_state.form_refresh += 1
                                 
                             st.success("Your bet choices for this week have been cleared!")
                             st.rerun()
@@ -1888,7 +1884,7 @@ else:
                 elif is_c:
                     status_str = "✅ Correct (+5 Bonus Tokens)"
                 else:
-                    status_str = "❌ Incorrect (Missed)"
+                    status_str = "❌ Incorrect (Miss)"
                     
                 td_history_rows.append({
                     "Week": f"Week {w_num}",
