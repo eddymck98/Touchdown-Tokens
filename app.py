@@ -47,26 +47,32 @@ def get_cached_all_weekly_questions_meta():
     res = supabase.table("weekly_questions").select("week_number, question_number, winning_answer").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).execute()
     return res.data if res.data else []
 
-# --- ROBUST TOKEN RECALCULATOR (WITH UI DEBUG BANNER) ---
+# --- ROBUST TOKEN RECALCULATOR (WITH UI DEBUG BANNER & ADMIN RLS BYPASS) ---
 def recalculate_all_user_balances(supabase_client):
     """
-    Recalculates every user's total token balance from scratch and displays
-    debug warnings in the UI to trace exact net changes and fix stuck balances.
+    Recalculates every user's total token balance from scratch using admin credentials 
+    to bypass RLS restrictions, ensuring all profiles update successfully.
     """
-    all_users = supabase_client.table("profiles").select("id, full_name, tokens").execute().data
+    admin_supabase = supabase_client
+    try:
+        if "SUPABASE_SERVICE_KEY" in st.secrets:
+            admin_supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_SERVICE_KEY"])
+    except Exception:
+        pass
+
+    all_users = admin_supabase.table("profiles").select("id, full_name, tokens").execute().data
     if not all_users:
         return
 
-    # Fetch all closed weeks
-    closed_week_rows = supabase_client.table("weekly_questions").select("week_number").eq("question_number", 96).eq("winning_answer", "CLOSED").execute().data
+    closed_week_rows = admin_supabase.table("weekly_questions").select("week_number").eq("question_number", 96).eq("winning_answer", "CLOSED").execute().data
     closed_weeks = [r["week_number"] for r in closed_week_rows]
     
     if not closed_weeks:
         return
 
-    all_bets = supabase_client.table("user_bets").select("*").execute().data
-    all_questions = supabase_client.table("weekly_questions").select("id, week_number, winning_answer").execute().data
-    all_tds = supabase_client.table("touchdown_picks").select("*").execute().data
+    all_bets = admin_supabase.table("user_bets").select("*").execute().data
+    all_questions = admin_supabase.table("weekly_questions").select("id, week_number, winning_answer").execute().data
+    all_tds = admin_supabase.table("touchdown_picks").select("*").execute().data
     
     q_map = {q["id"]: str(q.get("winning_answer", "")).strip() for q in all_questions}
     
@@ -96,11 +102,10 @@ def recalculate_all_user_balances(supabase_client):
             if uid in user_net_changes and str(is_c).lower() == "true":
                 user_net_changes[uid] += 5
                 
-    # Push final computed balances back for EVERY user unconditionally
     for uid, net_change in user_net_changes.items():
         final_balance = max(0, 10 + net_change)
         st.warning(f"DEBUG RECALC -> User: {user_name_map.get(uid)} | Net Change: {net_change} | Final Token Balance: {final_balance}")
-        supabase_client.table("profiles").update({"tokens": final_balance}).eq("id", uid).execute()
+        admin_supabase.table("profiles").update({"tokens": final_balance}).eq("id", uid).execute()
 
 @st.cache_data
 def get_static_nfl_team_data():
@@ -564,7 +569,7 @@ st.markdown(f"""
 # --- REFRESH BUTTON AT THE TOP OF THE PAGE ---
 col_top_spacer, col_top_btn = st.columns([4, 1])
 with col_top_btn:
-    if st.button("🔄 Refresh App", use_container_width=True, help="Clears cache and reloads the application instantly across all pages!"):
+    if st.button("🔄 Refresh App", width='stretch', help="Clears cache and reloads the application instantly across all pages!"):
         st.cache_data.clear()
         st.rerun()
 
@@ -820,7 +825,7 @@ if st.session_state.user is None:
             login_email = st.text_input("Email Address", key="login_email")
             login_password = st.text_input("Password", type="password", key="login_pass")
             
-            if st.button("Log In", type="primary", use_container_width=True):
+            if st.button("Log In", type="primary", width='stretch'):
                 try:
                     res = supabase.auth.sign_in_with_password({"email": login_email, "password": login_password})
                     st.session_state.user = res.user
@@ -859,7 +864,7 @@ if st.session_state.user is None:
             reg_email = st.text_input("Email Address", key="reg_email")
             reg_password = st.text_input("Password (min 6 chars)", type="password", key="reg_pass")
             
-            if st.button("Sign Up", type="primary", use_container_width=True):
+            if st.button("Sign Up", type="primary", width='stretch'):
                 if not reg_first_name.strip():
                     st.warning("Please enter your first name.")
                 elif not reg_surname.strip():
@@ -995,7 +1000,7 @@ else:
         st.sidebar.success("👑 Admin Mode Active")
         
     st.sidebar.divider()
-    if st.sidebar.button("Log Out", use_container_width=True):
+    if st.sidebar.button("Log Out", width='stretch'):
         try:
             supabase.auth.sign_out()
         except Exception:
@@ -1368,7 +1373,7 @@ else:
                 )
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         else:
             st.info("No token history data available yet.")
 
@@ -1643,7 +1648,7 @@ else:
     # ------------------------------------------
     with tab_bet:
         st.header("Weekly Predictions & Wagers")
-        st.link_button("🏈 View NFL Scores, Lines & Fixtures ↗️", "https://www.espn.com/nfl/schedule", use_container_width=True)
+        st.link_button("🏈 View NFL Scores, Lines & Fixtures ↗️", "https://www.espn.com/nfl/schedule", width='stretch')
         st.caption("Check real-time odds and matchups on ESPN before locking in your picks below.")
         st.write("")
 
@@ -1844,9 +1849,9 @@ else:
 
                         col_sub1, col_sub2 = st.columns([2, 1])
                         with col_sub1:
-                            submit_bet = st.form_submit_button("Submit Weekly Bets 🚀", type="primary", use_container_width=True, disabled=is_locked)
+                            submit_bet = st.form_submit_button("Submit Weekly Bets 🚀", type="primary", width='stretch', disabled=is_locked)
                         with col_sub2:
-                            clear_bet = st.form_submit_button("Clear Bet Choices 🗑️", use_container_width=True, disabled=is_locked)
+                            clear_bet = st.form_submit_button("Clear Bet Choices 🗑️", width='stretch', disabled=is_locked)
                         
                         if clear_bet and not is_locked:
                             supabase.table("user_bets").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
@@ -1938,7 +1943,7 @@ else:
                     "Touchdown Scorer Pick": p_name,
                     "Result": status_str
                 })
-            st.dataframe(pd.DataFrame(td_history_rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(td_history_rows), width='stretch', hide_index=True)
         else:
             st.info("No touchdown scorer picks submitted yet.")
 
@@ -1993,7 +1998,7 @@ else:
                 
                 st.dataframe(
                     pd.DataFrame(formatted_data), 
-                    use_container_width=True, 
+                    width='stretch', 
                     hide_index=True,
                     column_config={
                         "Q#": st.column_config.TextColumn("Q#", width="small"),
@@ -2312,7 +2317,7 @@ else:
                     {"Rank": "11th", "Player": "Paul Hindle", "Final Tokens": 6},
                     {"Rank": "12th", "Player": "Liam Murphy", "Final Tokens": 0},
                 ]
-                st.dataframe(pd.DataFrame(data_2024), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(data_2024), width='stretch', hide_index=True)
                 
             else:
                 st.markdown(f"""
@@ -2336,7 +2341,7 @@ else:
                     {"Rank": "9th", "Player": "Patrick Smith", "Final Tokens": 4},
                     {"Rank": "10th", "Player": "Ethan Lewis", "Final Tokens": 3},
                 ]
-                st.dataframe(pd.DataFrame(data_2023), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(data_2023), width='stretch', hide_index=True)
 
     # ------------------------------------------
     # TAB 6: ADMIN CONTROL
@@ -2502,7 +2507,6 @@ else:
                         if st.button(f"🔓 Reopen Week {grade_week} for Regrading", type="secondary"):
                             supabase.table("weekly_questions").delete().eq("week_number", grade_week).eq("question_number", 96).execute()
                             
-                            # RESET: Temporarily set everyone back to 10 base tokens, then recalculate only remaining closed weeks
                             all_users_reopen = supabase.table("profiles").select("id").execute().data
                             for u in all_users_reopen:
                                 supabase.table("profiles").update({"tokens": 10}).eq("id", u["id"]).execute()
