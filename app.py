@@ -47,19 +47,16 @@ def get_cached_all_weekly_questions_meta():
     res = supabase.table("weekly_questions").select("week_number, question_number, winning_answer").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).execute()
     return res.data if res.data else []
 
-# --- ROBUST TOKEN RECALCULATOR (FIXED JOIN-INDEPENDENT LOGIC) ---
+# --- ROBUST TOKEN RECALCULATOR (NET BASELINE FIXED) ---
 def recalculate_all_user_balances(supabase_client):
     """
-    Completely recalculates every user's total token balance from scratch.
-    Safely handles table joins and ensures strict net addition/subtraction.
+    Recalculates every user's total token balance from scratch.
+    Ensures negative net changes (losses) are fully subtracted from the 10 token baseline.
     """
-    all_users = supabase_client.table("profiles").select("id").execute().data
+    all_users = supabase_client.table("profiles").select("id, tokens").execute().data
     if not all_users:
         return
 
-    # Start everyone at the base 10 tokens
-    user_balances = {u["id"]: 10 for u in all_users}
-    
     # Fetch all closed weeks
     closed_week_rows = supabase_client.table("weekly_questions").select("week_number").eq("question_number", 96).eq("winning_answer", "CLOSED").execute().data
     closed_weeks = [r["week_number"] for r in closed_week_rows]
@@ -67,42 +64,44 @@ def recalculate_all_user_balances(supabase_client):
     if not closed_weeks:
         return
 
-    # Fetch bets, questions, and touchdown picks separately to avoid broken Supabase foreign-key joins
     all_bets = supabase_client.table("user_bets").select("*").execute().data
     all_questions = supabase_client.table("weekly_questions").select("id, week_number, winning_answer").execute().data
     all_tds = supabase_client.table("touchdown_picks").select("*").execute().data
     
-    # Map questions for fast lookup: question_id -> winning_answer
-    q_map = {q["id"]: q.get("winning_answer") for q in all_questions}
+    # Map questions: question_id -> winning_answer (stripped and standardized)
+    q_map = {q["id"]: str(q.get("winning_answer", "")).strip() for q in all_questions}
+    
+    # Calculate net change per user across all closed weeks
+    user_net_changes = {u["id"]: 0 for u in all_users}
     
     for b in all_bets:
         w_num = b.get("week_number")
         if w_num in closed_weeks:
             uid = b["user_id"]
             q_id = b.get("question_id")
-            wager = b.get("wager_amount", 0)
-            pick = b.get("pick")
+            wager = int(b.get("wager_amount", 0))
+            pick = str(b.get("pick", "")).strip().lower()
             
-            w_ans = q_map.get(q_id)
+            w_ans = q_map.get(q_id, "").lower()
             
-            if uid in user_balances and w_ans in ["Yes", "No"]:
+            if uid in user_net_changes and w_ans in ["yes", "no"]:
                 if pick == w_ans:
-                    user_balances[uid] += wager  # Win: gain profit equal to wager
+                    user_net_changes[uid] += wager  # Win adds tokens
                 else:
-                    user_balances[uid] -= wager  # Loss: lose wager amount
+                    user_net_changes[uid] -= wager  # Loss strictly subtracts tokens
                     
     for td in all_tds:
         w_num = td.get("week_number")
         if w_num in closed_weeks:
             uid = td["user_id"]
             is_c = td.get("is_correct")
-            if uid in user_balances and str(is_c).lower() == "true":
-                user_balances[uid] += 5  # Touchdown bonus
+            if uid in user_net_changes and str(is_c).lower() == "true":
+                user_net_changes[uid] += 5  # Touchdown bonus adds tokens
                 
-    # Push final computed balances back to Supabase profiles
-    for uid, new_bal in user_balances.items():
-        final_val = max(0, new_bal)
-        supabase_client.table("profiles").update({"tokens": final_val}).eq("id", uid).execute()
+    # Baseline is 10 tokens per user + their cumulative net change across all weeks
+    for uid, net_change in user_net_changes.items():
+        final_balance = max(0, 10 + net_change)
+        supabase_client.table("profiles").update({"tokens": final_balance}).eq("id", uid).execute()
 
 @st.cache_data
 def get_static_nfl_team_data():
