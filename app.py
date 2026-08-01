@@ -1652,30 +1652,31 @@ else:
                         col_rand_sp1, col_rand_btn = st.columns([3, 1])
                         with col_rand_btn:
                             if st.button("🎲 Feeling Lucky (Randomize)", help="Randomly distributes your available tokens and picks across the questions!"):
-                                real_q_items = [q for q in questions if not q.get("winning_answer", "").startswith("LOCKTIME:")]
-                                if real_q_items:
-                                    remaining_tokens = profile['tokens']
-                                    supabase.table("user_bets").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
-                                    
-                                    token_allocations = {q['id']: 0 for q in real_q_items}
-                                    for _ in range(remaining_tokens):
-                                        chosen_q = random.choice(real_q_items)
-                                        token_allocations[chosen_q['id']] += 1
+                                with st.spinner("🎲 Simulating lucky picks and distributing tokens..."):
+                                    real_q_items = [q for q in questions if not q.get("winning_answer", "").startswith("LOCKTIME:")]
+                                    if real_q_items:
+                                        remaining_tokens = profile['tokens']
+                                        supabase.table("user_bets").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
                                         
-                                    for q_item in real_q_items:
-                                        random_pick = random.choice(["Yes", "No"])
-                                        w_amt = token_allocations[q_item['id']]
-                                        
-                                        supabase.table("user_bets").insert({
-                                            "user_id": user_id,
-                                            "user_name": profile["full_name"],
-                                            "week_number": selected_week,
-                                            "question_id": q_item['id'],
-                                            "pick": random_pick,
-                                            "wager_amount": w_amt
-                                        }).execute()
-                                    st.success("🎲 Random bets generated and populated successfully!")
-                                    st.rerun()
+                                        token_allocations = {q['id']: 0 for q in real_q_items}
+                                        for _ in range(remaining_tokens):
+                                            chosen_q = random.choice(real_q_items)
+                                            token_allocations[chosen_q['id']] += 1
+                                            
+                                        for q_item in real_q_items:
+                                            random_pick = random.choice(["Yes", "No"])
+                                            w_amt = token_allocations[q_item['id']]
+                                            
+                                            supabase.table("user_bets").insert({
+                                                "user_id": user_id,
+                                                "user_name": profile["full_name"],
+                                                "week_number": selected_week,
+                                                "question_id": q_item['id'],
+                                                "pick": random_pick,
+                                                "wager_amount": w_amt
+                                            }).execute()
+                                        st.success("🎲 Random bets generated and populated successfully!")
+                                        st.rerun()
 
                     all_week_bets = supabase.table("user_bets").select("question_id, pick, wager_amount").eq("user_id", user_id).eq("week_number", selected_week).execute().data
                     existing_bets_map = {b['question_id']: b for b in all_week_bets}
@@ -2232,10 +2233,10 @@ else:
                     {"Rank": "🥇", "Player": "Louis Lynn", "Final Tokens": 74},
                     {"Rank": "🥈", "Player": "John Willis", "Final Tokens": 66},
                     {"Rank": "🥉", "Player": "Will Granger", "Final Tokens": 29},
-                    {"Rank": "🥉", "Player": "Adam Volpin", "Final Tokens": 29},
+                    {"Rank": "3nd (Tied)", "Player": "Adam Volpin", "Final Tokens": 29},
                     {"Rank": "5th", "Player": "Gary Shaw", "Final Tokens": 23},
                     {"Rank": "6th", "Player": "Suzie McKenna", "Final Tokens": 21},
-                    {"Rank": "7th (Tied)", "Player": "Dan Hammerton", "Final Tokens": 14},
+                    {"Rank": "7th", "Player": "Dan Hammerton", "Final Tokens": 14},
                     {"Rank": "7th (Tied)", "Player": "Tom Wood", "Final Tokens": 14},
                     {"Rank": "9th", "Player": "Patrick Smith", "Final Tokens": 13},
                     {"Rank": "10th", "Player": "Joe Kewley-Joy", "Final Tokens": 10},
@@ -2306,6 +2307,7 @@ else:
                                 skey = f"m_prompt_w{selected_manage_week}_q{i}"
                                 if skey in st.session_state:
                                     del st.session_state[skey]
+                            st.cache_data.clear()  # Clear cache after clearing questions
                             st.success(f"Cleared unpublished questions for Week {selected_manage_week}!")
                             st.rerun()
                         except Exception as e:
@@ -2371,6 +2373,9 @@ else:
                                         "winning_answer": "Pending"
                                     }).execute()
                                     
+                        # --- CLEAR CACHE AUTOMATICALLY UPON PUBLISHING ---
+                        st.cache_data.clear()
+                                    
                         st.balloons()
                         st.success(f"Successfully saved and updated Week {selected_manage_week} questions!")
                         st.rerun()
@@ -2402,6 +2407,7 @@ else:
                             "question_text": "WEEK LOCKOUT TIMESTAMP",
                             "winning_answer": "LOCKED"
                         }).execute()
+                        st.cache_data.clear()
                         st.success(f"Week {lock_week} has been MANUALLY LOCKED by Admin override!")
                     else:
                         combined_dt = datetime.combine(lock_date, lock_time).isoformat()
@@ -2412,6 +2418,7 @@ else:
                             "question_text": "WEEK LOCKOUT TIMESTAMP",
                             "winning_answer": f"LOCKTIME:{combined_dt}"
                         }).execute()
+                        st.cache_data.clear()
                         st.success(f"Auto-lockout scheduled for Week {lock_week} at {combined_dt} UTC!")
 
             elif admin_sec == "Grade Week & Calculate Points":
@@ -2427,6 +2434,7 @@ else:
                     with col_reopen1:
                         if st.button(f"🔓 Reopen Week {grade_week} for Regrading", type="secondary"):
                             supabase.table("weekly_questions").delete().eq("week_number", grade_week).eq("question_number", 96).execute()
+                            st.cache_data.clear()
                             st.success(f"Week {grade_week} has been reopened successfully!")
                             st.rerun()
                     st.divider()
