@@ -47,11 +47,11 @@ def get_cached_all_weekly_questions_meta():
     res = supabase.table("weekly_questions").select("week_number, question_number, winning_answer").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).execute()
     return res.data if res.data else []
 
-# --- IDEMPOTENT TOKEN RECALCULATOR ---
+# --- FIXED ROBUST TOKEN RECALCULATOR ---
 def recalculate_all_user_balances(supabase_client):
     """
     Completely recalculates every user's total token balance from scratch.
-    This guarantees perfectly accurate math, even if weeks are reopened or graded multiple times.
+    Guarantees accurate math ($10 + wins - losses + bonuses$) by processing each closed week cleanly.
     """
     all_users = supabase_client.table("profiles").select("id").execute().data
     closed_week_rows = supabase_client.table("weekly_questions").select("week_number").eq("question_number", 96).eq("winning_answer", "CLOSED").execute().data
@@ -60,25 +60,31 @@ def recalculate_all_user_balances(supabase_client):
     # Start everyone at the base 10 tokens
     user_balances = {u["id"]: 10 for u in all_users}
     
+    # Fetch all bets and join with question winning answers
     all_bets = supabase_client.table("user_bets").select("*, weekly_questions(winning_answer)").execute().data
     all_tds = supabase_client.table("touchdown_picks").select("*").execute().data
     
     for b in all_bets:
-        if b.get("week_number") in closed_weeks:
+        w_num = b.get("week_number")
+        if w_num in closed_weeks:
             uid = b["user_id"]
             w_ans = b.get("weekly_questions", {}).get("winning_answer")
-            if w_ans in ["Yes", "No"] and uid in user_balances:
-                if b["pick"] == w_ans:
-                    user_balances[uid] += b["wager_amount"] # Won wager amount as profit
+            wager = b.get("wager_amount", 0)
+            pick = b.get("pick")
+            
+            if uid in user_balances and w_ans in ["Yes", "No"]:
+                if pick == w_ans:
+                    user_balances[uid] += wager  # Win: gain profit equal to wager
                 else:
-                    user_balances[uid] -= b["wager_amount"] # Lost wager amount
+                    user_balances[uid] -= wager  # Loss: lose wager amount
                     
     for td in all_tds:
-        if td.get("week_number") in closed_weeks:
+        w_num = td.get("week_number")
+        if w_num in closed_weeks:
             uid = td["user_id"]
             is_c = td.get("is_correct")
-            if str(is_c).lower() == "true" and uid in user_balances:
-                user_balances[uid] += 5
+            if uid in user_balances and str(is_c).lower() == "true":
+                user_balances[uid] += 5  # Touchdown bonus
                 
     for uid, new_bal in user_balances.items():
         supabase_client.table("profiles").update({"tokens": max(0, new_bal)}).eq("id", uid).execute()
@@ -878,7 +884,6 @@ if st.session_state.user is None:
 else:
     user_id = st.session_state.user.id
     
-    # Safe profile fetch with auto-repair if missing
     try:
         profile_res = supabase.table("profiles").select("*").eq("id", user_id).single().execute()
         profile = profile_res.data
@@ -2606,7 +2611,6 @@ else:
                                 for q_id, ans in answers.items():
                                     supabase.table("weekly_questions").update({"winning_answer": ans}).eq("id", q_id).execute()
                                 
-                                # FIX: Explicitly handle Incorrect (Miss) to write False to database
                                 for td_id, choice in td_grading_results.items():
                                     if choice == "Correct (+5 🪙)":
                                         supabase.table("touchdown_picks").update({"is_correct": True}).eq("id", td_id).execute()
