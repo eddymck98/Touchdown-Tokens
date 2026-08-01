@@ -2455,7 +2455,11 @@ else:
                                 
                                 for u_id, change in user_token_changes.items():
                                     p_data = supabase.table("profiles").select("tokens").eq("id", u_id).single().execute().data
-                                    new_balance = max(0, p_data["tokens"] + change)
+                                    current_bank = p_data["tokens"]
+                                    
+                                    # Since wagers were deducted upfront, grading only needs to ADD the winning returns (`change`).
+                                    # If change is 0 (all bets lost), their bank remains whatever un-wagered tokens they had left.
+                                    new_balance = max(0, current_bank + change)
                                     supabase.table("profiles").update({"tokens": new_balance}).eq("id", u_id).execute()
                                 
                                 supabase.table("weekly_questions").delete().eq("week_number", grade_week).eq("question_number", 96).execute()
