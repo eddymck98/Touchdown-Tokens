@@ -31,7 +31,7 @@ if "user" not in st.session_state:
 # --- CACHED HELPERS FOR ADMIN & PERFORMANCE ---
 @st.cache_data(ttl=30)
 def get_cached_profiles():
-    res = supabase.table("profiles").select("id, full_name, tokens, favorite_team, is_admin, avatar_emoji, avatar_border, avatar_color, selected_title, featured_badges, favorite_player, bio").execute()
+    res = supabase.table("profiles").select("id, full_name, tokens, favorite_team, is_admin, avatar_emoji, avatar_border, avatar_color, selected_title, featured_badges, unlocked_badges, favorite_player, bio").execute()
     return res.data if res.data else []
 
 @st.cache_data(ttl=30)
@@ -514,26 +514,33 @@ st.markdown("""
 """, unsafe_allow_html=True)
 st.write("")
 
-def get_user_badges(target_user_id, check_celebration=False):
-    p_data = supabase.table("profiles").select("tokens").eq("id", target_user_id).single().execute().data
-    toks = p_data.get("tokens", 0) if p_data else 0
-    
+def sync_and_get_user_badges(target_user_id, check_celebration=False):
+    p_data = supabase.table("profiles").select("tokens, unlocked_badges").eq("id", target_user_id).single().execute().data
+    if not p_data:
+        return []
+        
+    toks = p_data.get("tokens", 0)
+    existing_unlocked = p_data.get("unlocked_badges")
+    if not isinstance(existing_unlocked, list):
+        existing_unlocked = []
+        
     u_bets = supabase.table("user_bets").select("*, weekly_questions(winning_answer)").eq("user_id", target_user_id).execute().data
     u_td = supabase.table("touchdown_picks").select("*").eq("user_id", target_user_id).eq("is_correct", True).execute().data
     
-    badges = []
+    newly_earned = set(existing_unlocked)
+    
     if toks >= 30:
-        badges.append("🚀 Token Tycoon")
+        newly_earned.add("🚀 Token Tycoon")
     if any(b['wager_amount'] >= 10 for b in u_bets):
-        badges.append("🎯 High Roller")
+        newly_earned.add("🎯 High Roller")
     if len(u_td) >= 2:
-        badges.append("🏈 TD Guru")
+        newly_earned.add("🏈 TD Guru")
     if len(u_td) >= 3:
-        badges.append("🎯 Sniper")
+        newly_earned.add("🎯 Sniper")
     if len(u_td) >= 5:
-        badges.append("⚡ Gridiron Prophet")
+        newly_earned.add("⚡ Gridiron Prophet")
     if toks == 0:
-        badges.append("📉 Down Bad")
+        newly_earned.add("📉 Down Bad")
         
     weeks_played = set()
     total_lifetime_won = 0
@@ -569,14 +576,14 @@ def get_user_badges(target_user_id, check_celebration=False):
         if has_large_win:
             consecutive_oracle_weeks += 1
             if consecutive_oracle_weeks >= 4:
-                badges.append("🔮 Oracle of Delphi")
+                newly_earned.add("🔮 Oracle of Delphi")
         else:
             consecutive_oracle_weeks = 0
 
     for w, w_data in weekly_nets.items():
         net_w_tokens = w_data["gains"] - w_data["losses"]
         if net_w_tokens >= 20:
-            badges.append("🔥 Untouchable Run")
+            newly_earned.add("🔥 Untouchable Run")
 
     if toks >= 30:
         sim_tokens = 10
@@ -587,19 +594,19 @@ def get_user_badges(target_user_id, check_celebration=False):
             w_data = weekly_nets[w]
             sim_tokens += (w_data["gains"] - w_data["losses"])
         if ever_low:
-            badges.append("💎 Diamond Hands")
+            newly_earned.add("💎 Diamond Hands")
 
     if len(weeks_played) >= 5:
-        badges.append("🛡️ Iron Defender")
+        newly_earned.add("🛡️ Iron Defender")
     if total_lifetime_won >= 100:
-        badges.append("💰 Century Club")
+        newly_earned.add("💰 Century Club")
 
     champ_setting = supabase.table("weekly_questions").select("question_text, winning_answer").eq("week_number", 999).execute().data
     if champ_setting and champ_setting[0]["winning_answer"] == "ON":
         champ_name = champ_setting[0]["question_text"]
         user_prof = supabase.table("profiles").select("full_name").eq("id", target_user_id).single().execute().data
         if user_prof and user_prof.get("full_name") == champ_name:
-            badges.append("🏆 League Champion")
+            newly_earned.add("🏆 League Champion")
 
     graded_q = supabase.table("weekly_questions").select("week_number").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).neq("winning_answer", "Pending").neq("winning_answer", "LOCKED").order("week_number", desc=True).execute().data
     if graded_q:
@@ -627,28 +634,36 @@ def get_user_badges(target_user_id, check_celebration=False):
         
         if user_gains and max(user_gains.values(), default=-1) > 0:
             if max(user_gains, key=user_gains.get) == target_user_id:
-                badges.append("👑 Weekly High Scorer")
+                newly_earned.add("👑 Weekly High Scorer")
                 
         if user_loss and max(user_loss.values(), default=-1) > 0:
             if max(user_loss, key=user_loss.get) == target_user_id:
-                badges.append("📉 Wall Street Bets")
+                newly_earned.add("📉 Wall Street Bets")
                 
         if user_correct.get(target_user_id, 0) == 10:
-            badges.append("🎯 Perfect 10/10")
+            newly_earned.add("🎯 Perfect 10/10")
+
+    final_badges_list = list(newly_earned)
+
+    if set(final_badges_list) != set(existing_unlocked):
+        try:
+            supabase.table("profiles").update({"unlocked_badges": final_badges_list}).eq("id", target_user_id).execute()
+        except Exception:
+            pass
 
     if check_celebration and target_user_id == st.session_state.user.id:
         cache_key = f"seen_badges_{target_user_id}"
         if cache_key not in st.session_state:
-            st.session_state[cache_key] = badges
+            st.session_state[cache_key] = final_badges_list
         else:
-            new_badges = [b for b in badges if b not in st.session_state[cache_key]]
-            if new_badges:
+            newly_detected = [b for b in final_badges_list if b not in st.session_state[cache_key]]
+            if newly_detected:
                 st.balloons()
-                for nb in new_badges:
+                for nb in newly_detected:
                     st.toast(f"🏆 NEW TROPHY UNLOCKED: {nb}!", icon="🎉")
-                st.session_state[cache_key] = badges
+                st.session_state[cache_key] = final_badges_list
             
-    return badges
+    return final_badges_list
 
 def get_earned_title(target_user_id):
     try:
@@ -660,7 +675,7 @@ def get_earned_title(target_user_id):
     except Exception:
         pass
         
-    user_badges = get_user_badges(target_user_id)
+    user_badges = sync_and_get_user_badges(target_user_id)
     for title, info in AVAILABLE_TITLES.items():
         if info["badge"] and info["badge"] in user_badges:
             return title
@@ -718,7 +733,6 @@ def calculate_streak(target_user_id):
     except Exception:
         return "0W"
 
-# Check if sign in or sign up are globally locked by admin
 signin_lock_setting = supabase.table("weekly_questions").select("winning_answer").eq("week_number", 998).execute().data
 is_signin_locked = signin_lock_setting and signin_lock_setting[0]["winning_answer"] == "LOCKED"
 
@@ -800,6 +814,7 @@ if st.session_state.user is None:
                                 "bio": "Ready for Kickoff!",
                                 "avatar_emoji": "🏈",
                                 "featured_badges": [],
+                                "unlocked_badges": [],
                                 "avatar_border": "solid",
                                 "favorite_player": "",
                                 "avatar_color": "#1e3a8a",
@@ -822,6 +837,8 @@ else:
     team_data = NFL_TEAM_DATA.get(user_team, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
     user_border_style = profile.get("avatar_border", "solid")
     user_avatar_color = profile.get("avatar_color", "#1e3a8a")
+
+    sync_and_get_user_badges(user_id, check_celebration=True)
 
     # --- SIDEBAR ---
     st.sidebar.markdown(f"""
@@ -879,26 +896,35 @@ else:
             del st.session_state["supabase_client"]
         st.rerun()
 
-    # --- STICKY HEADER / COMPACT BALANCE BAR ---
-    st.markdown(f"""
-        <div class="sticky-balance-bar">
-            <div style="display: flex; align-items: center; gap: 14px;">
-                <div style="border: 3px {user_border_style} {user_team_color}; border-radius: 10px; padding: 3px 8px; background: {user_avatar_color}; box-shadow: 0 4px 12px {user_team_color}33;">
-                    <span style="font-size: 26px;">{user_avatar}</span>
+    # --- STICKY HEADER / COMPACT BALANCE BAR WITH GLOBAL REFRESH BUTTON ---
+    col_bar_info, col_bar_btn = st.columns([3, 1])
+    
+    with col_bar_info:
+        st.markdown(f"""
+            <div class="sticky-balance-bar">
+                <div style="display: flex; align-items: center; gap: 14px;">
+                    <div style="border: 3px {user_border_style} {user_team_color}; border-radius: 10px; padding: 3px 8px; background: {user_avatar_color}; box-shadow: 0 4px 12px {user_team_color}33;">
+                        <span style="font-size: 26px;">{user_avatar}</span>
+                    </div>
+                    <div>
+                        <b style="font-size: 16px; color: #ffffff;">{profile['full_name']}</b> <span style="font-size:11px; color:#38bdf8; margin-left:6px;">({get_earned_title(user_id)})</span>
+                        <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">{user_team}</div>
+                    </div>
                 </div>
-                <div>
-                    <b style="font-size: 16px; color: #ffffff;">{profile['full_name']}</b> <span style="font-size:11px; color:#38bdf8; margin-left:6px;">({get_earned_title(user_id)})</span>
-                    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">{user_team}</div>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="text-align: right;">
+                        <span style="font-family: 'Bebas Neue'; font-size: 26px; color: {user_team_color};">{active_tokens_display} 🪙</span>
+                        <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Available Tokens</div>
+                    </div>
                 </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <div style="text-align: right;">
-                    <span style="font-family: 'Bebas Neue'; font-size: 26px; color: {user_team_color};">{active_tokens_display} 🪙</span>
-                    <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Available Tokens</div>
-                </div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+        
+    with col_bar_btn:
+        st.write("") # vertical alignment spacer
+        if st.button("🔄 Refresh App", use_container_width=True, help="Clears cache and reloads the application instantly across all pages!"):
+            st.cache_data.clear()
+            st.rerun()
 
     if profile.get("is_admin"):
         tab_home, tab_profile, tab_rules, tab_bet, tab_history, tab_leaders, tab_admin = st.tabs(
@@ -1070,7 +1096,6 @@ else:
         st.divider()
         st.subheader("📊 Last Week's Performance Summary")
         
-        # --- FIXED PERFORMANCE SUMMARY CALCULATION ---
         all_graded_weeks_meta = get_cached_all_weekly_questions_meta()
         graded_weeks_set = set()
         closed_markers = supabase.table("weekly_questions").select("week_number").eq("question_number", 96).eq("winning_answer", "CLOSED").execute().data
@@ -1165,7 +1190,6 @@ else:
         st.divider()
         st.subheader("📈 Token History Graph")
         
-        # --- UPGRADED PLOTLY TOKEN HISTORY GRAPH ---
         history_bets_all = supabase.table("user_bets").select("week_number, wager_amount, pick, weekly_questions(winning_answer)").eq("user_id", user_id).execute().data
         all_td_history = supabase.table("touchdown_picks").select("week_number, is_correct").eq("user_id", user_id).eq("is_correct", True).execute().data
         
@@ -1265,7 +1289,7 @@ else:
         with col_info:
             st.markdown(f"### {new_team}")
 
-        user_badges_for_titles = get_user_badges(user_id)
+        user_badges_for_titles = sync_and_get_user_badges(user_id)
         unlocked_title_options = []
         locked_title_info = []
 
@@ -1332,12 +1356,11 @@ else:
                 for l_title, l_req in locked_title_info:
                     st.markdown(f"• **{l_title}** — *Requirement:* {l_req}")
 
-        # --- FEATURED BADGES SELECTION ---
         st.divider()
         st.subheader("⭐ Featured Badge Showcase")
         st.caption("Choose up to 3 unlocked badges to showcase on your leaderboard card.")
 
-        unlocked_badges = get_user_badges(user_id)
+        unlocked_badges = sync_and_get_user_badges(user_id)
         current_featured = profile.get("featured_badges", [])
         if not isinstance(current_featured, list):
             current_featured = []
@@ -1375,7 +1398,7 @@ else:
         selected_player_name = st.selectbox("Select Player Trophy Showcase", list(user_name_map.keys()), index=default_index, key="trophy_player_select", label_visibility="collapsed")
         selected_player = user_name_map[selected_player_name]
         
-        selected_badges = get_user_badges(selected_player["id"])
+        selected_badges = sync_and_get_user_badges(selected_player["id"])
         selected_team_info = NFL_TEAM_DATA.get(selected_player.get("favorite_team"), NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
         
         unlocked_count = len(selected_badges)
@@ -1514,7 +1537,7 @@ else:
             """)
 
     # ------------------------------------------
-    # TAB 3: PLACE BETS (Simplified Form + Feeling Lucky Button)
+    # TAB 3: PLACE BETS
     # ------------------------------------------
     with tab_bet:
         st.header("Weekly Predictions & Wagers")
@@ -1565,7 +1588,6 @@ else:
             if not questions:
                 st.info("No questions found for this week.")
             else:
-                # --- FEELING LUCKY / RANDOMIZE BUTTON ---
                 if not is_locked and profile['tokens'] > 0:
                     col_rand_sp1, col_rand_btn = st.columns([3, 1])
                     with col_rand_btn:
@@ -1763,7 +1785,6 @@ else:
 
         graded_weeks_list = sorted(list(graded_weeks_set))
 
-        # --- TOUCHDOWN SCORER PICK HISTORY ---
         st.subheader("🏈 Touchdown Scorer Pick History")
         st.caption("Review your bonus touchdown scorer pick outcomes week by week.")
         
@@ -1793,7 +1814,6 @@ else:
 
         st.divider()
 
-        # --- DETAILED QUESTION BET HISTORY WITH WEEK DROPDOWN ---
         st.subheader("📋 Detailed Question Bet History")
         
         history_bets = supabase.table("user_bets").select("*, weekly_questions(week_number, question_number, question_text, winning_answer)").eq("user_id", user_id).execute().data
@@ -1857,7 +1877,6 @@ else:
 
         st.divider()
 
-        # --- SIDE-BY-SIDE COMPARISON (CLEAN CARD UI - MOVED TO THE BOTTOM) ---
         with st.expander("⚔️ Side-by-Side History Comparison vs. Rival", expanded=False):
             st.caption("Compare your graded week bets side by side against any league member in a clean head-to-head match card format!")
             
@@ -1965,6 +1984,7 @@ else:
     # ------------------------------------------
     with tab_leaders:
         st.header("🏆 League Standings & Head-to-Head")
+
         leader_res = get_cached_profiles()
         player_stats = []
         
@@ -2052,10 +2072,9 @@ else:
                 streak_val = p['streak']
                 p_title = get_earned_title(p["id"])
                 
-                p_badges_list = get_user_badges(p["id"])
                 showcased = p.get("featured_badges") or []
                 if not showcased or not isinstance(showcased, list):
-                    showcased = p_badges_list[:3]
+                    showcased = sync_and_get_user_badges(p["id"])[:3]
                 
                 badges_html = "".join([f'<span class="badge-pill">{b}</span>' for b in showcased]) if showcased else '<span style="color:#64748b; font-size:12px;">No Badges Displayed</span>'
                 
@@ -2515,6 +2534,9 @@ else:
                                     "question_text": "WEEK CLOSED MARKER",
                                     "winning_answer": "CLOSED"
                                 }).execute()
+                                
+                                # --- CLEAR CACHE AUTOMATICALLY SO LEADERBOARD UPDATES INSTANTLY ---
+                                st.cache_data.clear()
                                     
                                 st.balloons()
                                 st.success("Scores graded, payouts processed, and week successfully closed!")
@@ -2563,7 +2585,8 @@ else:
                                         new_bal = token_amount_val
                                         
                                     supabase.table("profiles").update({"tokens": new_bal}).eq("id", u_id).execute()
-                                    
+                                
+                                st.cache_data.clear()
                                 st.balloons()
                                 st.success(f"Successfully updated tokens for {len(selected_user_ids)} players!")
                                 st.rerun()
@@ -2670,6 +2693,7 @@ Good luck this week! 🔥"""
                         for p in all_profiles:
                             supabase.table("profiles").update({"tokens": 10}).eq("id", p["id"]).execute()
                             
+                        st.cache_data.clear()
                         st.success("All player balances have been reset to 10 tokens! Season archived.")
                         st.download_button(
                             label="📥 Download Archived Season Summary (CSV)",
@@ -2703,6 +2727,7 @@ Good luck this week! 🔥"""
                         "question_text": selected_champion,
                         "winning_answer": state_str
                     }).execute()
+                    st.cache_data.clear()
                     st.success("Updated Season Champion Banner settings!")
                     st.rerun()
 
@@ -2732,5 +2757,6 @@ Good luck this week! 🔥"""
                         "winning_answer": signup_status
                     }).execute()
                     
+                    st.cache_data.clear()
                     st.success(f"Access settings updated! Sign-In: {signin_status}, Sign-Up: {signup_status}")
                     st.rerun()
