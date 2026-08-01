@@ -216,26 +216,6 @@ st.markdown(f"""
         100% {{ box-shadow: 0 0 12px {user_team_color}33; }}
     }}
 
-    @keyframes goldGlow {{
-        0% {{ box-shadow: 0 0 10px #fbbf24, inset 0 0 10px #fbbf24; border-color: #fbbf24; }}
-        50% {{ box-shadow: 0 0 25px #f59e0b, inset 0 0 20px #f59e0b; border-color: #f59e0b; }}
-        100% {{ box-shadow: 0 0 10px #fbbf24, inset 0 0 10px #fbbf24; border-color: #fbbf24; }}
-    }}
-    @keyframes neonPulseAnim {{
-        0% {{ box-shadow: 0 0 12px #38bdf8, inset 0 0 8px #38bdf8; border-color: #38bdf8; }}
-        50% {{ box-shadow: 0 0 28px #0284c7, inset 0 0 18px #0284c7; border-color: #0284c7; }}
-        100% {{ box-shadow: 0 0 12px #38bdf8, inset 0 0 8px #38bdf8; border-color: #38bdf8; }}
-    }}
-
-    .avatar-champion-frame {{
-        animation: goldGlow 2.5s infinite ease-in-out !important;
-        border-width: 3px !important;
-    }}
-    .avatar-tycoon-frame {{
-        animation: neonPulseAnim 2.5s infinite ease-in-out !important;
-        border-width: 3px !important;
-    }}
-
     .sticky-balance-bar {{
         position: sticky;
         top: 0;
@@ -841,18 +821,11 @@ else:
     team_data = NFL_TEAM_DATA.get(user_team, NFL_TEAM_DATA["🏈 Free Agent / Neutral"])
     user_border_style = profile.get("avatar_border", "solid")
     user_avatar_color = profile.get("avatar_color", "#1e3a8a")
-    user_badges_list = get_user_badges(user_id, check_celebration=True)
-    
-    frame_class = ""
-    if "🏆 League Champion" in user_badges_list:
-        frame_class = "avatar-champion-frame"
-    elif "🚀 Token Tycoon" in user_badges_list:
-        frame_class = "avatar-tycoon-frame"
 
     # --- SIDEBAR ---
     st.sidebar.markdown(f"""
         <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 12px; padding: 6px 0;">
-            <div class="{frame_class}" style="border: 3px {user_border_style} {user_team_color}; border-radius: 12px; padding: 6px 10px; background: {user_avatar_color}; box-shadow: 0 4px 15px {user_team_color}44;">
+            <div style="border: 3px {user_border_style} {user_team_color}; border-radius: 12px; padding: 6px 10px; background: {user_avatar_color}; box-shadow: 0 4px 15px {user_team_color}44;">
                 <span style="font-size: 34px;">{user_avatar}</span>
             </div>
             <div>
@@ -909,7 +882,7 @@ else:
     st.markdown(f"""
         <div class="sticky-balance-bar">
             <div style="display: flex; align-items: center; gap: 14px;">
-                <div class="{frame_class}" style="border: 3px {user_border_style} {user_team_color}; border-radius: 10px; padding: 3px 8px; background: {user_avatar_color}; box-shadow: 0 4px 12px {user_team_color}33;">
+                <div style="border: 3px {user_border_style} {user_team_color}; border-radius: 10px; padding: 3px 8px; background: {user_avatar_color}; box-shadow: 0 4px 12px {user_team_color}33;">
                     <span style="font-size: 26px;">{user_avatar}</span>
                 </div>
                 <div>
@@ -1996,12 +1969,6 @@ else:
                 p_title = get_earned_title(p["id"])
                 
                 p_badges_list = get_user_badges(p["id"])
-                p_frame_class = ""
-                if "🏆 League Champion" in p_badges_list:
-                    p_frame_class = "avatar-champion-frame"
-                elif "🚀 Token Tycoon" in p_badges_list:
-                    p_frame_class = "avatar-tycoon-frame"
-                
                 showcased = p.get("featured_badges") or []
                 if not showcased or not isinstance(showcased, list):
                     showcased = p_badges_list[:3]
@@ -2019,7 +1986,7 @@ else:
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                             <div style="display: flex; align-items: center; gap: 12px;">
                                 <span style="font-family: 'Bebas Neue'; font-size: 26px; color: #fbbf24; width: 45px;">{rank_display}</span>
-                                <div class="{p_frame_class}" style="border: 3px {p_border} {t_info['color']}; border-radius: 8px; padding: 2px 6px; background: {p_bg_col};">
+                                <div style="border: 3px {p_border} {t_info['color']}; border-radius: 8px; padding: 2px 6px; background: {p_bg_col};">
                                     <span style="font-size: 24px;">{av}</span>
                                 </div>
                                 <img src="{t_info['logo']}" style="width: 32px; height: 32px;" />
