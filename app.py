@@ -47,13 +47,13 @@ def get_cached_all_weekly_questions_meta():
     res = supabase.table("weekly_questions").select("week_number, question_number, winning_answer").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).execute()
     return res.data if res.data else []
 
-# --- ROBUST TOKEN RECALCULATOR (NET BASELINE FIXED) ---
+# --- ROBUST TOKEN RECALCULATOR (WITH DEBUG CONSOLE LOGGING) ---
 def recalculate_all_user_balances(supabase_client):
     """
-    Recalculates every user's total token balance from scratch.
-    Ensures negative net changes (losses) are fully subtracted from the 10 token baseline.
+    Recalculates every user's total token balance from scratch with debug printing
+    to trace exact net changes and fix stuck balances.
     """
-    all_users = supabase_client.table("profiles").select("id, tokens").execute().data
+    all_users = supabase_client.table("profiles").select("id, full_name, tokens").execute().data
     if not all_users:
         return
 
@@ -68,11 +68,10 @@ def recalculate_all_user_balances(supabase_client):
     all_questions = supabase_client.table("weekly_questions").select("id, week_number, winning_answer").execute().data
     all_tds = supabase_client.table("touchdown_picks").select("*").execute().data
     
-    # Map questions: question_id -> winning_answer (stripped and standardized)
     q_map = {q["id"]: str(q.get("winning_answer", "")).strip() for q in all_questions}
     
-    # Calculate net change per user across all closed weeks
     user_net_changes = {u["id"]: 0 for u in all_users}
+    user_name_map = {u["id"]: u["full_name"] for u in all_users}
     
     for b in all_bets:
         w_num = b.get("week_number")
@@ -81,14 +80,13 @@ def recalculate_all_user_balances(supabase_client):
             q_id = b.get("question_id")
             wager = int(b.get("wager_amount", 0))
             pick = str(b.get("pick", "")).strip().lower()
-            
             w_ans = q_map.get(q_id, "").lower()
             
             if uid in user_net_changes and w_ans in ["yes", "no"]:
                 if pick == w_ans:
-                    user_net_changes[uid] += wager  # Win adds tokens
+                    user_net_changes[uid] += wager
                 else:
-                    user_net_changes[uid] -= wager  # Loss strictly subtracts tokens
+                    user_net_changes[uid] -= wager
                     
     for td in all_tds:
         w_num = td.get("week_number")
@@ -96,11 +94,12 @@ def recalculate_all_user_balances(supabase_client):
             uid = td["user_id"]
             is_c = td.get("is_correct")
             if uid in user_net_changes and str(is_c).lower() == "true":
-                user_net_changes[uid] += 5  # Touchdown bonus adds tokens
+                user_net_changes[uid] += 5
                 
-    # Baseline is 10 tokens per user + their cumulative net change across all weeks
+    # Push final computed balances back and print to console for debugging
     for uid, net_change in user_net_changes.items():
         final_balance = max(0, 10 + net_change)
+        print(f"DEBUG RECALC -> User: {user_name_map.get(uid)} | Net Change: {net_change} | Final Token Balance: {final_balance}")
         supabase_client.table("profiles").update({"tokens": final_balance}).eq("id", uid).execute()
 
 @st.cache_data
