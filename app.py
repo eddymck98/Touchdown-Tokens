@@ -1692,7 +1692,7 @@ else:
 
         graded_weeks_list = sorted(list(graded_weeks_set))
 
-        # --- TOUCHDOWN SCORER PICK HISTORY (MOVED ABOVE RIVAL SECTION) ---
+        # --- TOUCHDOWN SCORER PICK HISTORY ---
         st.subheader("🏈 Touchdown Scorer Pick History")
         st.caption("Review your bonus touchdown scorer pick outcomes week by week.")
         
@@ -1722,7 +1722,71 @@ else:
 
         st.divider()
 
-        # --- SIDE-BY-SIDE COMPARISON (CLEAN CARD UI) ---
+        # --- DETAILED QUESTION BET HISTORY WITH WEEK DROPDOWN ---
+        st.subheader("📋 Detailed Question Bet History")
+        
+        history_bets = supabase.table("user_bets").select("*, weekly_questions(week_number, question_number, question_text, winning_answer)").eq("user_id", user_id).execute().data
+        
+        if not history_bets:
+            st.info("You haven't placed any question bets yet.")
+        else:
+            user_history_weeks = sorted(list(set([b["week_number"] for b in history_bets])))
+            
+            selected_history_week = st.selectbox(
+                "Filter History by Week", 
+                user_history_weeks, 
+                index=len(user_history_weeks)-1, 
+                key="history_week_dropdown_filter"
+            )
+            
+            st.write("")
+            
+            filtered_history_bets = [b for b in history_bets if b["week_number"] == selected_history_week]
+            
+            if not filtered_history_bets:
+                st.info(f"No bets found for Week {selected_history_week}.")
+            else:
+                formatted_data = []
+                for b in filtered_history_bets:
+                    q_info = b.get("weekly_questions", {})
+                    w_ans = q_info.get("winning_answer", "Pending")
+                    raw_q_text = q_info.get("question_text", "N/A")
+                    clean_q_prompt = raw_q_text.split(" | MATCHUP: ")[0] if " | MATCHUP: " in raw_q_text else raw_q_text
+                    q_num = q_info.get("question_number", "?")
+                    
+                    if w_ans in ["Pending", "LOCKED"] or w_ans.startswith("LOCKTIME:"):
+                        outcome = "⏳ Pending"
+                    elif b["pick"] == w_ans:
+                        outcome = f"✅ Won (+{b['wager_amount'] * 2} 🪙)"
+                    else:
+                        outcome = f"❌ Lost (-{b['wager_amount']} 🪙)"
+                            
+                    formatted_data.append({
+                        "Q#": f"Q{q_num}",
+                        "Question": clean_q_prompt,
+                        "Your Pick": b["pick"],
+                        "Wager": f"{b['wager_amount']} 🪙",
+                        "Winner": w_ans if not w_ans.startswith("LOCKTIME:") and w_ans not in ["Pending", "LOCKED"] else "Pending",
+                        "Outcome": outcome
+                    })
+                
+                st.dataframe(
+                    pd.DataFrame(formatted_data), 
+                    use_container_width=True, 
+                    hide_index=True,
+                    column_config={
+                        "Q#": st.column_config.TextColumn("Q#", width="small"),
+                        "Question": st.column_config.TextColumn("Question", width="large"),
+                        "Your Pick": st.column_config.TextColumn("Your Pick", width="small"),
+                        "Wager": st.column_config.TextColumn("Wager", width="small"),
+                        "Winner": st.column_config.TextColumn("Winner", width="small"),
+                        "Outcome": st.column_config.TextColumn("Outcome", width="medium"),
+                    }
+                )
+
+        st.divider()
+
+        # --- SIDE-BY-SIDE COMPARISON (CLEAN CARD UI - MOVED TO THE BOTTOM) ---
         with st.expander("⚔️ Side-by-Side History Comparison vs. Rival", expanded=False):
             st.caption("Compare your graded week bets side by side against any league member in a clean head-to-head match card format!")
             
@@ -1824,70 +1888,6 @@ else:
                     st.info("You did not place any bets for this selected comparison week.")
             else:
                 st.info("Side-by-side historical comparison will unlock here automatically once at least one week has been fully graded by the Admin and other players have participated!")
-
-        st.divider()
-
-        # --- DETAILED QUESTION BET HISTORY WITH WEEK DROPDOWN ---
-        st.subheader("📋 Detailed Question Bet History")
-        
-        history_bets = supabase.table("user_bets").select("*, weekly_questions(week_number, question_number, question_text, winning_answer)").eq("user_id", user_id).execute().data
-        
-        if not history_bets:
-            st.info("You haven't placed any question bets yet.")
-        else:
-            user_history_weeks = sorted(list(set([b["week_number"] for b in history_bets])))
-            
-            selected_history_week = st.selectbox(
-                "Filter History by Week", 
-                user_history_weeks, 
-                index=len(user_history_weeks)-1, 
-                key="history_week_dropdown_filter"
-            )
-            
-            st.write("")
-            
-            filtered_history_bets = [b for b in history_bets if b["week_number"] == selected_history_week]
-            
-            if not filtered_history_bets:
-                st.info(f"No bets found for Week {selected_history_week}.")
-            else:
-                formatted_data = []
-                for b in filtered_history_bets:
-                    q_info = b.get("weekly_questions", {})
-                    w_ans = q_info.get("winning_answer", "Pending")
-                    raw_q_text = q_info.get("question_text", "N/A")
-                    clean_q_prompt = raw_q_text.split(" | MATCHUP: ")[0] if " | MATCHUP: " in raw_q_text else raw_q_text
-                    q_num = q_info.get("question_number", "?")
-                    
-                    if w_ans in ["Pending", "LOCKED"] or w_ans.startswith("LOCKTIME:"):
-                        outcome = "⏳ Pending"
-                    elif b["pick"] == w_ans:
-                        outcome = f"✅ Won (+{b['wager_amount'] * 2} 🪙)"
-                    else:
-                        outcome = f"❌ Lost (-{b['wager_amount']} 🪙)"
-                            
-                    formatted_data.append({
-                        "Q#": f"Q{q_num}",
-                        "Question": clean_q_prompt,
-                        "Your Pick": b["pick"],
-                        "Wager": f"{b['wager_amount']} 🪙",
-                        "Winner": w_ans if not w_ans.startswith("LOCKTIME:") and w_ans not in ["Pending", "LOCKED"] else "Pending",
-                        "Outcome": outcome
-                    })
-                
-                st.dataframe(
-                    pd.DataFrame(formatted_data), 
-                    use_container_width=True, 
-                    hide_index=True,
-                    column_config={
-                        "Q#": st.column_config.TextColumn("Q#", width="small"),
-                        "Question": st.column_config.TextColumn("Question", width="large"),
-                        "Your Pick": st.column_config.TextColumn("Your Pick", width="small"),
-                        "Wager": st.column_config.TextColumn("Wager", width="small"),
-                        "Winner": st.column_config.TextColumn("Winner", width="small"),
-                        "Outcome": st.column_config.TextColumn("Outcome", width="medium"),
-                    }
-                )
 
     # ------------------------------------------
     # TAB 5: LEADERBOARD & HALL OF FAME
