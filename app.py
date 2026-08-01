@@ -96,7 +96,7 @@ def recalculate_all_user_balances(supabase_client):
             if uid in user_net_changes and str(is_c).lower() == "true":
                 user_net_changes[uid] += 5
                 
-    # Push final computed balances back and display right in the UI for debugging
+    # Push final computed balances back for EVERY user unconditionally
     for uid, net_change in user_net_changes.items():
         final_balance = max(0, 10 + net_change)
         st.warning(f"DEBUG RECALC -> User: {user_name_map.get(uid)} | Net Change: {net_change} | Final Token Balance: {final_balance}")
