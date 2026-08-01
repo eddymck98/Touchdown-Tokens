@@ -2307,31 +2307,45 @@ else:
                         
                         st.markdown("---")
                         st.markdown("#### 🏈 Touchdown Scorer Correct Picks")
-                        st.caption("Check the box next to any player who successfully scored a TD (+5 bonus tokens).")
+                        st.caption("Select whether each player's Touchdown Scorer pick was correct (+5 bonus tokens) or incorrect.")
                         
                         td_picks_data = supabase.table("touchdown_picks").select("*").eq("week_number", grade_week).execute().data
                         all_profiles = get_cached_profiles()
                         profile_dict = {p["id"]: p["full_name"] for p in all_profiles}
                         
                         td_winners = []
+                        td_grading_results = {}
                         if not td_picks_data:
                             st.info("No Touchdown picks submitted for this week.")
                         else:
                             for td in td_picks_data:
                                 player_user_name = profile_dict.get(td["user_id"], "Unknown Player")
                                 current_is_correct = td.get("is_correct")
-                                default_checkbox_val = bool(current_is_correct) if current_is_correct is not None else False
                                 
-                                is_winner = st.checkbox(
-                                    f"**{player_user_name}** picked: *{td['player_name']}*", 
-                                    value=default_checkbox_val,
-                                    key=f"td_check_{td['id']}"
-                                )
-                                if is_winner:
-                                    td_winners.append(td["user_id"])
-                                    supabase.table("touchdown_picks").update({"is_correct": True}).eq("id", td["id"]).execute()
+                                if current_is_correct is True:
+                                    default_choice = "Correct (+5 🪙)"
+                                elif current_is_correct is False:
+                                    default_choice = "Incorrect (Miss)"
                                 else:
-                                    supabase.table("touchdown_picks").update({"is_correct": False}).eq("id", td["id"]).execute()
+                                    default_choice = "Pending"
+                                    
+                                col_p_name, col_p_sel = st.columns([2, 1])
+                                with col_p_name:
+                                    st.markdown(f"**{player_user_name}**<br>Picked: *{td['player_name']}*", unsafe_allow_html=True)
+                                with col_p_sel:
+                                    grade_choice = st.selectbox(
+                                        f"Grade {player_user_name}",
+                                        ["Pending", "Correct (+5 🪙)", "Incorrect (Miss)"],
+                                        index=["Pending", "Correct (+5 🪙)", "Incorrect (Miss)"].index(default_choice),
+                                        key=f"td_grade_{td['id']}",
+                                        label_visibility="collapsed"
+                                    )
+                                
+                                td_grading_results[td["id"]] = grade_choice
+                                if grade_choice == "Correct (+5 🪙)":
+                                    td_winners.append(td["user_id"])
+                                    
+                            st.divider()
 
                         submit_grade_btn = st.form_submit_button("Calculate & Process Payouts 🏆", type="primary")
 
@@ -2341,6 +2355,14 @@ else:
                             else:
                                 for q_id, ans in answers.items():
                                     supabase.table("weekly_questions").update({"winning_answer": ans}).eq("id", q_id).execute()
+                                
+                                for td_id, choice in td_grading_results.items():
+                                    if choice == "Correct (+5 🪙)":
+                                        supabase.table("touchdown_picks").update({"is_correct": True}).eq("id", td_id).execute()
+                                    elif choice == "Incorrect (Miss)":
+                                        supabase.table("touchdown_picks").update({"is_correct": False}).eq("id", td_id).execute()
+                                    else:
+                                        supabase.table("touchdown_picks").update({"is_correct": None}).eq("id", td_id).execute()
                                 
                                 week_bets = supabase.table("user_bets").select("*").eq("week_number", grade_week).execute().data
                                 
