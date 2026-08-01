@@ -47,30 +47,43 @@ def get_cached_all_weekly_questions_meta():
     res = supabase.table("weekly_questions").select("week_number, question_number, winning_answer").neq("week_number", 999).neq("week_number", 998).neq("week_number", 997).neq("week_number", 96).execute()
     return res.data if res.data else []
 
-# --- FIXED ROBUST TOKEN RECALCULATOR ---
+# --- ROBUST TOKEN RECALCULATOR (FIXED JOIN-INDEPENDENT LOGIC) ---
 def recalculate_all_user_balances(supabase_client):
     """
     Completely recalculates every user's total token balance from scratch.
-    Guarantees accurate math ($10 + wins - losses + bonuses$) by processing each closed week cleanly.
+    Safely handles table joins and ensures strict net addition/subtraction.
     """
     all_users = supabase_client.table("profiles").select("id").execute().data
-    closed_week_rows = supabase_client.table("weekly_questions").select("week_number").eq("question_number", 96).eq("winning_answer", "CLOSED").execute().data
-    closed_weeks = [r["week_number"] for r in closed_week_rows]
-    
+    if not all_users:
+        return
+
     # Start everyone at the base 10 tokens
     user_balances = {u["id"]: 10 for u in all_users}
     
-    # Fetch all bets and join with question winning answers
-    all_bets = supabase_client.table("user_bets").select("*, weekly_questions(winning_answer)").execute().data
+    # Fetch all closed weeks
+    closed_week_rows = supabase_client.table("weekly_questions").select("week_number").eq("question_number", 96).eq("winning_answer", "CLOSED").execute().data
+    closed_weeks = [r["week_number"] for r in closed_week_rows]
+    
+    if not closed_weeks:
+        return
+
+    # Fetch bets, questions, and touchdown picks separately to avoid broken Supabase foreign-key joins
+    all_bets = supabase_client.table("user_bets").select("*").execute().data
+    all_questions = supabase_client.table("weekly_questions").select("id, week_number, winning_answer").execute().data
     all_tds = supabase_client.table("touchdown_picks").select("*").execute().data
+    
+    # Map questions for fast lookup: question_id -> winning_answer
+    q_map = {q["id"]: q.get("winning_answer") for q in all_questions}
     
     for b in all_bets:
         w_num = b.get("week_number")
         if w_num in closed_weeks:
             uid = b["user_id"]
-            w_ans = b.get("weekly_questions", {}).get("winning_answer")
+            q_id = b.get("question_id")
             wager = b.get("wager_amount", 0)
             pick = b.get("pick")
+            
+            w_ans = q_map.get(q_id)
             
             if uid in user_balances and w_ans in ["Yes", "No"]:
                 if pick == w_ans:
@@ -86,8 +99,10 @@ def recalculate_all_user_balances(supabase_client):
             if uid in user_balances and str(is_c).lower() == "true":
                 user_balances[uid] += 5  # Touchdown bonus
                 
+    # Push final computed balances back to Supabase profiles
     for uid, new_bal in user_balances.items():
-        supabase_client.table("profiles").update({"tokens": max(0, new_bal)}).eq("id", uid).execute()
+        final_val = max(0, new_bal)
+        supabase_client.table("profiles").update({"tokens": final_val}).eq("id", uid).execute()
 
 @st.cache_data
 def get_static_nfl_team_data():
