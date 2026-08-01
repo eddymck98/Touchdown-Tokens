@@ -1677,6 +1677,16 @@ else:
                                             }).execute()
                                         
                                         st.cache_data.clear()
+                                        
+                                        # Force Streamlit to forget the old widget memory so it renders the new values
+                                        for q_item in real_q_items:
+                                            p_key = f"pick_w{selected_week}_{q_item['id']}"
+                                            w_key = f"wager_w{selected_week}_{q_item['id']}"
+                                            if p_key in st.session_state:
+                                                del st.session_state[p_key]
+                                            if w_key in st.session_state:
+                                                del st.session_state[w_key]
+
                                         st.success("🎲 Random bets generated and populated successfully!")
                                         st.rerun()
 
@@ -1786,6 +1796,20 @@ else:
                         if clear_bet and not is_locked:
                             supabase.table("user_bets").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
                             supabase.table("touchdown_picks").delete().eq("user_id", user_id).eq("week_number", selected_week).execute()
+                            
+                            # Wipe the widget memory so the form visually resets to 0
+                            for q in questions:
+                                p_key = f"pick_w{selected_week}_{q['id']}"
+                                w_key = f"wager_w{selected_week}_{q['id']}"
+                                if p_key in st.session_state:
+                                    del st.session_state[p_key]
+                                if w_key in st.session_state:
+                                    del st.session_state[w_key]
+                                    
+                            td_key = f"td_scorer_w{selected_week}"
+                            if td_key in st.session_state:
+                                del st.session_state[td_key]
+                                
                             st.success("Your bet choices for this week have been cleared!")
                             st.rerun()
 
